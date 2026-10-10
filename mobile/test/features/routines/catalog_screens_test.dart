@@ -151,6 +151,51 @@ void main() {
     expect(videoRequests, 1);
   });
 
+  testWidgets('reopened offline, saved routines are still one-tap Bailar', (
+    tester,
+  ) async {
+    final bytes = referenceBytes();
+    final metadata = ReferenceMetadata.fromJson(metadataJson(bytes: bytes));
+    final api = CatalogApi(
+      'http://localhost:8000/api',
+      client: MockClient((_) async => throw http.ClientException('offline')),
+    );
+    addTearDown(api.close);
+    final cache = MemoryCache();
+    await cache.save('Hip hop', metadata, bytes);
+    final videos = MemoryVideos()..saved[1] = [1, 2, 3];
+    final opened = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RoutinesScreen(
+          session: CatalogSession(api)..account = account,
+          cache: cache,
+          videos: videos,
+          sessions: MemorySessionStore(),
+          openGame: (saved, video) {
+            opened.add(saved.name);
+            return const Scaffold(body: Text('Juego abierto'));
+          },
+        ),
+      ),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Rutinas guardadas en este teléfono'), findsOneWidget);
+    expect(find.textContaining('Se muestran las rutinas guardadas'), findsOne);
+    // Nothing to download without a server.
+    expect(find.byTooltip('Descargar referencia'), findsNothing);
+    await tester.runAsync(() async {
+      await tester.tap(find.byTooltip('Bailar'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Juego abierto'), findsOneWidget);
+    expect(opened, ['Hip hop']);
+  });
+
   for (final success in [true, false]) {
     testWidgets('login navigates only after identity succeeds: $success', (
       tester,
@@ -260,11 +305,10 @@ void main() {
       offline = true;
       await tester.tap(find.byTooltip('Actualizar catálogo'));
       await tester.pumpAndSettle();
-      expect(
-        find.textContaining('Puedes consultar las versiones guardadas'),
-        findsOneWidget,
-      );
-      await tester.tap(find.text('Rutina demo').first);
+      // The catalog already loaded stays listed; only the error is shown.
+      expect(find.textContaining('No se pudo conectar'), findsOneWidget);
+      expect(find.text('Catálogo del servidor'), findsOneWidget);
+      await tester.tap(find.textContaining('guardada en este dispositivo'));
       await tester.pumpAndSettle();
       expect(find.textContaining('3 muestras'), findsOneWidget);
       expect(

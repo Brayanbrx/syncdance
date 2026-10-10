@@ -46,6 +46,10 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   late final Account? _account;
   ReferenceCache? _cache;
   List<RoutineItem> _routines = [];
+
+  /// False until the server catalog loads: then the routines saved on this
+  /// phone are listed instead, so dancing offline is still one tap.
+  bool _catalogLoaded = false;
   List<SavedReference> _saved = [];
 
   /// Best game per routine id, from the local history.
@@ -127,12 +131,19 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     try {
       final routines = await _session.authorized(_session.api.routines)
         ..sort(RoutineItem.byLevel);
-      if (mounted) setState(() => _routines = routines);
+      if (mounted) {
+        setState(() {
+          _routines = routines;
+          _catalogLoaded = true;
+        });
+      }
     } catch (error) {
       if (mounted) {
         setState(
-          () => _message =
-              '${_error(error)} Puedes consultar las versiones guardadas.',
+          () => _message = _catalogLoaded
+              ? _error(error)
+              : '${_error(error)} Se muestran las rutinas guardadas en este '
+                    'teléfono.',
         );
       }
     } finally {
@@ -169,6 +180,19 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// One entry per routine saved on this phone, its newest version.
+  List<RoutineItem> get _offlineRoutines {
+    final latest = <int, SavedReference>{};
+    for (final saved in _saved) {
+      final id = saved.reference.metadata.routineId;
+      latest[id] = _latestSaved(id)!;
+    }
+    return [
+      for (final saved in latest.values)
+        RoutineItem(saved.reference.metadata.routineId, saved.name),
+    ]..sort((a, b) => a.name.compareTo(b.name));
   }
 
   SavedReference? _latestSaved(int routineId, {int? version}) {
@@ -315,91 +339,103 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Rutinas'),
-      actions: [
-        if (_account != null)
-          IconButton(
-            tooltip: 'Actualizar catálogo',
-            onPressed: _busy || _cache == null ? null : _refresh,
-            icon: const Icon(Icons.refresh),
-          ),
-      ],
-    ),
-    body: _account == null
-        ? Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Ingresa con tu cuenta para descargar rutinas.'),
-                FilledButton(
-                  onPressed: () => context.go('/login'),
-                  child: const Text('Ingresar'),
-                ),
-              ],
+  Widget build(BuildContext context) {
+    final routines = _catalogLoaded ? _routines : _offlineRoutines;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Rutinas'),
+        actions: [
+          if (_account != null)
+            IconButton(
+              tooltip: 'Actualizar catálogo',
+              onPressed: _busy || _cache == null ? null : _refresh,
+              icon: const Icon(Icons.refresh),
             ),
-          )
-        : ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text('Cuenta: ${_account.username}'),
-              if (_busy) const LinearProgressIndicator(),
-              if (_message != null)
+        ],
+      ),
+      body: _account == null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Ingresa con tu cuenta para descargar rutinas.'),
+                  FilledButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text('Ingresar'),
+                  ),
+                ],
+              ),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text('Cuenta: ${_account.username}'),
+                if (_busy) const LinearProgressIndicator(),
+                if (_message != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(_message!),
+                  ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(_message!),
-                ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('Referencias guardadas'),
-              ),
-              if (_saved.isEmpty)
-                const Text('Todavía no hay referencias guardadas válidas.'),
-              for (final saved in _saved)
-                ListTile(
-                  title: Text(saved.name),
-                  subtitle: Text(
-                    'Versión ${saved.reference.metadata.version} · guardada en este dispositivo',
-                  ),
-                  onTap: () => _show(saved),
-                  trailing: IconButton(
-                    tooltip: 'Eliminar versión guardada',
-                    onPressed: _busy ? null : () => _remove(saved),
-                    icon: const Icon(Icons.delete_outline),
+                  child: Text(
+                    _catalogLoaded
+                        ? 'Catálogo del servidor'
+                        : 'Rutinas guardadas en este teléfono',
                   ),
                 ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('Catálogo del servidor'),
-              ),
-              if (_routines.isEmpty && !_busy)
-                const Text('No hay rutinas cargadas del servidor.'),
-              for (final routine in _routines)
-                ListTile(
-                  title: Text(routine.name),
-                  subtitle: _subtitle(routine),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: 'Bailar',
-                        onPressed: _busy || _cache == null
-                            ? null
-                            : () => _dance(routine),
-                        icon: const Icon(Icons.play_circle_fill),
-                      ),
-                      IconButton(
-                        tooltip: 'Descargar referencia',
-                        onPressed: _busy || _cache == null
-                            ? null
-                            : () => _download(routine),
-                        icon: const Icon(Icons.download_outlined),
-                      ),
-                    ],
+                if (routines.isEmpty && !_busy)
+                  Text(
+                    _catalogLoaded
+                        ? 'No hay rutinas en el servidor.'
+                        : 'No hay rutinas cargadas del servidor.',
                   ),
+                for (final routine in routines)
+                  ListTile(
+                    title: Text(routine.name),
+                    subtitle: _subtitle(routine),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Bailar',
+                          onPressed: _busy || _cache == null
+                              ? null
+                              : () => _dance(routine),
+                          icon: const Icon(Icons.play_circle_fill),
+                        ),
+                        if (_catalogLoaded)
+                          IconButton(
+                            tooltip: 'Descargar referencia',
+                            onPressed: _busy || _cache == null
+                                ? null
+                                : () => _download(routine),
+                            icon: const Icon(Icons.download_outlined),
+                          ),
+                      ],
+                    ),
+                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('Referencias guardadas'),
                 ),
-            ],
-          ),
-  );
+                if (_saved.isEmpty)
+                  const Text('Todavía no hay referencias guardadas válidas.'),
+                for (final saved in _saved)
+                  ListTile(
+                    title: Text(saved.name),
+                    subtitle: Text(
+                      'Versión ${saved.reference.metadata.version} · guardada en este dispositivo',
+                    ),
+                    onTap: () => _show(saved),
+                    trailing: IconButton(
+                      tooltip: 'Eliminar versión guardada',
+                      onPressed: _busy ? null : () => _remove(saved),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
 }
