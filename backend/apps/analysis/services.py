@@ -10,10 +10,10 @@ def complete_analysis(*, performance: Performance) -> Analysis:
         performance=performance,
         defaults={
             "dance_score": Decimal("85.00"),
-            "voice_score": Decimal("82.00"),
+            "voice_score": None,
             "rhythm_score": Decimal("84.00"),
             "sync_score": Decimal("80.00"),
-            "overall_score": Decimal("82.75"),
+            "overall_score": Decimal("83.00"),
         },
     )
     performance.status = Performance.Status.COMPLETED

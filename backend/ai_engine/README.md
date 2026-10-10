@@ -1,12 +1,18 @@
-# AI Engine
+# Motor offline
 
-Este modulo sera el nucleo de la inteligencia artificial y analisis tecnico
+Paquete de preprocesamiento de referencias y futuro análisis profundo
+posterior. El loop live y su scoring se ejecutan en Flutter.
 
-Este paquete reserva el límite del futuro motor de análisis para mantenerse independiente de Django.
+- `pose/`: extracción de landmarks de videos maestros/offline.
+- `features/`: normalización y características canónicas de referencia.
+- `alignment/`: alineamiento temporal y DTW offline.
+- `scoring/`: análisis determinista posterior.
+- `voice/`: reservado para una fase posterior.
 
-- `pose/`: MediaPipe, normalización de landmarks, ángulos y comparación de poses. Estimacion de Postura.
-- `voice/`: extracción de pitch, afinación y ritmo vocal.
-- `alignment/`: sincronización temporal y Dynamic Time Warping. Alinear alumno e instructor
-- `scoring/`: Dance, Voice, Rhythm, Sync y Overall Score.
+Las funciones matemáticas no importan modelos Django. `features/body.py` replica
+la normalización y seis ángulos de Flutter; `pose/reference.py` procesa video con
+FFmpeg/OpenCV/MediaPipe y genera `motion-features-v1` comprimido, con procedencia.
+Ver [pipeline y pruebas](../apps/routines/README.md).
 
-La tarea Celery usa resultados fijos únicamente para validar el flujo de infraestructura.
+La tarea heredada de `performances` devuelve valores fijos únicamente
+como prueba del flujo Celery; no sirve para evaluar movimiento real.

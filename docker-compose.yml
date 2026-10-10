@@ -68,6 +68,7 @@ services:
         condition: service_healthy
 
   frontend:
+    profiles: ["web"]
     build: ./frontend
     restart: unless-stopped
     command: npm start -- --host 0.0.0.0 --proxy-config proxy.conf.json

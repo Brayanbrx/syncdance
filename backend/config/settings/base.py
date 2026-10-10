@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     # Modulos internos
     "apps.accounts",
     "apps.routines",
+    "apps.training",
     "apps.performances",
     "apps.analysis",
 ]
@@ -44,7 +45,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
-# Esto no es muy necesario ya que Angular cubrira la parte visual
+# Django Admin is the administration UI during the mobile MVP.
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -105,8 +106,14 @@ REST_FRAMEWORK = {
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "SyncDance AI API",
-    "DESCRIPTION": "API base para evaluación de performances.",
-    "VERSION": "0.1.0",
+    "DESCRIPTION": (
+        "Entrenamiento móvil live-first: catálogo, referencias versionadas y sesiones. "
+        "Pose y scoring se ejecutan en el dispositivo. Performances es el flujo offline heredado."
+    ),
+    "VERSION": "0.2.0",
+    "ENUM_NAME_OVERRIDES": {
+        "BodySegmentEnum": "apps.training.models.SegmentScore.Segment",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:4200")
@@ -114,3 +121,6 @@ CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
+POSE_MODEL_PATH = os.getenv(
+    "POSE_MODEL_PATH", str(BASE_DIR / "models" / "pose_landmarker_lite.task")
+)

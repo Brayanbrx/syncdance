@@ -7,11 +7,13 @@ from rest_framework.routers import DefaultRouter
 
 from apps.performances.views import PerformanceViewSet
 from apps.routines.views import RoutineViewSet
+from apps.training.views import DanceSessionViewSet
 from common.views import health_check
 
 router = DefaultRouter()
 router.register("routines", RoutineViewSet, basename="routine")
 router.register("performances", PerformanceViewSet, basename="performance")
+router.register("training/sessions", DanceSessionViewSet, basename="session")
 
 
 urlpatterns = [
