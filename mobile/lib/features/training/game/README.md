@@ -15,8 +15,9 @@ Rutinas → referencia guardada → Abrir maestro (con video descargado) →
    maestro, **pictogramas** de los tres movimientos siguientes (el inminente en
    ámbar); se ven también durante la colocación para anticipar el primero.
 4. **Resultados:** estrellas, puntos, conteo por calificación, combo máximo,
-   porcentaje de la canción en que se te vio y movimientos para practicar.
-   **Bailar otra vez** reinicia sin salir.
+   porcentaje de la canción en que se te vio y movimientos para practicar,
+   cada uno con **Practicar** (ver abajo). **Bailar otra vez** reinicia sin
+   salir.
 
 Volver atrás durante la canción o salir de la app termina la partida y la
 guarda; no hay forma manos libres de reanudar.
@@ -61,6 +62,22 @@ pictograma. Se dibujan como el maestro en el video, nunca reflejados: en modo
 espejo el alumno los sigue igual que al entrenador. Un movimiento sale de la
 tira en cuanto empieza.
 
+## Practicar un movimiento (`move_drill_screen.dart`)
+
+Modo aprender sobre un solo movimiento, como el ensayo de un juego de baile:
+
+- El maestro repite en bucle el movimiento con **una longitud de movimiento
+  de carrerilla** antes, a **0,5×** por defecto (0,75× y 1× a un toque; cambiar
+  la velocidad reinicia la pasada).
+- Arranca manos libres igual que el juego: colocación y cuenta 3-2-1.
+- Cada pasada usa una sesión nueva (`LivePractice.rebind`) y se califica con
+  `DanceGame.rate`, las mismas reglas del juego: PERFECT…MISS o sin medir si no
+  se te vio. El bucle vuelve 400 ms después del final del movimiento para
+  esperar la inferencia tardía; el último movimiento de la canción vuelve al
+  terminar el video.
+- Muestra el pictograma del movimiento, las últimas pasadas y la mejor.
+- Es un ensayo: **no se guarda en el historial** ni cuenta para el progreso.
+
 ## Persistencia
 
 La partida se guarda como una práctica más (`local-session-v2`) con un bloque
@@ -79,6 +96,9 @@ texto, así que el resumen no cuenta avisos que nunca se mostraron.
 
 `dance_game_test.dart`: movimientos, umbrales, combo, sin medir, cierre
 diferido, estrellas, movimientos a practicar y JSON del resultado.
+`move_drill_screen_test.dart`: bucle con carrerilla a 0,5×, una calificación
+por pasada sin mezclar pasadas, sin medir fuera de encuadre, cambio de
+velocidad, último movimiento de la canción y apertura desde los resultados.
 `move_pictogram_test.dart`: pose clave con y sin rejilla, sin pictograma
 cuando el maestro no es dibujable, y tira de próximos movimientos.
 `dance_game_screen_test.dart` (cámara, estimador y reproductor simulados):

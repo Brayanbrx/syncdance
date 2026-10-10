@@ -154,6 +154,10 @@ Rutinas → maestro → **Bailar (modo juego)**, con «Seguir como espejo» acti
    textos se leen bien a 2–3 m.
 5. Pictogramas: a 2–3 m, ¿se distingue la pose del siguiente movimiento antes
    de que llegue? Anotar si hace falta más tamaño o más anticipación.
+6. En los resultados, **Practicar** un movimiento débil: el maestro repite ese
+   tramo a 0,5× con carrerilla. Hacer varias pasadas (bien, mal, fuera de
+   encuadre) y anotar si las calificaciones por pasada coinciden con lo bailado
+   y si la carrerilla alcanza para entrar a tiempo.
 
 ## Después de validar
 

@@ -20,6 +20,8 @@ import '../pose/pose_estimator.dart';
 import '../pose/pose_frame.dart';
 import '../pose/pose_measurements.dart';
 import 'camera_training_screen.dart';
+import 'game_widgets.dart';
+import 'move_drill_screen.dart';
 import 'move_pictogram.dart';
 
 enum _Phase { positioning, countdown, playing, finished }
@@ -39,6 +41,7 @@ class DanceGameScreen extends StatefulWidget {
     this.capture,
     this.createPoseEstimator,
     this.nowMs,
+    this.openDrill,
     super.key,
   });
 
@@ -54,6 +57,10 @@ class DanceGameScreen extends StatefulWidget {
   final CameraCapture? capture;
   final PoseEstimator Function(CameraCapture)? createPoseEstimator;
   final int Function()? nowMs;
+
+  /// Defaults to [MoveDrillScreen]; injectable for tests, whose single fake
+  /// camera does not survive the game screen.
+  final Widget Function(DanceMove move)? openDrill;
 
   static const countdownSeconds = 3;
 
@@ -277,6 +284,28 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     }
   }
 
+  /// Learn mode on one move: looped, slower, rated every pass.
+  Future<void> _drill(DanceMove move) async {
+    await _player?.pause();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            widget.openDrill?.call(move) ??
+            MoveDrillScreen(
+              saved: widget.saved,
+              videoFile: widget.videoFile,
+              move: move,
+              followMode: widget.followMode,
+              createController: widget.createController,
+              capture: widget.capture,
+              createPoseEstimator: widget.createPoseEstimator,
+              nowMs: widget.nowMs,
+            ),
+      ),
+    );
+  }
+
   Future<void> _again() async {
     await _player?.pause();
     await _player?.seekTo(Duration.zero);
@@ -335,6 +364,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                   coverage: _session!.evaluatedMs / _durationMs,
                   saveMessage: _saveMessage,
                   onAgain: _again,
+                  onPractice: _drill,
                   onExit: () => Navigator.of(context).maybePop(),
                 )
               : Column(
@@ -367,7 +397,12 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                           else
                             const CircularProgressIndicator(),
                           if (_phase == _Phase.positioning)
-                            _Banner(text: _guidance()),
+                            GameBanner(
+                              text: positioningGuidance(
+                                _measurements,
+                                _poseError,
+                              ),
+                            ),
                           if (_phase == _Phase.countdown)
                             Text(
                               '$_countdown',
@@ -381,14 +416,14 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                               _measurements?.canMeasure != true)
                             const Align(
                               alignment: Alignment.bottomCenter,
-                              child: _Banner(
+                              child: GameBanner(
                                 text: 'Vuelve al encuadre: cuerpo completo',
                               ),
                             ),
                           if (_lastRated != null)
                             Align(
                               alignment: const Alignment(0, -0.6),
-                              child: _RatingLabel(move: _lastRated!),
+                              child: RatingLabel(move: _lastRated!),
                             ),
                         ],
                       ),
@@ -420,26 +455,6 @@ class _DanceGameScreenState extends State<DanceGameScreen>
         ),
       ),
     );
-  }
-
-  String _guidance() {
-    if (_poseError != null) return _poseError!;
-    final measurements = _measurements;
-    if (measurements == null) {
-      return 'Apoya el teléfono vertical a la altura de la cadera y aléjate '
-          '2–3 m hasta verte de cuerpo entero. El baile empieza solo.';
-    }
-    return switch (measurements.quality) {
-      PoseQuality.noPerson => 'Colócate frente a la cámara.',
-      PoseQuality.bodyNotVisible =>
-        'Que se vean cabeza, brazos y piernas completos.',
-      PoseQuality.lowConfidence => 'Necesitas más luz.',
-      PoseQuality.tooClose => 'Aléjate un poco.',
-      PoseQuality.tooFar => 'Acércate un poco.',
-      PoseQuality.ready =>
-        'Quieto un momento… '
-            '${(measurements.calibrationProgress * 100).round()} %',
-    };
   }
 }
 
@@ -487,70 +502,20 @@ class _Hud extends StatelessWidget {
   );
 }
 
-class _Banner extends StatelessWidget {
-  const _Banner({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.all(16),
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.black.withValues(alpha: 0.7),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Text(
-      text,
-      textAlign: TextAlign.center,
-      style: const TextStyle(color: Colors.white, fontSize: 18),
-    ),
-  );
-}
-
-Color ratingColor(MoveRating? rating) => switch (rating) {
-  MoveRating.perfect => Colors.amber,
-  MoveRating.great => Colors.lightGreenAccent,
-  MoveRating.good => Colors.lightBlueAccent,
-  MoveRating.miss => Colors.redAccent,
-  null => Colors.white70,
-};
-
-class _RatingLabel extends StatelessWidget {
-  const _RatingLabel({required this.move});
-  final RatedMove move;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    liveRegion: true,
-    child: Text(
-      move.rating?.label ?? 'SIN MEDIR',
-      style: TextStyle(
-        color: ratingColor(move.rating),
-        fontSize: move.rating == null ? 28 : 48,
-        fontWeight: FontWeight.w900,
-        shadows: const [Shadow(blurRadius: 8)],
-      ),
-    ),
-  );
-}
-
 class _Results extends StatelessWidget {
   const _Results({
     required this.result,
     required this.coverage,
     required this.saveMessage,
     required this.onAgain,
+    required this.onPractice,
     required this.onExit,
   });
   final DanceGameResult result;
   final double coverage;
   final String? saveMessage;
   final VoidCallback onAgain, onExit;
-
-  String _time(int ms) {
-    final seconds = ms ~/ 1000;
-    return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
-  }
+  final void Function(DanceMove move) onPractice;
 
   @override
   Widget build(BuildContext context) {
@@ -597,10 +562,21 @@ class _Results extends StatelessWidget {
           if (practice.isNotEmpty) ...[
             const Text('Movimientos para practicar', style: white),
             for (final move in practice)
-              Text(
-                '${_time(move.move.startMs)}–${_time(move.move.endMs)} · '
-                '${move.rating!.label} (${move.score!.toStringAsFixed(0)})',
-                style: white.copyWith(color: Colors.white70),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${clockTime(move.move.startMs)}–${clockTime(move.move.endMs)} · '
+                      '${move.rating!.label} (${move.score!.toStringAsFixed(0)})',
+                      style: white.copyWith(color: Colors.white70),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => onPractice(move.move),
+                    icon: const Icon(Icons.repeat),
+                    label: const Text('Practicar'),
+                  ),
+                ],
               ),
           ],
           const SizedBox(height: 8),

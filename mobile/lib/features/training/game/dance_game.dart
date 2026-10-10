@@ -173,25 +173,30 @@ class DanceGame {
     );
   }
 
-  RatedMove _rate(DanceMove move) {
+  /// Rates one move from the comparisons [session] recorded inside it. Also
+  /// used by the move drill, one session per pass.
+  static RatedMove rate(SessionAccumulator session, DanceMove move) {
     final matches = session.matchesIn(move.startMs, move.endMs);
     final bins = ((move.endMs - move.startMs) / SessionAccumulator.binMs)
         .ceil();
     final evidence = matches.length / bins;
     if (matches.isEmpty || evidence < minEvidence) {
-      // Not measurable: no points, and the combo is neither kept nor broken.
-      final unrated = RatedMove(move, null, null, evidence);
-      _rated.add(unrated);
-      return unrated;
+      return RatedMove(move, null, null, evidence);
     }
     final score =
         matches.fold<double>(0, (sum, m) => sum + m.score) / matches.length;
-    final rating = ratingFor(score);
+    return RatedMove(move, ratingFor(score), score, evidence);
+  }
+
+  RatedMove _rate(DanceMove move) {
+    final result = rate(session, move);
+    _rated.add(result);
+    final rating = result.rating;
+    // Not measurable: no points, and the combo is neither kept nor broken.
+    if (rating == null) return result;
     _points += rating.points;
     _combo = rating == MoveRating.miss ? 0 : _combo + 1;
     _maxCombo = math.max(_maxCombo, _combo);
-    final result = RatedMove(move, rating, score, evidence);
-    _rated.add(result);
     return result;
   }
 }

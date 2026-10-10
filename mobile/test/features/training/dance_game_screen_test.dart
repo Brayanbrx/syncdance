@@ -12,6 +12,7 @@ import 'package:syncdance_mobile/features/training/game/dance_game.dart';
 import 'package:syncdance_mobile/features/training/pose/body_features.dart';
 import 'package:syncdance_mobile/features/training/pose/pose_frame.dart';
 import 'package:syncdance_mobile/features/training/presentation/dance_game_screen.dart';
+import 'package:syncdance_mobile/features/training/presentation/move_drill_screen.dart';
 import 'package:syncdance_mobile/features/training/presentation/move_pictogram.dart';
 
 import '../routines/reference_test_samples.dart';
@@ -39,7 +40,59 @@ class GameHarness {
   var cameraMs = 0;
   var synced = 0;
 
-  Future<void> mount() async {
+  late final MotionReference reference = _reference();
+
+  MotionReference _reference() {
+    final features = const BodyFeatureExtractor().extract(pose);
+    final normalized = features.pose!.points.map(
+      (joint, point) => MapEntry(joint, (x: point.x, y: point.y)),
+    );
+    return MotionReference(
+      ReferenceMetadata.fromJson({...metadataJson(), 'duration_ms': 3000}),
+      [
+        for (var i = 0; i < 36; i++)
+          MotionSample(
+            (i * 1000 / 12).round(),
+            features.angles,
+            'SINGLE_PERSON',
+            normalized: normalized,
+          ),
+      ],
+      1,
+    );
+  }
+
+  Future<void> mount({Widget Function(DanceMove move)? openDrill}) => _pump(
+    () => DanceGameScreen(
+      saved: SavedReference('Guerrero II', reference),
+      videoFile: File('master.mp4'),
+      storeScope: 'test',
+      followMode: FollowMode.sameSide,
+      sessionStore: store,
+      onSessionSaved: () async => synced++,
+      createController: (_) => player,
+      capture: capture,
+      createPoseEstimator: (_) => estimator,
+      nowMs: () => now,
+      openDrill: openDrill,
+    ),
+  );
+
+  Future<void> mountDrill(DanceMove move) => _pump(
+    () => MoveDrillScreen(
+      saved: SavedReference('Guerrero II', reference),
+      videoFile: File('master.mp4'),
+      move: move,
+      followMode: FollowMode.sameSide,
+      createController: (_) => player,
+      capture: capture,
+      createPoseEstimator: (_) => estimator,
+      nowMs: () => now,
+    ),
+  );
+
+  /// [screen] is built once the fake camera exists.
+  Future<void> _pump(Widget Function() screen) async {
     original = CameraPlatform.instance;
     platform = FakeCameraPlatform();
     CameraPlatform.instance = platform;
@@ -57,44 +110,16 @@ class GameHarness {
       await platform.close();
       CameraPlatform.instance = original;
     });
-    final features = const BodyFeatureExtractor().extract(pose);
-    final normalized = features.pose!.points.map(
-      (joint, point) => MapEntry(joint, (x: point.x, y: point.y)),
-    );
-    final reference = MotionReference(
-      ReferenceMetadata.fromJson({...metadataJson(), 'duration_ms': 3000}),
-      [
-        for (var i = 0; i < 36; i++)
-          MotionSample(
-            (i * 1000 / 12).round(),
-            features.angles,
-            'SINGLE_PERSON',
-            normalized: normalized,
-          ),
-      ],
-      1,
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DanceGameScreen(
-          saved: SavedReference('Guerrero II', reference),
-          videoFile: File('master.mp4'),
-          storeScope: 'test',
-          followMode: FollowMode.sameSide,
-          sessionStore: store,
-          onSessionSaved: () async => synced++,
-          createController: (_) => player,
-          capture: capture,
-          createPoseEstimator: (_) => estimator,
-          nowMs: () => now,
-        ),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(home: screen()));
     await tester.pump();
   }
 
   /// One captured camera frame and its inference result.
-  Future<void> step({bool valid = true, int advanceMs = 0}) async {
+  Future<void> step({
+    bool valid = true,
+    int advanceMs = 0,
+    PoseFrame? as,
+  }) async {
     now = cameraMs;
     capture.inputs.add(
       CameraFrame(
@@ -109,7 +134,7 @@ class GameHarness {
       PoseFrame(
         timestampMs: cameraMs,
         imageAspectRatio: pose.imageAspectRatio,
-        landmarks: valid ? pose.landmarks : [],
+        landmarks: valid ? (as ?? pose).landmarks : [],
         poseConfidence: valid ? 1 : 0,
       ),
     );
@@ -131,11 +156,11 @@ class GameHarness {
     }
   }
 
-  Future<void> playAt(int position, {bool valid = true}) async {
+  Future<void> playAt(int position, {bool valid = true, PoseFrame? as}) async {
     player.value = player.value.copyWith(
       position: Duration(milliseconds: position),
     );
-    await step(valid: valid);
+    await step(valid: valid, as: as);
   }
 
   Future<void> complete() async {
