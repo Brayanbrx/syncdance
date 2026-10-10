@@ -86,8 +86,9 @@ Reemplazar la IP por la del equipo con Django y permitir ese host en
 `DJANGO_ALLOWED_HOSTS`. Android Emulator usa `10.0.2.2`; iOS Simulator puede usar
 `localhost`. La URL del cliente es pública y nunca debe contener secretos.
 
-El login y el catálogo móvil están conectados a Django. Las credenciales se
-mantienen solo en memoria: al reiniciar la aplicación hay que ingresar de nuevo.
+El login y el catálogo móvil están conectados a Django. La sesión persiste en
+almacenamiento seguro (identidad y refresh token, nunca la contraseña): la app
+reabre sin red y renueva el acceso al reconectar.
 `features/training/pose/` contiene `PoseEstimator`, los 33 joints canónicos y
 `PoseFrame`, independientes de cualquier proveedor.
 

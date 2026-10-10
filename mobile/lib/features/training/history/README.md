@@ -28,8 +28,8 @@ Un cierre forzado antes del guardado puede perder la práctica en curso.
 
 El historial lista prácticas recientes con cobertura y permite abrir detalles
 y eliminar un resumen con confirmación. Funciona sin red con la cuenta ya
-autenticada. Los archivos sobreviven al reinicio, pero el login todavía requiere
-red de nuevo. No hay restauración offline de credenciales ni sincronización.
+autenticada. Los archivos sobreviven al reinicio y, desde el paso 2, la sesión
+guardada reabre el historial sin red.
 
 ## Verificación
 

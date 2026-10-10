@@ -74,7 +74,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
       _message = null;
     });
     try {
-      final routines = await _session.api.routines(_account!);
+      final routines = await _session.authorized(_session.api.routines);
       if (mounted) setState(() => _routines = routines);
     } catch (error) {
       if (mounted) {
@@ -98,8 +98,12 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
       _message = null;
     });
     try {
-      final metadata = await _session.api.metadata(_account!, routine.id);
-      final bytes = await _session.api.download(_account, metadata);
+      final metadata = await _session.authorized(
+        (account) => _session.api.metadata(account, routine.id),
+      );
+      final bytes = await _session.authorized(
+        (account) => _session.api.download(account, metadata),
+      );
       await _cache!.save(routine.name, metadata, bytes);
       await _reloadSaved();
       if (mounted) {
@@ -151,6 +155,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                     saved: saved,
                     api: _session.api,
                     account: _account!,
+                    renewAccount: _session.freshAccount,
                     cache: MasterVideoCache(_cache!.directory),
                   ),
                 ),

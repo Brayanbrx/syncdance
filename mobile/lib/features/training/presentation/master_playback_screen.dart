@@ -22,6 +22,7 @@ class MasterPlaybackScreen extends StatefulWidget {
     required this.api,
     required this.account,
     required this.cache,
+    this.renewAccount,
     this.createController,
     this.sessionStore,
     super.key,
@@ -29,6 +30,9 @@ class MasterPlaybackScreen extends StatefulWidget {
   final SavedReference saved;
   final CatalogApi api;
   final Account account;
+
+  /// Returns a valid token before streaming; the stream cannot retry midway.
+  final Future<Account> Function()? renewAccount;
   final MasterVideoCache cache;
   final VideoPlayerController Function(File)? createController;
   final SessionStore? sessionStore;
@@ -83,13 +87,12 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
       if (!mounted) return;
       _hasVideo = file != null;
       if (file == null && download) {
+        final account =
+            await (widget.renewAccount?.call() ?? Future.value(widget.account));
+        if (!mounted) return;
         file = await widget.cache.save(
           _metadata,
-          widget.api.video(
-            widget.account,
-            _metadata,
-            cancelled: _cancelled.future,
-          ),
+          widget.api.video(account, _metadata, cancelled: _cancelled.future),
         );
       }
       if (!mounted || file == null) return;

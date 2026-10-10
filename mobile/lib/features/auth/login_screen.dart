@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/network/catalog_session.dart';
@@ -26,14 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
       _busy = true;
       _error = null;
     });
-    _session.signOut();
     try {
-      final account = await _session.api.login(
-        _username.text.trim(),
-        _password.text,
-      );
+      await _session.signIn(_username.text.trim(), _password.text);
       if (!mounted) return;
-      _session.account = account;
       context.go('/home');
     } catch (error) {
       if (mounted) {
@@ -90,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: _busy
                   ? null
                   : () {
-                      _session.signOut();
+                      unawaited(_session.signOut());
                       context.go('/home');
                     },
               child: const Text('Continuar sin cuenta'),

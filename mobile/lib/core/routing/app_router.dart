@@ -10,8 +10,9 @@ import '../../features/training/presentation/camera_training_screen.dart';
 import '../../features/training/presentation/session_history_screen.dart';
 import '../../features/training/pose/adapters/mlkit_pose_estimator.dart';
 
-final appRouter = GoRouter(
-  initialLocation: '/login',
+/// A restored session starts at '/home' without network access.
+GoRouter createAppRouter({String initialLocation = '/login'}) => GoRouter(
+  initialLocation: initialLocation,
   routes: [
     GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
     GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),

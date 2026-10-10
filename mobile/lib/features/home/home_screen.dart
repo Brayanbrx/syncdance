@@ -14,9 +14,9 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             tooltip: 'Cambiar cuenta',
             icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () {
-              catalogSession.signOut();
-              context.go('/login');
+            onPressed: () async {
+              await catalogSession.signOut();
+              if (context.mounted) context.go('/login');
             },
           ),
         ],

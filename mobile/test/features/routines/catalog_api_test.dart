@@ -104,7 +104,7 @@ void main() {
         }),
       );
       addTearDown(api.close);
-      final user = await api.login('demo', 'test-password');
+      final user = (await api.login('demo', 'test-password')).account;
       expect(user.id, 1);
       expect((await api.routines(user)).single.id, 7);
       final meta = await api.metadata(user, 7);

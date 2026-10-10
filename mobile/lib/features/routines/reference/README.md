@@ -14,10 +14,17 @@ pendientes; no se declara cerrado el entrenamiento offline completo.
 4. **Inicio → Cambiar cuenta** cierra la sesión. **Continuar sin cuenta** permite
    usar la cámara y la detección local sin solicitar datos protegidos.
 
-El token y la contraseña no se guardan en disco. La caché sí persiste, pero para
-volver a acceder después de reiniciar la app se requiere ingresar online con la
-misma cuenta y servidor. No hay renovación automática del JWT ni registro móvil.
-HTTP local está permitido en Android debug; para release se requiere HTTPS.
+La contraseña y el access token nunca se guardan en disco. Desde Fase 6, paso 2,
+`CatalogSession` guarda en almacenamiento seguro (Keychain/Keystore) solo la
+identidad y el refresh token, por servidor. Al reiniciar, la app abre Inicio sin
+red con la cuenta anterior y renueva el access token en el primer uso. Un 401
+renueva una vez y reintenta; llamadas simultáneas comparten una sola renovación,
+porque el servidor rota y revoca cada refresh usado (30 días de vida). Si el
+refresh es rechazado se conserva la identidad para datos locales y la red pide
+ingresar de nuevo. **Cambiar cuenta** borra la entrada y revoca el refresh.
+Android desactiva el backup automático para no restaurar claves inválidas.
+No hay registro móvil. HTTP local está permitido en Android debug; para release
+se requiere HTTPS.
 
 ## Contrato y almacenamiento
 

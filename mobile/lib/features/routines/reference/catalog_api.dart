@@ -11,6 +11,20 @@ class Account {
   final String username, accessToken;
 }
 
+/// The access token was rejected; the caller may renew it once and retry.
+class SessionExpiredException extends ReferenceException {
+  const SessionExpiredException()
+    : super('Tu sesión caducó. Vuelve a ingresar con conexión.');
+}
+
+class LoginResult {
+  const LoginResult(this.account, this.refreshToken);
+  final Account account;
+
+  /// Absent when the server does not issue one; the session is then memory-only.
+  final String? refreshToken;
+}
+
 class RoutineItem {
   const RoutineItem(this.id, this.name);
   final int id;
@@ -42,6 +56,7 @@ class CatalogApi {
     Account? account,
     Map<String, String>? body,
     int maxBytes = 1024 * 1024,
+    bool expiredOn401 = false,
   }) async {
     final abort = Completer<void>();
     final timeout = Timer(const Duration(seconds: 30), () => abort.complete());
@@ -62,9 +77,11 @@ class CatalogApi {
       final response = await _client.send(request);
       if (response.statusCode != 200) {
         await response.stream.listen(null).cancel();
+        if (response.statusCode == 401 && (account != null || expiredOn401)) {
+          throw const SessionExpiredException();
+        }
         throw ReferenceException(switch (response.statusCode) {
-          401 =>
-            'Usuario o contraseña incorrectos, o sesión caducada. Vuelve a ingresar.',
+          401 => 'Usuario o contraseña incorrectos.',
           403 => 'No tienes acceso a esta rutina.',
           404 =>
             'Esta rutina todavía no tiene una referencia lista o ya no está disponible.',
@@ -96,19 +113,54 @@ class CatalogApi {
     String path, {
     Account? account,
     Map<String, String>? body,
+    bool expiredOn401 = false,
   }) async => object(
-    jsonDecode(utf8.decode(await _request(path, account: account, body: body))),
+    jsonDecode(
+      utf8.decode(
+        await _request(
+          path,
+          account: account,
+          body: body,
+          expiredOn401: expiredOn401,
+        ),
+      ),
+    ),
   );
 
-  Future<Account> login(String username, String password) async {
+  static String? _token(Object? value) =>
+      value is String && value.isNotEmpty ? value : null;
+
+  Future<LoginResult> login(String username, String password) async {
     final tokens = await _json(
       'auth/login/',
       body: {'username': username, 'password': password},
     );
-    final token = tokens['access'] as String;
-    if (token.isEmpty) throw const FormatException('Sesión inválida.');
+    final token = _token(tokens['access']);
+    if (token == null) throw const FormatException('Sesión inválida.');
     final user = await _json('auth/me/', account: Account(0, username, token));
-    return Account(positiveInt(user['id']), user['username'] as String, token);
+    return LoginResult(
+      Account(positiveInt(user['id']), user['username'] as String, token),
+      _token(tokens['refresh']),
+    );
+  }
+
+  /// Exchanges a refresh token. With rotation the server also returns a new one.
+  Future<({String access, String? refresh})> refresh(
+    String refreshToken,
+  ) async {
+    final tokens = await _json(
+      'auth/token/refresh/',
+      body: {'refresh': refreshToken},
+      expiredOn401: true,
+    );
+    final access = _token(tokens['access']);
+    if (access == null) throw const FormatException('Sesión inválida.');
+    return (access: access, refresh: _token(tokens['refresh']));
+  }
+
+  /// Revokes the refresh token on the server; callers treat it as best effort.
+  Future<void> logout(String refreshToken) async {
+    await _request('auth/logout/', body: {'refresh': refreshToken});
   }
 
   Future<List<RoutineItem>> routines(Account account) async {
