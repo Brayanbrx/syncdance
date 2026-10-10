@@ -20,7 +20,19 @@ pausado en cero. Salir o pasar a segundo plano libera la cámara y pausa el vide
 al regresar se recalibra y el video se reanuda manualmente.
 
 No se graban ni suben imágenes. Con referencia y video descargados funciona sin
-red durante la sesión; el login tras reiniciar conserva su requisito online.
+red durante la sesión; desde Fase 6, paso 2, la sesión guardada también reabre
+la app sin red.
+
+## Estructura
+
+`LivePractice` (`live_practice.dart`) contiene el loop live sin widgets ni
+plugins: reloj captura↔video, matcher, reglas, `LiveFeedback`, caducidad de
+250 ms y alimentación de `SessionAccumulator`. `LiveComparisonPanel` solo
+reenvía eventos de cámara y reproductor (si el video corre y su posición) y
+dibuja el estado. La extracción no cambió el comportamiento: las pruebas de
+widget existentes pasan sin modificaciones y `live_practice_test.dart` cubre el
+loop de forma unitaria (pausa, calidad, generación de cámara, caducidad, aviso
+persistente registrado en el resumen, reinicio de práctica y uso tras dispose).
 
 ## Algoritmo y reloj
 
