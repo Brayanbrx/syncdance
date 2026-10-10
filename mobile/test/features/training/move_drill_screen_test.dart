@@ -80,6 +80,19 @@ void main() {
     expect(find.text('Pasadas: 3 · mejor: PERFECT'), findsOneWidget);
   });
 
+  testWidgets('a stalled camera stops the countdown of the drill', (
+    tester,
+  ) async {
+    final game = GameHarness(tester);
+    await game.mountDrill(const DanceMove(1, 1000, 2000));
+    await game.calibrate();
+    expect(find.text('3'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('3'), findsNothing);
+    await tester.pump(const Duration(seconds: 4));
+    expect(game.player.value.isPlaying, isFalse);
+  });
+
   testWidgets('a faster speed applies at once and restarts the pass', (
     tester,
   ) async {

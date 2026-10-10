@@ -162,6 +162,14 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
     _redraw();
   }
 
+  /// Same as the game: without a live pose nothing counts as framed.
+  void _invalidated() {
+    _practice.invalidate();
+    _measurements = null;
+    if (_phase == _Phase.countdown) _cancelCountdown();
+    _redraw();
+  }
+
   void _captured(CameraFrame frame) => _practice.frameCaptured(
     generation: frame.generation,
     orientation: frame.orientation,
@@ -421,7 +429,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
                           widget.createPoseEstimator ?? MlKitPoseEstimator.new,
                       onFrameCaptured: _captured,
                       onMeasurements: _measured,
-                      onInvalidated: _practice.invalidate,
+                      onInvalidated: _invalidated,
                       onPoseError: (message) => setState(() {
                         _stop();
                         _poseError = message;

@@ -178,6 +178,15 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     _redraw();
   }
 
+  /// The camera lost its live pose (stall, pause, rotation): the last good
+  /// frame must not keep the countdown going or hide the framing banner.
+  void _invalidated() {
+    _practice?.invalidate();
+    _measurements = null;
+    if (_phase == _Phase.countdown) _cancelCountdown();
+    _redraw();
+  }
+
   void _captured(CameraFrame frame) => _practice?.frameCaptured(
     generation: frame.generation,
     orientation: frame.orientation,
@@ -439,7 +448,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                             MlKitPoseEstimator.new,
                         onFrameCaptured: _captured,
                         onMeasurements: _measured,
-                        onInvalidated: () => _practice?.invalidate(),
+                        onInvalidated: _invalidated,
                         onPoseError: (message) {
                           if (_phase == _Phase.playing) {
                             unawaited(_finish(reachedVideoEnd: false));

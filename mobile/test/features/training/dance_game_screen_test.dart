@@ -240,6 +240,27 @@ void main() {
     expect(saved.summary.evaluatedMs, lessThan(3000));
   });
 
+  testWidgets('a stalled camera cancels the countdown and asks to come back', (
+    tester,
+  ) async {
+    final game = GameHarness(tester);
+    await game.mount();
+    await game.calibrate();
+    expect(find.text('3'), findsOneWidget);
+    // No pose for longer than the camera's 500 ms expiry: nothing is measured.
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('3'), findsNothing);
+    await tester.pump(const Duration(seconds: 4));
+    expect(game.player.value.isPlaying, isFalse);
+
+    await game.calibrate();
+    await game.countdown();
+    await game.playAt(500);
+    expect(find.textContaining('Vuelve al encuadre'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.textContaining('Vuelve al encuadre'), findsOneWidget);
+  });
+
   testWidgets('walking away during the countdown cancels it', (tester) async {
     final game = GameHarness(tester);
     await game.mount();
