@@ -87,5 +87,24 @@ Prueba manual pendiente: practicar sin red, comprobar **Pendiente de enviar**,
 reconectar, abrir el historial y verificar la sesión en Django Admin
 (tramos y avisos). Repetir el envío y confirmar que no se duplica.
 
-Siguiente: mejor marca y tendencia por rutina con criterios comparables de
-referencia, algoritmos y cobertura. La Fase 6 todavía no está cerrada.
+## Fase 6 · Paso 3 — mejor marca y tendencia por rutina (implementado)
+
+`RoutineProgressCalculator` (`routine-progress-v1`) agrupa por rutina usando la
+base de su práctica más reciente. Solo compara prácticas con la misma versión de
+referencia, `scoring_version` y `summary_version`, score con evidencia y
+cobertura de al menos 50 %. Ese mínimo es provisional hasta la validación física.
+
+El historial muestra, por rutina: mejor marca, última similitud, cambio respecto
+a la práctica comparable anterior y las cinco últimas. También indica cuántas
+quedaron fuera por falta de evidencia, poca cobertura u otra versión. Un 0 real
+cuenta; un resumen sin evidencia nunca se convierte en 0. En empate se conserva
+la primera vez que se alcanzó la marca. El detalle señala la mejor marca.
+
+Es un cálculo local sobre los resúmenes del dispositivo; no usa red.
+Mejora o empeora la similitud geométrica con el maestro, no certifica técnica.
+
+Prueba manual pendiente: repetir una rutina tres veces, una de ellas con poca
+cobertura, y verificar marca, cambio y exclusiones. Cambiar a una referencia
+nueva y comprobar que el progreso empieza de cero para esa versión.
+
+La Fase 6 queda implementada en el móvil; su cierre requiere la prueba física.

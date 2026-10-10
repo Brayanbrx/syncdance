@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/catalog_session.dart';
+import '../history/routine_progress.dart';
 import '../history/saved_session.dart';
 import '../history/session_store.dart';
 import '../history/session_sync.dart';
@@ -147,6 +148,33 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
     }
   }
 
+  List<RoutineProgress> get _progress =>
+      const RoutineProgressCalculator().compute(_history?.sessions ?? const []);
+
+  String _score(double value) => value.toStringAsFixed(0);
+
+  String _describeProgress(RoutineProgress progress) {
+    final best = progress.best;
+    final lines = <String>[
+      if (best == null)
+        'Sin prácticas comparables todavía (se requiere al menos '
+            '${(RoutineProgressCalculator.minimumCoverage * 100).round()} % de cobertura).'
+      else ...[
+        'Mejor marca: ${_score(best.summary.score!)} · '
+            'Última: ${_score(progress.latest!.summary.score!)}'
+            '${progress.change == null ? '' : ' (${progress.change! >= 0 ? '+' : '−'}${_score(progress.change!.abs())} respecto a la anterior)'}',
+        'Últimas: ${progress.recentScores().map(_score).join(' · ')}',
+      ],
+      if (progress.excluded > 0)
+        '${progress.excluded} prácticas no comparables: sin evidencia, poca '
+            'cobertura u otra versión.',
+    ];
+    return lines.join('\n');
+  }
+
+  bool _isBest(SavedSession record) =>
+      _progress.any((progress) => identical(progress.best, record));
+
   String _header() {
     final sessions = _history?.sessions ?? const <SavedSession>[];
     final pending = sessions
@@ -207,6 +235,21 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
                   _error == null &&
                   _history?.sessions.isEmpty == true)
                 const Text('Todavía no hay prácticas guardadas.'),
+              if (_history?.sessions.isNotEmpty == true) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Progreso por rutina',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                for (final progress in _progress)
+                  ListTile(
+                    title: Text(
+                      '${progress.routineName} · referencia v${progress.referenceVersion}',
+                    ),
+                    subtitle: Text(_describeProgress(progress)),
+                  ),
+                const Divider(),
+              ],
               for (final record in _history?.sessions ?? <SavedSession>[])
                 ListTile(
                   title: Text(record.routineName),
@@ -231,6 +274,10 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(_date(record.startedAt)),
+                              if (_isBest(record))
+                                const Text(
+                                  'Mejor marca personal en esta rutina',
+                                ),
                               Text(_status(_history!.syncOf(record.id))),
                               if (_history!.syncOf(record.id).reason != null)
                                 Text(_history!.syncOf(record.id).reason!),

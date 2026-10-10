@@ -7,6 +7,7 @@ import 'package:syncdance_mobile/features/routines/reference/catalog_api.dart';
 import 'package:syncdance_mobile/features/training/presentation/session_history_screen.dart';
 
 import 'master_playback_screen_test.dart' show MemorySessionStore;
+import 'routine_progress_test.dart' show practice;
 import 'session_store_test.dart' show savedPractice;
 
 void main() {
@@ -86,6 +87,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('Sincronizada con el servidor'), findsOneWidget);
     expect(find.textContaining('Nada pendiente'), findsOneWidget);
+  });
+
+  testWidgets('history shows best mark and change per routine', (tester) async {
+    final api = CatalogApi(
+      'http://localhost/api',
+      client: MockClient((_) async => throw StateError('No network')),
+    );
+    addTearDown(api.close);
+    final session = CatalogSession(api)
+      ..account = const Account(1, 'demo', 'token');
+    final store = MemorySessionStore();
+    await store.save(practice(60, day: 1));
+    await store.save(practice(75, day: 2));
+    await store.save(practice(null, day: 3));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionHistoryScreen(session: session, store: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Progreso por rutina'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Mejor marca: 75 · Última: 75 (+15 respecto a la anterior)',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Últimas: 60 · 75'), findsOneWidget);
+    expect(find.textContaining('1 prácticas no comparables'), findsOneWidget);
+    // Newest first: the practice without evidence, then the best mark.
+    await tester.tap(find.text('Rutina 7').at(1));
+    await tester.pumpAndSettle();
+    expect(find.text('Mejor marca personal en esta rutina'), findsOneWidget);
   });
 
   testWidgets('guest cannot read a supplied history store', (tester) async {
