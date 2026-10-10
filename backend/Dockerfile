@@ -5,7 +5,9 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libportaudio2 \
+# MediaPipe Tasks loads GLES/EGL even when inference runs on CPU.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libgles2 libegl1 libglib2.0-0 libportaudio2 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt requirements-pose.txt ./

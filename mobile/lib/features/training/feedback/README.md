@@ -95,8 +95,8 @@ con video simultáneos. Registrar latencia y falsos avisos antes de ajustar umbr
 Este paso no completa la validación de Fase 5. Adelanto/atraso requiere una métrica temporal
 validada: el offset del matcher no se presenta como error de ritmo. El resumen
 ya conserva avisos frecuentes e historial local desde Fase 6, paso 1;
-ver `../history/README.md`. La sincronización y la validación física de Fases 1–5
-siguen pendientes.
+ver `../history/README.md`, que también describe la sincronización. La
+validación física de Fases 1–6 sigue pendiente.
 
 Prueba física adicional: seguir una inclinación igual a la del maestro, inclinar
 en sentidos distintos y volver a coincidir. Verificar que los aros señalen el

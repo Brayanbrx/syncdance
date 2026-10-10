@@ -86,7 +86,7 @@ class SessionSummaryPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Similitud experimental de ángulos y posiciones, con igual peso. No se envía al servidor.',
+            'Similitud experimental de ángulos y posiciones, con igual peso. Al servidor solo llega este resumen, nunca imágenes ni poses.',
           ),
         ],
       ),

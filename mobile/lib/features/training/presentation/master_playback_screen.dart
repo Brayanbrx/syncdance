@@ -331,7 +331,7 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
               if (_saving) const Text('Guardando resumen…'),
               if (_saved)
                 const Text(
-                  'Resumen guardado en el historial local. Sin sincronizar.',
+                  'Resumen guardado en el historial local. Se enviará al servidor cuando haya conexión.',
                 ),
               if (_saveError != null) ...[
                 Text(_saveError!),

@@ -77,7 +77,7 @@ un detalle desplegable por segmentos de cinco segundos. Una cobertura incompleta
 se señala como resultado parcial. Finalizar congela una instantánea inmutable
 antes de cerrar la cámara; inferencias tardías no pueden cambiarla. Un error del
 reproductor conserva el resultado parcial. Desde Fase 6, paso 1, el resumen se
-guarda en el historial local. El envío a Django sigue pendiente.
+guarda en el historial local y se sincroniza con Django (Fase 6, paso 2).
 
 ## Paso 4 — posiciones normalizadas y similitud conjunta
 
@@ -131,7 +131,7 @@ traslación/escala/proporción de imagen, sensibilidad a inclinación del torso,
 lados anatómicos, selección de una muestra común y rechazo de coordenadas inválidas.
 
 Todavía falta validación física del scorer. Fase 6, paso 1 añade persistencia e
-historial local; ver `../history/README.md`. La sincronización sigue pendiente.
+historial local y su sincronización; ver `../history/README.md`.
 No se aplican pesos por regiones. El primer feedback técnico de Fase 5 se
 documenta en `../feedback/README.md` y usa la misma muestra elegida por el matcher.
 El resultado de pose no certifica ejecución correcta, frontalidad o seguridad.
