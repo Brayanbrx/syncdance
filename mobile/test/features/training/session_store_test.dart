@@ -10,7 +10,7 @@ import 'package:syncdance_mobile/features/training/history/session_store.dart';
 import '../routines/reference_test_samples.dart';
 import 'feedback_test.dart' show cue;
 
-SavedSession savedPractice({bool evidence = true, DateTime? at}) {
+SavedSession savedPractice({bool evidence = true, DateTime? at, String? id}) {
   final accumulator = SessionAccumulator(250);
   if (evidence) {
     accumulator.record(0, const PoseMatch(90, 1, 0));
@@ -18,7 +18,7 @@ SavedSession savedPractice({bool evidence = true, DateTime? at}) {
   }
   final start = at ?? DateTime.utc(2026, 10, 5, 12);
   return SavedSession(
-    id: newSessionId(),
+    id: id ?? newSessionId(),
     routineName: 'Mi rutina',
     reference: metadata(),
     startedAt: start,

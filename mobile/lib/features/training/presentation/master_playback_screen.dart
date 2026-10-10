@@ -25,6 +25,7 @@ class MasterPlaybackScreen extends StatefulWidget {
     this.renewAccount,
     this.createController,
     this.sessionStore,
+    this.onSessionSaved,
     super.key,
   });
   final SavedReference saved;
@@ -36,6 +37,9 @@ class MasterPlaybackScreen extends StatefulWidget {
   final MasterVideoCache cache;
   final VideoPlayerController Function(File)? createController;
   final SessionStore? sessionStore;
+
+  /// Background follow-up after a durable save (the sync queue); errors ignored.
+  final Future<void> Function()? onSessionSaved;
 
   @override
   State<MasterPlaybackScreen> createState() => _MasterPlaybackScreenState();
@@ -202,6 +206,9 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
           await SessionStore.open('${widget.api.base}|${widget.account.id}');
       await _store!.save(_record!);
       if (mounted) setState(() => _saved = true);
+      unawaited(
+        widget.onSessionSaved?.call().then((_) {}, onError: (Object _) {}),
+      );
     } catch (_) {
       if (mounted) {
         setState(

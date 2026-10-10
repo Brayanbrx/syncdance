@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:syncdance_mobile/core/network/catalog_session.dart';
 import 'package:syncdance_mobile/features/routines/reference/catalog_api.dart';
@@ -28,6 +29,8 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('Cobertura: 40.0 %'), findsOneWidget);
+    expect(find.textContaining('Pendiente de enviar'), findsOneWidget);
+    expect(find.textContaining('1 pendientes de enviar'), findsOneWidget);
     await tester.tap(find.text('Mi rutina'));
     await tester.pumpAndSettle();
     expect(find.text('Resumen de práctica'), findsOneWidget);
@@ -45,6 +48,44 @@ void main() {
     await tester.pumpAndSettle();
     expect(store.records, isEmpty);
     expect(find.text('Todavía no hay prácticas guardadas.'), findsOneWidget);
+  });
+
+  testWidgets('history uploads pending practices and retries a rejection', (
+    tester,
+  ) async {
+    var status = 400;
+    final api = CatalogApi(
+      'http://localhost/api',
+      client: MockClient((_) async => http.Response('{}', status)),
+    );
+    addTearDown(api.close);
+    final session = CatalogSession(api)
+      ..account = const Account(1, 'demo', 'token');
+    final store = MemorySessionStore();
+    await store.save(savedPractice());
+    // Response stream cancellation completes on the real event loop.
+    await tester.runAsync(() async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SessionHistoryScreen(session: session, store: store),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+    expect(find.textContaining('No aceptada por el servidor'), findsOneWidget);
+    expect(find.textContaining('no fueron aceptadas'), findsOneWidget);
+    await tester.tap(find.text('Mi rutina'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('no aceptó el resumen'), findsOneWidget);
+    status = 201;
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Volver a intentar el envío'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Sincronizada con el servidor'), findsOneWidget);
+    expect(find.textContaining('Nada pendiente'), findsOneWidget);
   });
 
   testWidgets('guest cannot read a supplied history store', (tester) async {

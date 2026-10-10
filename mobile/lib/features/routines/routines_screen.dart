@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/network/catalog_session.dart';
+import '../training/history/session_sync.dart';
 import '../training/presentation/master_playback_screen.dart';
 import 'reference/catalog_api.dart';
 import 'reference/master_video_cache.dart';
@@ -157,6 +158,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                     account: _account!,
                     renewAccount: _session.freshAccount,
                     cache: MasterVideoCache(_cache!.directory),
+                    onSessionSaved: () => SessionSync.forSession(_session),
                   ),
                 ),
               );

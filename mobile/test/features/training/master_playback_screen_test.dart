@@ -27,13 +27,21 @@ class MemorySessionStore extends SessionStore {
     records[session.id] = session;
   }
 
+  final sync = <String, SyncStatus>{};
   @override
   Future<SessionHistory> readAll() async =>
-      SessionHistory(records.values.toList(), 0);
+      SessionHistory(records.values.toList(), 0, sync: sync);
   @override
   Future<void> remove(String id) async {
     records.remove(id);
+    sync.remove(id);
   }
+
+  @override
+  Future<void> markSync(String id, SyncState state, {String? reason}) async =>
+      sync[id] = SyncStatus(state, reason: reason);
+  @override
+  Future<void> clearSync(String id) async => sync.remove(id);
 }
 
 class LocalVideo extends MasterVideoCache {

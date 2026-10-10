@@ -25,6 +25,14 @@ class LoginResult {
   final String? refreshToken;
 }
 
+/// Server answer to a summary upload; transient failures throw instead.
+class UploadResult {
+  const UploadResult.stored() : stored = true, reason = null;
+  const UploadResult.rejected(this.reason) : stored = false;
+  final bool stored;
+  final String? reason;
+}
+
 class RoutineItem {
   const RoutineItem(this.id, this.name);
   final int id;
@@ -198,6 +206,49 @@ class CatalogApi {
         account: account,
         maxBytes: maxReferenceBytes,
       );
+
+  /// 201 new and 200 already stored are both success (idempotent per UUID).
+  /// Rejections are permanent; network, 5xx and other errors throw to retry later.
+  Future<UploadResult> uploadSession(
+    Account account,
+    Map<String, Object?> payload,
+  ) async {
+    final abort = Completer<void>();
+    final timeout = Timer(const Duration(seconds: 30), () => abort.complete());
+    try {
+      final request = http.AbortableRequest(
+        'POST',
+        _trusted('training/sessions/'),
+        abortTrigger: abort.future,
+      )..followRedirects = false;
+      request.headers['Authorization'] = 'Bearer ${account.accessToken}';
+      request.headers['Content-Type'] = 'application/json';
+      request.headers['Accept-Encoding'] = 'identity';
+      request.body = jsonEncode(payload);
+      final response = await _client.send(request);
+      await response.stream.listen(null).cancel();
+      return switch (response.statusCode) {
+        200 || 201 => const UploadResult.stored(),
+        401 => throw const SessionExpiredException(),
+        409 => const UploadResult.rejected(
+          'El identificador pertenece a otra cuenta.',
+        ),
+        400 || 403 || 404 => const UploadResult.rejected(
+          'El servidor no aceptó el resumen: la rutina o su referencia ya no '
+          'están disponibles, o los datos no son compatibles.',
+        ),
+        _ => throw const ReferenceException(
+          'El servidor no pudo guardar el resumen. Se reintentará.',
+        ),
+      };
+    } on http.ClientException {
+      throw const ReferenceException(
+        'Sin conexión. Los resúmenes se enviarán más tarde.',
+      );
+    } finally {
+      timeout.cancel();
+    }
+  }
 
   /// Stream to disk: never allocate the whole (up to 200 MiB) master in memory.
   Stream<List<int>> video(

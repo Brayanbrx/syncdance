@@ -55,6 +55,37 @@ Prueba manual pendiente:
 6. Cambiar de cuenta o servidor y comprobar separación del historial.
 7. Volver atrás durante práctica y esperar guardado antes de salir.
 
-Siguiente: sincronización con Django, cola offline y tratamiento de conflictos
-UUID. Después, mejor marca y tendencia por rutina con criterios comparables de
+## Fase 6 · Paso 2 — sincronización con Django (implementado)
+
+Implementado el 2026-10-09. `SessionSync` es una cola offline sobre el mismo
+historial local. No usa red durante la práctica.
+
+- Se ejecuta al guardar una práctica y al abrir el historial; el botón
+  **Sincronizar ahora** la repite. Una sola ejecución por cuenta/servidor.
+- Envía los pendientes del más antiguo al más reciente con
+  `SavedSession.toUpload()`; el contrato está en `backend/apps/training/README.md`.
+  En `pose-window-v1` el score global es solo de pose y `timing_score` es null.
+- 201 o 200 (ya guardada, idempotente por UUID) → marcador `synced`.
+- 400/403/404/409 → marcador `rejected` con motivo; no se reintenta solo. El
+  detalle ofrece **Volver a intentar el envío**.
+- Sin red, 5xx o sesión caducada → la cola se detiene y todo queda pendiente.
+  Un 401 renueva el token una vez y reintenta.
+- El estado vive en `<uuid>.sync` (`session-sync-v1`) junto al resumen, con
+  escritura temporal y rename. Un marcador ilegible cuenta como pendiente; volver
+  a enviarlo es seguro porque el servidor es idempotente. Eliminar una práctica
+  local no la elimina del servidor.
+
+Contrato compartido: `mobile/test/fixtures/sessions/upload_v1.json` se genera
+con `toUpload()`. Dart comprueba que coincide y Django la publica y espera 201,
+incluido un score 0 real con evidencia (no null).
+
+Validación automatizada: orden de envío, idempotencia, rechazo sin reintento,
+reintento manual, cortes de red, 5xx, renovación tras 401, ejecuciones
+concurrentes, marcadores corruptos y estados en la pantalla de historial.
+
+Prueba manual pendiente: practicar sin red, comprobar **Pendiente de enviar**,
+reconectar, abrir el historial y verificar la sesión en Django Admin
+(tramos y avisos). Repetir el envío y confirmar que no se duplica.
+
+Siguiente: mejor marca y tendencia por rutina con criterios comparables de
 referencia, algoritmos y cobertura. La Fase 6 todavía no está cerrada.

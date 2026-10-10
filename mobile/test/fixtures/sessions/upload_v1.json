@@ -1,0 +1,39 @@
+{
+  "id": "3f2b8c1e-5d4a-4b6f-9a7e-2c1d0e9f8a7b",
+  "routine": 7,
+  "reference_version": 1,
+  "started_at": "2026-10-05T12:00:00.000Z",
+  "finished_at": "2026-10-05T12:00:10.000Z",
+  "status": "COMPLETED",
+  "mode": "LIVE",
+  "overall_score": 0.0,
+  "pose_score": 0.0,
+  "timing_score": null,
+  "angle_score": 0.0,
+  "position_score": 0.0,
+  "mean_error_degrees": 90.0,
+  "mean_position_error": 1.0,
+  "duration_ms": 250,
+  "evaluated_ms": 100,
+  "reached_video_end": false,
+  "scoring_version": "pose-window-v1",
+  "summary_version": "pose-summary-v1",
+  "feedback_version": "geometric-feedback-v2",
+  "timeline_segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 250,
+      "evaluated_ms": 100,
+      "score": 0.0
+    }
+  ],
+  "feedback_counts": [
+    {
+      "code": "leftElbow_extend",
+      "region": "arm",
+      "message": "leftElbow_extend",
+      "count": 1,
+      "max_severity": 1.5
+    }
+  ]
+}

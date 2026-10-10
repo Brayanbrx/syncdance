@@ -71,6 +71,50 @@ class SavedSession {
     },
   };
 
+  /// Payload for `POST training/sessions/` (backend/apps/training/README.md).
+  /// The overall score is pose-only under pose-window-v1; timing is not measured.
+  Map<String, Object?> toUpload() => {
+    'id': id,
+    'routine': reference.routineId,
+    'reference_version': reference.version,
+    'started_at': startedAt.toUtc().toIso8601String(),
+    'finished_at': finishedAt.toUtc().toIso8601String(),
+    'status': 'COMPLETED',
+    'mode': 'LIVE',
+    'overall_score': summary.score,
+    'pose_score': summary.score,
+    'timing_score': null,
+    'angle_score': summary.angleScore,
+    'position_score': summary.positionScore,
+    'mean_error_degrees': summary.meanErrorDegrees,
+    'mean_position_error': summary.meanPositionError,
+    'duration_ms': summary.durationMs,
+    'evaluated_ms': summary.evaluatedMs,
+    'reached_video_end': summary.reachedVideoEnd,
+    'scoring_version': summary.scoringVersion,
+    'summary_version': summary.summaryVersion,
+    'feedback_version': summary.feedbackVersion,
+    'timeline_segments': [
+      for (final s in summary.segments)
+        {
+          'start_ms': s.startMs,
+          'end_ms': s.endMs,
+          'evaluated_ms': s.evaluatedMs,
+          'score': s.score,
+        },
+    ],
+    'feedback_counts': [
+      for (final f in summary.feedback)
+        {
+          'code': f.code,
+          'region': f.region,
+          'message': f.message,
+          'count': f.count,
+          'max_severity': f.maxSeverity,
+        },
+    ],
+  };
+
   factory SavedSession.fromJson(Map<String, dynamic> data) {
     void require(bool condition) {
       if (!condition) throw const FormatException('Resumen local inválido.');
