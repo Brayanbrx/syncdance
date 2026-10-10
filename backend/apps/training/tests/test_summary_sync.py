@@ -1,0 +1,197 @@
+"""Mobile summary upload (local-session-v1 -> DanceSession), as sent by the sync queue."""
+
+import uuid
+
+import pytest
+from rest_framework.test import APIClient
+
+from apps.accounts.models import User
+from apps.routines.models import Routine, RoutineReference
+from apps.training.models import DanceSession
+
+pytestmark = pytest.mark.django_db
+URL = "/api/training/sessions/"
+
+
+def timeline(evidence):
+    """Six contiguous 5 s segments over 30 s; scores only where evidence exists."""
+    scores = {0: 80.0, 1: 70.0}
+    return [
+        {
+            "start_ms": index * 5000,
+            "end_ms": (index + 1) * 5000,
+            "evaluated_ms": evidence.get(index, 0),
+            "score": scores[index] if evidence.get(index) else None,
+        }
+        for index in range(6)
+    ]
+
+
+@pytest.fixture
+def mobile_upload():
+    teacher = User.objects.create_user(username="teacher", email="t@example.com", role="INSTRUCTOR")
+    student = User.objects.create_user(username="student", email="s@example.com")
+    routine = Routine.objects.create(name="Demo", instructor=teacher, difficulty="BEGINNER")
+    RoutineReference.objects.create(
+        routine=routine,
+        version=2,
+        status="READY",
+        reference_asset="references/demo.json.gz",
+        engine_name="fixture",
+        checksum_sha256="a" * 64,
+        algorithm_version="reference-body-v1",
+        duration_ms=30000,
+    )
+    client = APIClient()
+    client.force_authenticate(student)
+    score = (80 * 4000 + 70 * 5000) / 9000
+    payload = {
+        "id": str(uuid.uuid4()),
+        "routine": routine.pk,
+        "reference_version": 2,
+        "started_at": "2026-10-01T12:00:00Z",
+        "finished_at": "2026-10-01T12:00:31Z",
+        "status": "COMPLETED",
+        "mode": "LIVE",
+        "overall_score": score,
+        "pose_score": score,
+        "timing_score": None,
+        "angle_score": 78.5,
+        "position_score": 71.25,
+        "mean_error_degrees": 12.5,
+        "mean_position_error": 0.3,
+        "duration_ms": 30000,
+        "evaluated_ms": 9000,
+        "reached_video_end": True,
+        "scoring_version": "pose-window-v1",
+        "summary_version": "pose-summary-v1",
+        "feedback_version": "geometric-feedback-v2",
+        "timeline_segments": timeline({0: 4000, 1: 5000}),
+        "feedback_counts": [
+            {
+                "code": "leftElbow_extend",
+                "region": "left_arm",
+                "message": "Extiende un poco el codo izquierdo para seguir al maestro.",
+                "count": 3,
+                "max_severity": 1.4,
+            }
+        ],
+    }
+    return client, routine, payload
+
+
+def test_summary_resolves_reference_by_version_and_derives_coverage(mobile_upload):
+    client, _, payload = mobile_upload
+    response = client.post(URL, payload, format="json")
+    assert response.status_code == 201, response.data
+    assert response.data["reference_version"] == 2
+    assert response.data["quality_ratio"] == pytest.approx(0.3)
+    assert response.data["summary_version"] == "pose-summary-v1"
+    assert [s["score"] for s in response.data["timeline_segments"]][:3] == [80.0, 70.0, None]
+    assert response.data["feedback_counts"][0]["count"] == 3
+    session = DanceSession.objects.get()
+    assert session.timeline_segments.count() == 6
+    assert session.reference.version == 2
+
+
+def test_session_without_evidence_keeps_nulls_and_real_zero_coverage(mobile_upload):
+    client, _, payload = mobile_upload
+    for name in (
+        "overall_score",
+        "pose_score",
+        "angle_score",
+        "position_score",
+        "mean_error_degrees",
+        "mean_position_error",
+    ):
+        payload[name] = None
+    payload.update(
+        evaluated_ms=0, timeline_segments=timeline({}), feedback_counts=[], reached_video_end=False
+    )
+    response = client.post(URL, payload, format="json")
+    assert response.status_code == 201, response.data
+    assert response.data["pose_score"] is None
+    assert response.data["quality_ratio"] == 0
+
+
+def test_retry_after_routine_deactivation_returns_stored_copy(mobile_upload):
+    client, routine, payload = mobile_upload
+    assert client.post(URL, payload, format="json").status_code == 201
+    routine.is_active = False
+    routine.save()
+    retry = client.post(URL, payload, format="json")
+    assert retry.status_code == 200
+    assert DanceSession.objects.count() == 1
+    assert DanceSession.objects.get().feedback_counts.count() == 1
+
+
+def test_new_upload_for_deactivated_routine_is_rejected(mobile_upload):
+    client, routine, payload = mobile_upload
+    routine.is_active = False
+    routine.save()
+    assert client.post(URL, payload, format="json").status_code == 400
+
+
+def _set(payload, path, value):
+    target = payload
+    for key in path[:-1]:
+        target = target[key]
+    target[path[-1]] = value
+
+
+@pytest.mark.parametrize(
+    "path,value",
+    [
+        (("reference_version",), 7),
+        (("reference_version",), None),
+        (("duration_ms",), 29000),
+        (("evaluated_ms",), 31000),
+        (("evaluated_ms",), None),
+        (("summary_version",), ""),
+        (("angle_score",), None),
+        (("mean_position_error",), "Infinity"),
+        (("timeline_segments", 0, "evaluated_ms"), 3000),
+        (("timeline_segments", 0, "evaluated_ms"), 6000),
+        (("timeline_segments", 2, "score"), 50),
+        (("timeline_segments", 1, "score"), None),
+        (("timeline_segments", 1, "start_ms"), 5500),
+        (("timeline_segments", 5, "end_ms"), 29000),
+        (("timeline_segments",), []),
+        (("feedback_counts", 0, "count"), 0),
+        (("feedback_counts", 0, "max_severity"), 0.5),
+    ],
+)
+def test_inconsistent_summary_is_rejected_without_partial_rows(mobile_upload, path, value):
+    client, _, payload = mobile_upload
+    if path == ("reference_version",) and value is None:
+        del payload["reference_version"]
+    else:
+        _set(payload, path, value)
+    response = client.post(URL, payload, format="json")
+    assert response.status_code == 400, response.data
+    assert DanceSession.objects.count() == 0
+
+
+def test_missing_evidence_must_not_be_filled_with_zero(mobile_upload):
+    client, _, payload = mobile_upload
+    payload.update(evaluated_ms=0, timeline_segments=timeline({}), feedback_counts=[])
+    # Metrics are still present although nothing was evaluated.
+    assert client.post(URL, payload, format="json").status_code == 400
+
+
+def test_duplicate_feedback_codes_or_feedback_without_evidence_rejected(mobile_upload):
+    client, _, payload = mobile_upload
+    feedback = payload["feedback_counts"]
+    payload["feedback_counts"] = feedback * 2
+    assert client.post(URL, payload, format="json").status_code == 400
+    for name in ("overall_score", "pose_score", "angle_score", "position_score"):
+        payload[name] = None
+    payload.update(
+        mean_error_degrees=None,
+        mean_position_error=None,
+        evaluated_ms=0,
+        timeline_segments=timeline({}),
+        feedback_counts=feedback,
+    )
+    assert client.post(URL, payload, format="json").status_code == 400
+    assert DanceSession.objects.count() == 0

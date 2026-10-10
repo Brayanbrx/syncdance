@@ -58,7 +58,7 @@ def setup_session():
 
 def test_session_without_video_and_history_are_private(setup_session):
     client, student, routine, reference, payload = setup_session
-    payload.update({"student": routine.instructor_id, "reference_version": 99})
+    payload.update({"student": routine.instructor_id})
     response = client.post("/api/training/sessions/", payload, format="json")
     assert response.status_code == 201, response.data
     assert response.data["student"] == student.pk
@@ -66,6 +66,8 @@ def test_session_without_video_and_history_are_private(setup_session):
     assert response.data["pose_schema_version"] == "pose-v1"
     assert response.data["timing_score"] is None
     assert response.data["overall_score"] is None
+    # Coverage is derived from evaluated time, never accepted from the client.
+    assert response.data["quality_ratio"] is None
     assert len(response.data["segment_scores"]) == 1
     assert len(response.data["error_events"]) == 1
     assert client.get("/api/training/sessions/").data["count"] == 1
@@ -76,12 +78,30 @@ def test_session_without_video_and_history_are_private(setup_session):
     assert client.get("/api/training/sessions/").status_code == 401
 
 
-def test_duplicate_upload_has_no_duplicate_children(setup_session):
+def test_duplicate_upload_is_idempotent_without_duplicate_children(setup_session):
     client, _, _, _, payload = setup_session
     assert client.post("/api/training/sessions/", payload, format="json").status_code == 201
-    assert client.post("/api/training/sessions/", payload, format="json").status_code == 409
+    retry = client.post("/api/training/sessions/", payload, format="json")
+    assert retry.status_code == 200
+    assert retry.data["id"] == payload["id"]
     session = DanceSession.objects.get()
     assert session.segment_scores.count() == session.error_events.count() == 1
+
+
+def test_uuid_of_another_student_conflicts(setup_session):
+    client, _, _, _, payload = setup_session
+    assert client.post("/api/training/sessions/", payload, format="json").status_code == 201
+    other = User.objects.create_user(username="other", email="o@example.com")
+    client.force_authenticate(other)
+    assert client.post("/api/training/sessions/", payload, format="json").status_code == 409
+    assert DanceSession.objects.get().student.username == "student"
+
+
+def test_reference_version_must_match_given_reference(setup_session):
+    client, _, _, _, payload = setup_session
+    payload["reference_version"] = 99
+    assert client.post("/api/training/sessions/", payload, format="json").status_code == 400
+    assert DanceSession.objects.count() == 0
 
 
 @pytest.mark.parametrize(
@@ -90,7 +110,6 @@ def test_duplicate_upload_has_no_duplicate_children(setup_session):
         ("pose_score", -1),
         ("pose_score", 101),
         ("pose_score", "NaN"),
-        ("quality_ratio", 1.5),
         ("finished_at", "2026-10-01T11:00:00Z"),
         ("finished_at", None),
         ("status", "STARTED"),

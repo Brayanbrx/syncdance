@@ -38,10 +38,28 @@ class DanceSession(models.Model):
     overall_score = models.FloatField(null=True, blank=True, validators=score_validators)
     pose_score = models.FloatField(null=True, blank=True, validators=score_validators)
     timing_score = models.FloatField(null=True, blank=True, validators=score_validators)
+    # Evaluated video time / duration; estimated sampled coverage, not observation.
     quality_ratio = models.FloatField(null=True, blank=True, validators=ratio_validators)
+    # Null on sessions stored before the mobile summary contract existed.
+    duration_ms = models.PositiveIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(300000)]
+    )
+    evaluated_ms = models.PositiveIntegerField(null=True, blank=True)
+    angle_score = models.FloatField(null=True, blank=True, validators=score_validators)
+    position_score = models.FloatField(null=True, blank=True, validators=score_validators)
+    mean_error_degrees = models.FloatField(
+        null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(180)]
+    )
+    # Mean 2D distance in torso lengths; unbounded above.
+    mean_position_error = models.FloatField(
+        null=True, blank=True, validators=[MinValueValidator(0)]
+    )
+    reached_video_end = models.BooleanField(default=False)
     pose_schema_version = models.CharField(max_length=40)
     feature_schema_version = models.CharField(max_length=40)
     scoring_version = models.CharField(max_length=80)
+    summary_version = models.CharField(max_length=80, blank=True)
+    feedback_version = models.CharField(max_length=80, blank=True)
     reference_version = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     synced_at = models.DateTimeField(auto_now_add=True)
 
@@ -63,6 +81,64 @@ class DanceSession(models.Model):
             raise ValidationError(
                 {"finished_at": "Una sesión iniciada no puede tener fecha de fin."}
             )
+
+
+class TimelineSegment(models.Model):
+    """Contiguous video interval of the mobile summary; null score means no evidence."""
+
+    session = models.ForeignKey(
+        DanceSession, on_delete=models.CASCADE, related_name="timeline_segments"
+    )
+    start_ms = models.PositiveIntegerField()
+    end_ms = models.PositiveIntegerField()
+    evaluated_ms = models.PositiveIntegerField()
+    score = models.FloatField(null=True, blank=True, validators=score_validators)
+
+    class Meta:
+        ordering = ("start_ms",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("session", "start_ms"), name="unique_session_timeline_start"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(end_ms__gt=models.F("start_ms")),
+                name="timeline_segment_time_order",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(evaluated_ms__lte=models.F("end_ms") - models.F("start_ms")),
+                name="timeline_segment_evidence_within_interval",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(evaluated_ms=0, score__isnull=True)
+                | models.Q(evaluated_ms__gt=0, score__isnull=False),
+                name="timeline_segment_score_requires_evidence",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.session_id} · {self.start_ms}-{self.end_ms}ms"
+
+
+class FeedbackCount(models.Model):
+    """Persistent cues actually shown on the phone, not every deviation."""
+
+    session = models.ForeignKey(
+        DanceSession, on_delete=models.CASCADE, related_name="feedback_counts"
+    )
+    code = models.CharField(max_length=100)
+    region = models.CharField(max_length=100)
+    message = models.CharField(max_length=500)
+    count = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(3000)])
+    max_severity = models.FloatField(validators=[MinValueValidator(1)])
+
+    class Meta:
+        ordering = ("-count", "code")
+        constraints = [
+            models.UniqueConstraint(fields=("session", "code"), name="unique_session_feedback"),
+        ]
+
+    def __str__(self):
+        return f"{self.code} ×{self.count}"
 
 
 class SegmentScore(models.Model):
