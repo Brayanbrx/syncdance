@@ -34,9 +34,61 @@ class UploadResult {
 }
 
 class RoutineItem {
-  const RoutineItem(this.id, this.name);
+  const RoutineItem(
+    this.id,
+    this.name, {
+    this.style = '',
+    this.difficulty = '',
+    this.durationMs = 0,
+    this.credit = '',
+  });
   final int id;
-  final String name;
+  final String name, style, difficulty, credit;
+
+  /// Zero until the master reference has been processed.
+  final int durationMs;
+
+  static String _text(Object? value) => value is String ? value.trim() : '';
+
+  factory RoutineItem.fromJson(Map<String, dynamic> json) => RoutineItem(
+    positiveInt(json['id']),
+    json['name'] as String,
+    style: _text(json['style']),
+    difficulty: _text(json['difficulty']),
+    durationMs: json['duration_ms'] is int && (json['duration_ms'] as int) > 0
+        ? json['duration_ms'] as int
+        : 0,
+    credit: _text(json['credit']),
+  );
+
+  /// Catalog order: beginner first, unknown levels last.
+  int get difficultyRank => switch (difficulty) {
+    'BEGINNER' => 0,
+    'INTERMEDIATE' => 1,
+    'ADVANCED' => 2,
+    _ => 3,
+  };
+
+  static int byLevel(RoutineItem a, RoutineItem b) {
+    final level = a.difficultyRank.compareTo(b.difficultyRank);
+    return level != 0 ? level : a.name.compareTo(b.name);
+  }
+
+  String get difficultyLabel => switch (difficulty) {
+    'BEGINNER' => 'Principiante',
+    'INTERMEDIATE' => 'Intermedio',
+    'ADVANCED' => 'Avanzado',
+    _ => '',
+  };
+
+  /// Catalog line: style, level, length and the video credit when known.
+  String get details => [
+    if (style.isNotEmpty) style,
+    if (difficultyLabel.isNotEmpty) difficultyLabel,
+    if (durationMs > 0)
+      '${(durationMs / 1000).toStringAsFixed(durationMs < 10000 ? 1 : 0)} s',
+    if (credit.isNotEmpty) 'Video: $credit',
+  ].join(' · ');
 }
 
 class CatalogApi {
@@ -181,9 +233,8 @@ class CatalogApi {
       }
       final data = await _json(next, account: account);
       for (final raw in data['results'] as List) {
-        final item = object(raw);
-        final id = positiveInt(item['id']);
-        routines[id] = RoutineItem(id, item['name'] as String);
+        final item = RoutineItem.fromJson(object(raw));
+        routines[item.id] = item;
       }
       next = data['next'] as String?;
     }

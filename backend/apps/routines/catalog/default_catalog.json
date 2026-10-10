@@ -1,0 +1,110 @@
+[
+  {
+    "key": "baile-alegre",
+    "name": "Baile alegre para empezar",
+    "style": "Libre",
+    "difficulty": "BEGINNER",
+    "description": "Pasos sencillos y relajados de una bailarina de cuerpo entero. Ideal para tu primera partida.",
+    "video_url": "https://assets.mixkit.co/videos/4856/4856-720.mp4",
+    "sha256": "6ff5a150a3f45988ff390237476b48b205296d16b8fb0aac4b6af9bcf2a7defd",
+    "source_url": "https://mixkit.co/free-stock-video/girl-listens-to-music-and-dances-happily-4856/",
+    "license_name": "Mixkit Stock Video Free License",
+    "credit": "Mixkit"
+  },
+  {
+    "key": "ballet-sala-blanca",
+    "name": "Ballet en sala blanca",
+    "style": "Ballet",
+    "difficulty": "BEGINNER",
+    "description": "Movimientos lentos de ballet con brazos amplios: buena rutina para aprender a seguir al maestro.",
+    "video_url": "https://assets.mixkit.co/videos/956/956-720.mp4",
+    "sha256": "4c04dcb564633df7df74999d9a1ac34d0ac00c4c64dce8590d5f9da4989f6843",
+    "source_url": "https://mixkit.co/free-stock-video/a-young-ballerina-dancing-in-a-white-room-956/",
+    "license_name": "Mixkit Stock Video Free License",
+    "credit": "Mixkit"
+  },
+  {
+    "key": "ballet-brazos-giros",
+    "name": "Ballet: brazos y giros",
+    "style": "Ballet",
+    "difficulty": "INTERMEDIATE",
+    "description": "Ballet con más desplazamiento y giros; cuida la posición de los brazos.",
+    "video_url": "https://assets.mixkit.co/videos/1011/1011-720.mp4",
+    "sha256": "a2fa79270f717ab64b07a72e443798f73c2eb72400397cbaa74956d8780794f3",
+    "source_url": "https://mixkit.co/free-stock-video/ballerina-dancing-in-a-white-room-1011/",
+    "license_name": "Mixkit Stock Video Free License",
+    "credit": "Mixkit"
+  },
+  {
+    "key": "reto-hip-hop",
+    "name": "Reto rápido de hip hop",
+    "style": "Hip hop",
+    "difficulty": "ADVANCED",
+    "description": "Seis segundos de hip hop intenso. Perfecto para calentar o competir por la mejor marca.",
+    "video_url": "https://assets.mixkit.co/videos/51770/51770-720.mp4",
+    "sha256": "1d7a1eedc1990bd94e594f86f818f8583b9635aac0f8e50807be6bb18cfcd49e",
+    "source_url": "https://mixkit.co/free-stock-video/intense-dance-of-a-man-with-headphones-on-a-blue-51770/",
+    "license_name": "Mixkit Stock Video Free License",
+    "credit": "Mixkit"
+  },
+  {
+    "key": "calle-energia",
+    "name": "Coreografía con energía",
+    "style": "Urbano",
+    "difficulty": "INTERMEDIATE",
+    "description": "Coreografía urbana callejera con pasos vivos y cambios de dirección.",
+    "video_url": "https://assets.mixkit.co/videos/51320/51320-720.mp4",
+    "sha256": "a918bdb874f530aeeb104133d548aec71ea53ecf4f28b0899f1f6db221307638",
+    "source_url": "https://mixkit.co/free-stock-video/boy-dancing-a-lively-choreography-in-the-street-51320/",
+    "license_name": "Mixkit Stock Video Free License",
+    "credit": "Mixkit"
+  },
+  {
+    "key": "urbano-nocturno",
+    "name": "Coreografía urbana nocturna",
+    "style": "Urbano",
+    "difficulty": "INTERMEDIATE",
+    "description": "Un bailarín encadena pasos urbanos animados con todo el cuerpo a la vista.",
+    "video_url": "https://assets.mixkit.co/videos/51310/51310-720.mp4",
+    "sha256": "4a244c5baad079a65ddb5dd52389901772eeff09ae9d6737f45293b0889fd5ca",
+    "source_url": "https://mixkit.co/free-stock-video/boy-dancing-an-animated-choreography-at-night-51310/",
+    "license_name": "Mixkit Stock Video Free License",
+    "credit": "Mixkit"
+  },
+  {
+    "key": "calle-coreografia",
+    "name": "Coreografía callejera",
+    "style": "Urbano",
+    "difficulty": "ADVANCED",
+    "description": "Coreografía dinámica de calle: movimientos rápidos de brazos y piernas.",
+    "video_url": "https://assets.mixkit.co/videos/51304/51304-720.mp4",
+    "sha256": "474523e474152deb04ab8351fbf9d21e5c3b86d5695a7cfff802e7c9f6d2852f",
+    "source_url": "https://mixkit.co/free-stock-video/dynamic-choreography-by-a-girl-on-the-street-at-night-51304/",
+    "license_name": "Mixkit Stock Video Free License",
+    "credit": "Mixkit"
+  },
+  {
+    "key": "urbano-cuerpo-entero",
+    "name": "Urbano de cuerpo entero",
+    "style": "Urbano",
+    "difficulty": "ADVANCED",
+    "description": "Baile urbano veloz grabado en plano completo. Para cuando ya domines el espejo.",
+    "video_url": "https://assets.mixkit.co/videos/40372/40372-720.mp4",
+    "sha256": "33872bfd4a002616587046055b0444cdacf61fc0aa284a6d3f0fcf8111d68496",
+    "source_url": "https://mixkit.co/free-stock-video/full-shot-of-an-urban-fashion-dancer-40372/",
+    "license_name": "Mixkit Stock Video Free License",
+    "credit": "Mixkit"
+  },
+  {
+    "key": "cancha-urbana",
+    "name": "Baile en la cancha",
+    "style": "Urbano",
+    "difficulty": "ADVANCED",
+    "description": "Bailarina urbana en una cancha de noche; ritmo alto y pasos amplios.",
+    "video_url": "https://assets.mixkit.co/videos/51314/51314-720.mp4",
+    "sha256": "7dba955fc2c6686fadea667aa0231cb84168c6ea446ec3598aa97626a002818c",
+    "source_url": "https://mixkit.co/free-stock-video/talented-urban-woman-dancing-at-night-on-a-basketball-court-51314/",
+    "license_name": "Mixkit Stock Video Free License",
+    "credit": "Mixkit"
+  }
+]

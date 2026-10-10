@@ -9,6 +9,7 @@ import 'package:http/testing.dart';
 import 'package:syncdance_mobile/core/network/catalog_session.dart';
 import 'package:syncdance_mobile/features/auth/login_screen.dart';
 import 'package:syncdance_mobile/features/routines/reference/catalog_api.dart';
+import 'package:syncdance_mobile/features/routines/reference/master_video_cache.dart';
 import 'package:syncdance_mobile/features/routines/reference/motion_reference.dart';
 import 'package:syncdance_mobile/features/routines/reference/reference_cache.dart';
 import 'package:syncdance_mobile/features/routines/routines_screen.dart';
@@ -39,8 +40,99 @@ class MemoryCache extends ReferenceCache {
   }
 }
 
+/// Keeps "downloaded" masters in memory: no plugin or disk in widget tests.
+class MemoryVideos extends MasterVideoCache {
+  MemoryVideos() : super(Directory('unused'));
+  final saved = <int, List<int>>{};
+  @override
+  Future<File?> read(ReferenceMetadata metadata) async =>
+      saved.containsKey(metadata.version) ? File('master.mp4') : null;
+  @override
+  Future<File> save(ReferenceMetadata metadata, Stream<List<int>> bytes) async {
+    saved[metadata.version] = [
+      for (final chunk in await bytes.toList()) ...chunk,
+    ];
+    return File('master.mp4');
+  }
+}
+
 void main() {
   const account = Account(1, 'demo', 'token');
+
+  testWidgets('Bailar prepares reference and video in one tap, offline too', (
+    tester,
+  ) async {
+    final bytes = referenceBytes();
+    final metaJson = metadataJson(bytes: bytes);
+    var offline = false;
+    var videoRequests = 0;
+    final api = CatalogApi(
+      'http://localhost:8000/api',
+      client: MockClient((request) async {
+        if (offline) throw http.ClientException('offline');
+        final path = request.url.path;
+        if (path.endsWith('reference/')) {
+          return http.Response(jsonEncode(metaJson), 200);
+        }
+        if (path.endsWith('download/')) return http.Response.bytes(bytes, 200);
+        if (path.endsWith('video/')) {
+          videoRequests++;
+          return http.Response.bytes([1, 2, 3], 200);
+        }
+        return http.Response(
+          '{"results":[{"id":7,"name":"Hip hop","style":"Hip hop",'
+          '"difficulty":"BEGINNER","duration_ms":250,"credit":"Mixkit"}],'
+          '"next":null}',
+          200,
+        );
+      }),
+    );
+    addTearDown(api.close);
+    final session = CatalogSession(api)..account = account;
+    final cache = MemoryCache();
+    final videos = MemoryVideos();
+    final opened = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RoutinesScreen(
+          session: session,
+          cache: cache,
+          videos: videos,
+          openGame: (saved, video) {
+            opened.add('${saved.name} v${saved.reference.metadata.version}');
+            return const Scaffold(body: Text('Juego abierto'));
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Hip hop · Principiante · 0.3 s · Video: Mixkit'),
+      findsOneWidget,
+    );
+    // Streams of MockClient responses complete on the real event loop.
+    await tester.runAsync(() async {
+      await tester.tap(find.byTooltip('Bailar'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Juego abierto'), findsOneWidget);
+    expect(opened, ['Hip hop v1']);
+    expect(cache.entries, hasLength(1));
+    expect(videos.saved[1], [1, 2, 3]);
+
+    // Back to the catalog and offline: the saved version and video are reused.
+    Navigator.of(tester.element(find.text('Juego abierto'))).pop();
+    await tester.pumpAndSettle();
+    offline = true;
+    await tester.runAsync(() async {
+      await tester.tap(find.byTooltip('Bailar'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+    expect(opened, ['Hip hop v1', 'Hip hop v1']);
+    expect(videoRequests, 1);
+  });
 
   for (final success in [true, false]) {
     testWidgets('login navigates only after identity succeeds: $success', (

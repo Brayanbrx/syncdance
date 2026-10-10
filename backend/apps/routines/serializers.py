@@ -15,13 +15,18 @@ class RoutineSerializer(serializers.ModelSerializer):
             "description",
             "instructor",
             "difficulty",
+            "style",
             "master_video",
             "duration_ms",
             "is_active",
+            "catalog_key",
+            "source_url",
+            "license_name",
+            "credit",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "instructor", "created_at", "updated_at")
+        read_only_fields = ("id", "instructor", "catalog_key", "created_at", "updated_at")
 
 
 class RoutineReferenceSerializer(serializers.ModelSerializer):

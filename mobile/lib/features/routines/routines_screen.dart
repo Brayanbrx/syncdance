@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/network/catalog_session.dart';
 import '../training/history/session_sync.dart';
+import '../training/presentation/dance_game_screen.dart';
 import '../training/presentation/master_playback_screen.dart';
 import 'reference/catalog_api.dart';
 import 'reference/master_video_cache.dart';
@@ -13,9 +15,21 @@ import 'reference/motion_reference.dart';
 import 'reference/reference_cache.dart';
 
 class RoutinesScreen extends StatefulWidget {
-  const RoutinesScreen({this.session, this.cache, super.key});
+  const RoutinesScreen({
+    this.session,
+    this.cache,
+    this.videos,
+    this.openGame,
+    super.key,
+  });
   final CatalogSession? session;
   final ReferenceCache? cache;
+
+  /// Defaults to a cache beside the references; injectable for tests.
+  final MasterVideoCache? videos;
+
+  /// Defaults to [DanceGameScreen]; injectable for tests without plugins.
+  final Widget Function(SavedReference saved, File video)? openGame;
   @override
   State<RoutinesScreen> createState() => _RoutinesScreenState();
 }
@@ -28,6 +42,14 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   List<SavedReference> _saved = [];
   bool _busy = true;
   String? _message;
+  final _closed = Completer<void>();
+
+  @override
+  void dispose() {
+    // Cancels a master video download still streaming to disk.
+    if (!_closed.isCompleted) _closed.complete();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -75,7 +97,8 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
       _message = null;
     });
     try {
-      final routines = await _session.authorized(_session.api.routines);
+      final routines = await _session.authorized(_session.api.routines)
+        ..sort(RoutineItem.byLevel);
       if (mounted) setState(() => _routines = routines);
     } catch (error) {
       if (mounted) {
@@ -113,6 +136,84 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               _message = 'Referencia de ${routine.name} guardada y verificada.',
         );
       }
+    } catch (error) {
+      if (mounted) setState(() => _message = _error(error));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  SavedReference? _latestSaved(int routineId, {int? version}) {
+    SavedReference? best;
+    for (final saved in _saved) {
+      final metadata = saved.reference.metadata;
+      if (metadata.routineId != routineId) continue;
+      if (version != null && metadata.version != version) continue;
+      if (best == null || metadata.version > best.reference.metadata.version) {
+        best = saved;
+      }
+    }
+    return best;
+  }
+
+  /// One tap from the catalog to the game: reference, master video, dance.
+  /// Offline, the newest version already on this phone is used.
+  Future<void> _dance(RoutineItem routine) async {
+    setState(() {
+      _busy = true;
+      _message = 'Preparando ${routine.name}…';
+    });
+    try {
+      SavedReference? saved;
+      try {
+        final metadata = await _session.authorized(
+          (account) => _session.api.metadata(account, routine.id),
+        );
+        saved = _latestSaved(routine.id, version: metadata.version);
+        if (saved == null) {
+          final bytes = await _session.authorized(
+            (account) => _session.api.download(account, metadata),
+          );
+          await _cache!.save(routine.name, metadata, bytes);
+          await _reloadSaved();
+          saved = _latestSaved(routine.id, version: metadata.version);
+        }
+      } on ReferenceException {
+        saved = _latestSaved(routine.id);
+        if (saved == null) rethrow;
+      }
+      if (saved == null) {
+        throw const ReferenceException('No se pudo guardar la referencia.');
+      }
+      final metadata = saved.reference.metadata;
+      final videos = widget.videos ?? MasterVideoCache(_cache!.directory);
+      var video = await videos.read(metadata);
+      if (video == null) {
+        final account = await _session.freshAccount();
+        video = await videos.save(
+          metadata,
+          _session.api.video(account, metadata, cancelled: _closed.future),
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _message = null;
+      });
+      final chosen = saved;
+      final file = video;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              widget.openGame?.call(chosen, file) ??
+              DanceGameScreen(
+                saved: chosen,
+                videoFile: file,
+                storeScope: _session.cacheScope,
+                onSessionSaved: () => SessionSync.forSession(_session),
+              ),
+        ),
+      );
     } catch (error) {
       if (mounted) setState(() => _message = _error(error));
     } finally {
@@ -238,12 +339,27 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               for (final routine in _routines)
                 ListTile(
                   title: Text(routine.name),
-                  trailing: IconButton(
-                    tooltip: 'Descargar referencia',
-                    onPressed: _busy || _cache == null
-                        ? null
-                        : () => _download(routine),
-                    icon: const Icon(Icons.download_outlined),
+                  subtitle: routine.details.isEmpty
+                      ? null
+                      : Text(routine.details),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Bailar',
+                        onPressed: _busy || _cache == null
+                            ? null
+                            : () => _dance(routine),
+                        icon: const Icon(Icons.play_circle_fill),
+                      ),
+                      IconButton(
+                        tooltip: 'Descargar referencia',
+                        onPressed: _busy || _cache == null
+                            ? null
+                            : () => _download(routine),
+                        icon: const Icon(Icons.download_outlined),
+                      ),
+                    ],
                   ),
                 ),
             ],

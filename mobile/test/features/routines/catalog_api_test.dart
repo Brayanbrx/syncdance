@@ -227,4 +227,39 @@ void main() {
       },
     );
   }
+
+  test('catalog items show style, level, length and credit when known', () {
+    final full = RoutineItem.fromJson({
+      'id': 3,
+      'name': 'Hip hop urbano',
+      'style': 'Hip hop',
+      'difficulty': 'BEGINNER',
+      'duration_ms': 13600,
+      'credit': 'Mixkit',
+    });
+    expect(full.details, 'Hip hop · Principiante · 14 s · Video: Mixkit');
+    final bare = RoutineItem.fromJson({'id': 4, 'name': 'Sin datos'});
+    expect(bare.details, isEmpty);
+    expect(
+      RoutineItem.fromJson({'id': 5, 'name': 'X', 'duration_ms': 0}).durationMs,
+      0,
+    );
+  });
+
+  test('catalog sorts beginner first, then by name, unknown levels last', () {
+    final items = [
+      const RoutineItem(1, 'Zeta', difficulty: 'ADVANCED'),
+      const RoutineItem(2, 'Sin nivel'),
+      const RoutineItem(3, 'Beta', difficulty: 'BEGINNER'),
+      const RoutineItem(4, 'Alfa', difficulty: 'BEGINNER'),
+      const RoutineItem(5, 'Media', difficulty: 'INTERMEDIATE'),
+    ]..sort(RoutineItem.byLevel);
+    expect(items.map((r) => r.name), [
+      'Alfa',
+      'Beta',
+      'Media',
+      'Zeta',
+      'Sin nivel',
+    ]);
+  });
 }

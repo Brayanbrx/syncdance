@@ -18,7 +18,14 @@ class Routine(models.Model):
         related_name="routines",
     )
     difficulty = models.CharField(max_length=16, choices=Difficulty.choices)
+    style = models.CharField(max_length=40, blank=True)
     master_video = models.FileField(upload_to="routines/%Y/%m/", blank=True)
+    # Provenance of third-party masters (default catalog). Media is downloaded at
+    # install time from its source and never committed to the repository.
+    catalog_key = models.SlugField(max_length=60, unique=True, null=True, blank=True)
+    source_url = models.URLField(blank=True)
+    license_name = models.CharField(max_length=120, blank=True)
+    credit = models.CharField(max_length=200, blank=True)
     duration_ms = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

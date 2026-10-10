@@ -57,6 +57,13 @@ docker compose up --build
 docker compose exec backend python manage.py createsuperuser
 ```
 
+Para tener clases listas para bailar, instalar el catálogo por defecto (9 rutinas
+con videos de licencia libre; ver `backend/apps/routines/README.md`):
+
+```powershell
+docker compose exec backend python manage.py load_default_catalog
+```
+
 Ejecutar `createsuperuser` en otra terminal. Compose aplica las migraciones al
 iniciar Django, sin borrar los datos existentes.
 

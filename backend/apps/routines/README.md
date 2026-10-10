@@ -135,3 +135,48 @@ Las pruebas físicas aplazadas de Fases 1–2 siguen pendientes.
 
 Fuentes: [MediaPipe Python](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/python)
 y [modelo oficial](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker).
+
+## Catálogo por defecto (clases tipo Just Dance)
+
+```powershell
+docker compose exec backend python manage.py load_default_catalog
+```
+
+Crea las rutinas que falten a partir de `catalog/default_catalog.json` y encola
+sus referencias. Es idempotente por `catalog_key`; `--only clave …` instala
+algunas. Los videos se descargan de su origen al instalar y **nunca se suben al
+repositorio**: la licencia permite usarlos, no redistribuir los archivos.
+
+- **Origen y licencia:** clips de [Mixkit](https://mixkit.co/free-stock-video/dance/)
+  bajo «Mixkit Stock Video Free License» (uso gratuito, también comercial, sin
+  atribución obligatoria). Cada página se comprobó: se descartaron clips con la
+  licencia restringida («Girl dancing outdoors», «Ballerina spins in black tutu»).
+- **Seguridad:** solo HTTPS desde `assets.mixkit.co`, límite de 200 MB y SHA-256
+  fijado por entrada; un archivo distinto no se instala.
+- **Procedencia:** `style`, `source_url`, `license_name` y `credit` quedan en la
+  rutina y la API; el móvil muestra el crédito.
+- **Selección con datos:** 283 clips de categorías de baile → 45 candidatos por
+  título → análisis con el mismo generador de referencias. Se eligieron los que
+  tienen una sola persona y cuerpo entero medible (6 ángulos) en 60–99 % de las
+  muestras y casi todos sus movimientos de 1 s calificables. La mayoría de clips
+  de stock no sirven: cuerpo cortado, poca luz o varias personas.
+- **Dificultad:** velocidad angular media del maestro (< 80 °/s principiante,
+  80–180 intermedio, > 180 avanzado).
+
+| Rutina | Estilo | Nivel | Duración | Medible |
+|---|---|---|---|---|
+| Baile alegre para empezar | Libre | Principiante | 13,8 s | 84 % |
+| Ballet en sala blanca | Ballet | Principiante | 22,8 s | 90 % |
+| Ballet: brazos y giros | Ballet | Intermedio | 27,1 s | 87 % |
+| Coreografía con energía | Urbano | Intermedio | 24,6 s | 74 % |
+| Coreografía urbana nocturna | Urbano | Intermedio | 22,5 s | 94 % |
+| Reto rápido de hip hop | Hip hop | Avanzado | 6,3 s | 99 % |
+| Coreografía callejera | Urbano | Avanzado | 21,5 s | 80 % |
+| Urbano de cuerpo entero | Urbano | Avanzado | 13,6 s | 83 % |
+| Baile en la cancha | Urbano | Avanzado | 21,9 s | 60 % |
+
+Limitaciones: los clips **no tienen audio**, y la música gratuita de Mixkit
+excluye su uso en videojuegos, así que no se añadió. Para música habría que
+usar pistas CC BY que permitan juegos (citando al autor) y mezclarlas al
+instalar; su ritmo no coincidirá con el del bailarín. Los maestros son de
+stock: bailan libremente, no enseñan paso a paso.
