@@ -292,6 +292,31 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
     );
   }
 
+  /// Deleting the master is never a side effect of a stray tap: it is off
+  /// during a practice and always asks first.
+  Future<void> _confirmRemove() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar video del maestro'),
+        content: const Text(
+          'Se borrará de este dispositivo. Podrás descargarlo de nuevo con conexión.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted && !_practice) await _remove();
+  }
+
   Future<void> _remove() async {
     _finishPractice();
     setState(() => _busy = true);
@@ -566,7 +591,7 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
                 ),
               if (_hasVideo)
                 TextButton.icon(
-                  onPressed: _busy ? null : _remove,
+                  onPressed: _busy || _practice ? null : _confirmRemove,
                   icon: const Icon(Icons.delete_outline),
                   label: const Text('Eliminar video guardado'),
                 ),

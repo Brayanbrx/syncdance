@@ -156,6 +156,11 @@ void main() {
       await tester.ensureVisible(find.text('Practicar con cámara'));
       await tester.tap(find.text('Practicar con cámara'));
       await tester.pumpAndSettle();
+      // The master cannot be deleted by accident while practising.
+      await tester.ensureVisible(find.text('Eliminar video guardado'));
+      await tester.tap(find.text('Eliminar video guardado'));
+      await tester.pumpAndSettle();
+      expect(find.text('Eliminar video del maestro'), findsNothing);
       // The speed cannot change during a practice.
       await tester.ensureVisible(find.text('1×'));
       await tester.tap(find.text('1×'));
@@ -359,6 +364,13 @@ void main() {
       expect(find.text('Reproducir'), findsNothing);
       expect(player.disposed, isTrue);
       await tester.tap(find.text('Eliminar video guardado'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
+      expect(cache.present, isTrue);
+      await tester.tap(find.text('Eliminar video guardado'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Eliminar'));
       await tester.pumpAndSettle();
       expect(cache.present, isFalse);
       expect(find.text('Descargar video y abrir'), findsOneWidget);
