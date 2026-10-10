@@ -65,8 +65,9 @@ docker compose exec backend python manage.py load_default_catalog
 docker compose exec backend python manage.py generate_standard_catalog
 ```
 
-El segundo genera el **estándar SyncDance** (Nivel 1: cinco pasos básicos y
-«Primer baile») con coach animado, ritmo propio y referencia exacta; ver
+El segundo genera el **estándar SyncDance** (16 rutinas en tres niveles: pasos
+básicos y una coreografía original por nivel) con coach animado, ritmo propio,
+rejilla de tiempos y referencia exacta; ver
 `backend/ai_engine/choreography/README.md`.
 
 Ejecutar `createsuperuser` en otra terminal. Compose aplica las migraciones al
@@ -101,6 +102,12 @@ flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api
 Reemplazar la IP por la del equipo con Django y permitir ese host en
 `DJANGO_ALLOWED_HOSTS`. Android Emulator usa `10.0.2.2`; iOS Simulator puede usar
 `localhost`. La URL del cliente es pública y nunca debe contener secretos.
+
+**Bailar** (en Inicio) lleva al catálogo: un toque descarga referencia y video
+y abre el modo juego manos libres, con calificaciones al ritmo, combo,
+pictogramas de los próximos movimientos, estrellas y **Practicar** cada
+movimiento débil en bucle y más lento. Ver
+`mobile/lib/features/training/game/README.md`.
 
 El login y el catálogo móvil están conectados a Django. La sesión persiste en
 almacenamiento seguro (identidad y refresh token, nunca la contraseña): la app

@@ -24,12 +24,43 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Prepara tu espacio para practicar baile y comprueba '
-              'que tu cuerpo se vea completo en la cámara.',
+          // The main path: the catalog has one-tap Bailar and the best stars.
+          Card(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => context.push('/routines'),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Icon(Icons.music_note, size: 48),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bailar',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const Text(
+                            'Elige una rutina y baila frente al teléfono: '
+                            'empieza sola cuando te ve de cuerpo entero. '
+                            'Si es tu primera vez, empieza por el Nivel 1.',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+              ),
             ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text('Herramientas'),
           ),
           ListTile(
             leading: const Icon(Icons.videocam_outlined),
@@ -39,7 +70,9 @@ class HomeScreen extends StatelessWidget {
             onTap: () => context.push('/training/camera'),
           ),
           ListTile(
+            leading: const Icon(Icons.library_music_outlined),
             title: const Text('Rutinas'),
+            subtitle: const Text('Catálogo, referencias guardadas y maestro'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/routines'),
           ),
