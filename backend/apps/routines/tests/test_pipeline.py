@@ -15,7 +15,7 @@ from apps.accounts.models import User
 from apps.routines.models import Routine, RoutineReference
 from apps.routines.reference_services import queue_reference
 from apps.routines.services import create_routine, update_routine
-from apps.routines.tasks import generate_reference
+from apps.routines.tasks import expire_stale_references, generate_reference
 
 pytestmark = pytest.mark.django_db
 
@@ -23,7 +23,9 @@ pytestmark = pytest.mark.django_db
 def test_versioned_video_preserves_source_and_requires_routine_access(setup):
     routine, client, _ = setup
     reference = RoutineReference.objects.create(
-        routine=routine, version=1, status="READY",
+        routine=routine,
+        version=1,
+        status="READY",
         source_video=routine.master_video.name,
         source_sha256=hashlib.sha256(b"fixture video").hexdigest(),
     )
@@ -129,6 +131,32 @@ def test_stalled_worker_can_be_replaced_by_new_version(setup):
     old.refresh_from_db()
     assert old.status == "FAILED"
     assert newer.version == old.version + 1
+
+
+def test_periodic_sweep_recovers_only_references_past_the_hard_limit(setup):
+    routine, _, _ = setup
+    stale = queue_reference(routine_id=routine.pk)
+    stale.status = "PROCESSING"
+    stale.processing_started_at = timezone.now() - timedelta(minutes=32)
+    stale.save()
+    running = RoutineReference.objects.create(
+        routine=routine,
+        version=stale.version + 1,
+        status="PROCESSING",
+        processing_started_at=timezone.now() - timedelta(minutes=5),
+    )
+    never_started = RoutineReference.objects.create(
+        routine=routine, version=stale.version + 2, status="PENDING"
+    )
+    RoutineReference.objects.filter(pk=never_started.pk).update(
+        created_at=timezone.now() - timedelta(minutes=40)
+    )
+    assert expire_stale_references.run() == 2
+    assert expire_stale_references.run() == 0
+    statuses = dict(RoutineReference.objects.values_list("pk", "status"))
+    assert statuses[stale.pk] == "FAILED"
+    assert statuses[never_started.pk] == "FAILED"
+    assert statuses[running.pk] == "PROCESSING"
 
 
 def test_dispatch_failure_is_visible(setup, django_capture_on_commit_callbacks):

@@ -57,11 +57,6 @@ class HomeScreen extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/training/history'),
           ),
-          ListTile(
-            title: const Text('Análisis de videos (secundario)'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/performances'),
-          ),
         ],
       ),
     );

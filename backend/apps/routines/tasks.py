@@ -12,8 +12,15 @@ from django.utils import timezone
 from ai_engine.pose.reference import MAX_SOURCE_BYTES, ReferenceError, build_reference
 
 from .models import Routine, RoutineReference
+from .reference_services import expire_stale_references as _expire_stale_references
 
 logger = logging.getLogger(__name__)
+
+
+@shared_task
+def expire_stale_references():
+    """Periodic (Celery Beat): recover references a crashed worker left running."""
+    return _expire_stale_references()
 
 
 @shared_task(soft_time_limit=1500, time_limit=1800)

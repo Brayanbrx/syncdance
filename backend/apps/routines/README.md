@@ -9,6 +9,10 @@
   Celery ocurre después del commit; mientras hay un trabajo vigente, se reutiliza.
 - Estados PENDING → PROCESSING → READY / FAILED, con errores públicos sin rutas
   internas. Reintentar crea una versión nueva, nunca modifica un READY.
+- Si un worker muere, Celery Beat ejecuta `expire_stale_references` cada 10 min:
+  una versión PROCESSING o PENDING con más de 31 min (pasado el límite duro de
+  30 min) pasa a FAILED. Son UPDATE condicionales, seguros de repetir; una tarea
+  que termine tarde comprueba su estado bajo bloqueo y no publica.
 - La versión conserva la ruta del video fuente; reemplazarlo no cambia trabajos
   anteriores. Sus checksums y resultados quedan en el historial. No sobrescribir
   archivos de storage fuera de la aplicación: la ruta debe conservar su contenido.
@@ -34,8 +38,10 @@ Con Docker, reconstruir backend/celery y aplicar migraciones. La imagen incluye
 dependencias nativas y el modelo oficial en `/opt/syncdance`, fuera del bind mount:
 
 ```powershell
-docker compose up --build backend celery
+docker compose up --build backend celery celery-beat
 ```
+
+`celery-beat` debe tener una sola instancia.
 
 Sin Docker, desde `backend/` y con el entorno virtual existente:
 

@@ -179,6 +179,8 @@ Fuentes: [ML Kit local/offline](https://developers.google.com/ml-kit),
 - `SegmentScore` y `ErrorEvent`: resumen técnico, sin persistir cada frame.
 - `Performance` y `/api/performances/`: flujo secundario compatible. Su tarea
   Celery conserva resultados **simulados** de baile; `voice_score` es nullable.
+  El móvil ya no lo ofrece en Inicio (contradice el enfoque live-first); sus
+  rutas se conservan hasta decidir su retiro.
 
 API nueva, autenticada con JWT:
 

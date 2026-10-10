@@ -131,6 +131,14 @@ CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/1")
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
+# Run a single Beat process (see docker-compose `celery-beat`).
+CELERY_BEAT_SCHEDULE = {
+    "expire-stale-references": {
+        "task": "apps.routines.tasks.expire_stale_references",
+        "schedule": timedelta(minutes=10),
+        "options": {"expires": 9 * 60},
+    },
+}
 POSE_MODEL_PATH = os.getenv(
     "POSE_MODEL_PATH", str(BASE_DIR / "models" / "pose_landmarker_lite.task")
 )

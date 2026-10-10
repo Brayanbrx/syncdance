@@ -10,6 +10,28 @@ from .models import Routine, RoutineReference
 
 logger = logging.getLogger(__name__)
 
+# Past the task hard time limit (30 min) a reference can no longer be running.
+STALE_AFTER = timedelta(minutes=31)
+
+
+def expire_stale_references(*, routine=None):
+    """Mark references a lost worker left PENDING/PROCESSING as FAILED.
+
+    Conditional UPDATEs: safe to repeat and to run beside a finishing task,
+    which re-checks its status under a row lock before publishing.
+    """
+    queryset = routine.references.all() if routine else RoutineReference.objects.all()
+    limit = timezone.now() - STALE_AFTER
+    expired = queryset.filter(status="PROCESSING", processing_started_at__lt=limit).update(
+        status="FAILED", processing_error="El proceso excedió su tiempo máximo."
+    )
+    expired += queryset.filter(status="PENDING", created_at__lt=limit).update(
+        status="FAILED", processing_error="El trabajo no comenzó a tiempo. Genera otra versión."
+    )
+    if expired:
+        logger.warning("Expired %s stale reference(s)", expired)
+    return expired
+
 
 def _dispatch(reference_id):
     from .tasks import generate_reference
@@ -29,14 +51,7 @@ def queue_reference(*, routine_id):
     routine = Routine.objects.select_for_update().get(pk=routine_id)
     if not routine.master_video:
         raise ValidationError("La rutina requiere un video maestro.")
-    routine.references.filter(
-        status="PROCESSING", processing_started_at__lt=timezone.now() - timedelta(minutes=31)
-    ).update(status="FAILED", processing_error="El proceso excedió su tiempo máximo.")
-    routine.references.filter(
-        status="PENDING", created_at__lt=timezone.now() - timedelta(minutes=31)
-    ).update(
-        status="FAILED", processing_error="El trabajo no comenzó a tiempo; se creó otra versión."
-    )
+    expire_stale_references(routine=routine)
     pending = routine.references.filter(
         source_video=routine.master_video.name, status__in=["PENDING", "PROCESSING"]
     ).first()

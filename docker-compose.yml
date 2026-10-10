@@ -67,6 +67,23 @@ services:
       redis:
         condition: service_healthy
 
+  # Single scheduler instance: periodic recovery of stale references.
+  celery-beat:
+    build: ./backend
+    restart: unless-stopped
+    command: celery -A config beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    volumes:
+      - ./backend:/app
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      POSTGRES_HOST: postgres
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+
   frontend:
     profiles: ["web"]
     build: ./frontend
