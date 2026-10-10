@@ -17,6 +17,13 @@ class SessionExpiredException extends ReferenceException {
     : super('Tu sesión caducó. Vuelve a ingresar con conexión.');
 }
 
+/// The server refused a sign-up; [fields] holds its messages per field
+/// (`username`, `email`, `password`), already in Spanish.
+class RegistrationException extends ReferenceException {
+  const RegistrationException(super.message, [this.fields = const {}]);
+  final Map<String, String> fields;
+}
+
 class LoginResult {
   const LoginResult(this.account, this.refreshToken);
   final Account account;
@@ -190,6 +197,69 @@ class CatalogApi {
 
   static String? _token(Object? value) =>
       value is String && value.isNotEmpty ? value : null;
+
+  /// Creates a student account; the server always assigns the student role.
+  Future<void> register(String username, String email, String password) async {
+    final abort = Completer<void>();
+    final timeout = Timer(const Duration(seconds: 30), () => abort.complete());
+    try {
+      final request = http.AbortableRequest(
+        'POST',
+        _trusted('auth/register/'),
+        abortTrigger: abort.future,
+      )..followRedirects = false;
+      request.headers['Content-Type'] = 'application/json';
+      request.headers['Accept-Encoding'] = 'identity';
+      request.body = jsonEncode({
+        'username': username,
+        'email': email,
+        'password': password,
+      });
+      final response = await _client.send(request);
+      if (response.statusCode == 201) {
+        await response.stream.listen(null).cancel();
+        return;
+      }
+      if (response.statusCode != 400) {
+        await response.stream.listen(null).cancel();
+        throw ReferenceException(switch (response.statusCode) {
+          429 => 'Demasiados registros desde esta red. Espera y reintenta.',
+          _ => 'No se pudo crear la cuenta. Intenta más tarde.',
+        });
+      }
+      final bytes = <int>[];
+      await for (final chunk in response.stream) {
+        if (bytes.length + chunk.length > 64 * 1024) break;
+        bytes.addAll(chunk);
+      }
+      final fields = <String, String>{};
+      try {
+        final errors = jsonDecode(utf8.decode(bytes));
+        if (errors is Map<String, dynamic>) {
+          for (final entry in errors.entries) {
+            final messages = entry.value;
+            if (messages is List && messages.isNotEmpty) {
+              fields[entry.key] = messages.whereType<String>().join(' ');
+            }
+          }
+        }
+      } on FormatException {
+        // Unreadable details: the generic message below still applies.
+      }
+      throw RegistrationException(
+        fields.isEmpty
+            ? 'Revisa los datos de la cuenta.'
+            : fields.values.join(' '),
+        fields,
+      );
+    } on http.ClientException {
+      throw const ReferenceException(
+        'No se pudo conectar. Comprueba la conexión y vuelve a intentar.',
+      );
+    } finally {
+      timeout.cancel();
+    }
+  }
 
   Future<LoginResult> login(String username, String password) async {
     final tokens = await _json(

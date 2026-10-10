@@ -94,6 +94,10 @@ class _LoginScreenState extends State<LoginScreen> {
             if (_error != null)
               Padding(padding: const EdgeInsets.all(12), child: Text(_error!)),
             TextButton(
+              onPressed: _busy ? null : () => context.push('/register'),
+              child: const Text('Crear cuenta de estudiante'),
+            ),
+            TextButton(
               onPressed: _busy
                   ? null
                   : () {

@@ -113,7 +113,9 @@ pictogramas de los próximos movimientos, estrellas y **Practicar** cada
 movimiento débil en bucle y más lento. Ver
 `mobile/lib/features/training/game/README.md`.
 
-El login y el catálogo móvil están conectados a Django. La sesión persiste en
+El login y el catálogo móvil están conectados a Django. **Crear cuenta de
+estudiante** (en el login) registra con rol Estudiante; el servidor aplica los
+validadores de contraseña de Django y la app entra sola al terminar. La sesión persiste en
 almacenamiento seguro (identidad y refresh token, nunca la contraseña): la app
 reabre sin red y renueva el acceso al reconectar.
 `features/training/pose/` contiene `PoseEstimator`, los 33 joints canónicos y

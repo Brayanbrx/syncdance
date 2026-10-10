@@ -79,3 +79,12 @@ def test_sign_ups_are_throttled_per_address(monkeypatch):
         return client.post(reverse("register"), payload, format="json").status_code
 
     assert [sign_up("a1"), sign_up("a2"), sign_up("a3")] == [201, 201, 429]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("password", ["12345678", "password", "student99x"])
+def test_sign_up_rejects_weak_passwords(password):
+    payload = {"username": "student99", "email": "s99@example.com", "password": password}
+    response = APIClient().post(reverse("register"), payload, format="json")
+    assert response.status_code == 400
+    assert response.data["password"]

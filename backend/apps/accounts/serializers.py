@@ -1,3 +1,5 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .models import User
@@ -18,6 +20,15 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id", "username", "email", "password", "first_name", "last_name")
         read_only_fields = ("id",)
+
+    def validate(self, attrs):
+        # Same rules as the admin: not common, not only digits, not like the name.
+        candidate = User(**{k: v for k, v in attrs.items() if k != "password"})
+        try:
+            validate_password(attrs["password"], user=candidate)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"password": list(exc.messages)}) from exc
+        return attrs
 
     def create(self, validated_data):
         return register_user(**validated_data)
