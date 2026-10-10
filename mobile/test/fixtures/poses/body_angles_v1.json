@@ -1,0 +1,22 @@
+{
+  "schema": "pose-v1",
+  "description": "Synthetic geometry, not a measured human pose. Left knee bent, right knee straight.",
+  "timestamp_ms": 500,
+  "image_aspect_ratio": 0.75,
+  "pose_confidence": 0.95,
+  "landmarks": [
+    {"joint": "nose", "x": 0.5, "y": 0.1, "confidence": 0.95},
+    {"joint": "leftShoulder", "x": 0.3, "y": 0.3, "confidence": 0.95},
+    {"joint": "rightShoulder", "x": 0.7, "y": 0.3, "confidence": 0.95},
+    {"joint": "leftElbow", "x": 0.1, "y": 0.3, "confidence": 0.95},
+    {"joint": "rightElbow", "x": 0.9, "y": 0.3, "confidence": 0.95},
+    {"joint": "leftWrist", "x": 0.1, "y": 0.5, "confidence": 0.95},
+    {"joint": "rightWrist", "x": 0.9, "y": 0.1, "confidence": 0.95},
+    {"joint": "leftHip", "x": 0.3, "y": 0.55, "confidence": 0.95},
+    {"joint": "rightHip", "x": 0.7, "y": 0.55, "confidence": 0.95},
+    {"joint": "leftKnee", "x": 0.3, "y": 0.75, "confidence": 0.95},
+    {"joint": "rightKnee", "x": 0.7, "y": 0.75, "confidence": 0.95},
+    {"joint": "leftAnkle", "x": 0.5, "y": 0.75, "confidence": 0.95},
+    {"joint": "rightAnkle", "x": 0.7, "y": 0.95, "confidence": 0.95}
+  ]
+}

@@ -19,7 +19,7 @@ android {
         applicationId = "ai.syncdance.syncdance_mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 24 // camera 0.12.x requires Android 7.0 or newer.
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

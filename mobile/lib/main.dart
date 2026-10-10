@@ -5,7 +5,7 @@ import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 
 Future<void> main() async {
-  await dotenv.load();
+  await dotenv.load(fileName: '.env.example');
   runApp(const SyncDanceApp());
 }
 

@@ -1,0 +1,11 @@
+{
+  "schema": "pose-v1",
+  "timestamp_ms": 125,
+  "image_aspect_ratio": 0.75,
+  "pose_confidence": 0.8,
+  "landmarks": [
+    {"joint": "leftShoulder", "x": 0.7, "y": 0.3, "confidence": 0.95},
+    {"joint": "rightShoulder", "x": 0.3, "y": 0.3, "confidence": 0.94},
+    {"joint": "leftWrist", "x": 1.1, "y": 0.5, "confidence": 0.2}
+  ]
+}

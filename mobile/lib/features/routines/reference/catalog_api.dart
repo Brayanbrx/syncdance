@@ -1,0 +1,200 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+import 'motion_reference.dart';
+
+class Account {
+  const Account(this.id, this.username, this.accessToken);
+  final int id;
+  final String username, accessToken;
+}
+
+class RoutineItem {
+  const RoutineItem(this.id, this.name);
+  final int id;
+  final String name;
+}
+
+class CatalogApi {
+  CatalogApi(String baseUrl, {http.Client? client})
+    : base = Uri.parse('${baseUrl.replaceFirst(RegExp(r'/+$'), '')}/'),
+      _client = client ?? http.Client();
+  final Uri base;
+  final http.Client _client;
+
+  Uri _trusted(String path) {
+    final uri = base.resolve(path);
+    if (!['http', 'https'].contains(uri.scheme) ||
+        uri.origin != base.origin ||
+        uri.userInfo.isNotEmpty ||
+        !uri.path.startsWith(base.path)) {
+      throw const ReferenceException(
+        'El servidor devolvió una dirección de descarga no válida.',
+      );
+    }
+    return uri;
+  }
+
+  Future<List<int>> _request(
+    String path, {
+    Account? account,
+    Map<String, String>? body,
+    int maxBytes = 1024 * 1024,
+  }) async {
+    final abort = Completer<void>();
+    final timeout = Timer(const Duration(seconds: 30), () => abort.complete());
+    try {
+      final request = http.AbortableRequest(
+        body == null ? 'GET' : 'POST',
+        _trusted(path),
+        abortTrigger: abort.future,
+      )..followRedirects = false;
+      request.headers['Accept-Encoding'] = 'identity';
+      if (account != null) {
+        request.headers['Authorization'] = 'Bearer ${account.accessToken}';
+      }
+      if (body != null) {
+        request.headers['Content-Type'] = 'application/json';
+        request.body = jsonEncode(body);
+      }
+      final response = await _client.send(request);
+      if (response.statusCode != 200) {
+        await response.stream.listen(null).cancel();
+        throw ReferenceException(switch (response.statusCode) {
+          401 =>
+            'Usuario o contraseña incorrectos, o sesión caducada. Vuelve a ingresar.',
+          403 => 'No tienes acceso a esta rutina.',
+          404 =>
+            'Esta rutina todavía no tiene una referencia lista o ya no está disponible.',
+          _ => 'No se pudo completar la solicitud al servidor.',
+        });
+      }
+      if ((response.contentLength ?? 0) > maxBytes) {
+        await response.stream.listen(null).cancel();
+        throw const ReferenceException('La respuesta es demasiado grande.');
+      }
+      final bytes = <int>[];
+      await for (final chunk in response.stream) {
+        if (bytes.length + chunk.length > maxBytes) {
+          throw const ReferenceException('La respuesta es demasiado grande.');
+        }
+        bytes.addAll(chunk);
+      }
+      return bytes;
+    } on http.ClientException {
+      throw const ReferenceException(
+        'No se pudo conectar. Comprueba la conexión y vuelve a intentar.',
+      );
+    } finally {
+      timeout.cancel();
+    }
+  }
+
+  Future<Map<String, dynamic>> _json(
+    String path, {
+    Account? account,
+    Map<String, String>? body,
+  }) async => object(
+    jsonDecode(utf8.decode(await _request(path, account: account, body: body))),
+  );
+
+  Future<Account> login(String username, String password) async {
+    final tokens = await _json(
+      'auth/login/',
+      body: {'username': username, 'password': password},
+    );
+    final token = tokens['access'] as String;
+    if (token.isEmpty) throw const FormatException('Sesión inválida.');
+    final user = await _json('auth/me/', account: Account(0, username, token));
+    return Account(positiveInt(user['id']), user['username'] as String, token);
+  }
+
+  Future<List<RoutineItem>> routines(Account account) async {
+    String? next = 'routines/';
+    final visited = <String>{};
+    final routines = <int, RoutineItem>{};
+    while (next != null) {
+      if (!visited.add(next) || visited.length > 50) {
+        throw const FormatException('Paginación inválida.');
+      }
+      final data = await _json(next, account: account);
+      for (final raw in data['results'] as List) {
+        final item = object(raw);
+        final id = positiveInt(item['id']);
+        routines[id] = RoutineItem(id, item['name'] as String);
+      }
+      next = data['next'] as String?;
+    }
+    return routines.values.toList();
+  }
+
+  Future<ReferenceMetadata> metadata(Account account, int routineId) async {
+    final metadata = ReferenceMetadata.fromJson(
+      await _json('routines/$routineId/reference/', account: account),
+    );
+    if (metadata.routineId != routineId) {
+      throw const FormatException('Rutina no coincidente.');
+    }
+    return metadata;
+  }
+
+  Future<List<int>> download(Account account, ReferenceMetadata metadata) =>
+      _request(
+        metadata.downloadUrl,
+        account: account,
+        maxBytes: maxReferenceBytes,
+      );
+
+  /// Stream to disk: never allocate the whole (up to 200 MiB) master in memory.
+  Stream<List<int>> video(
+    Account account,
+    ReferenceMetadata metadata, {
+    required Future<void> cancelled,
+  }) async* {
+    final abort = Completer<void>();
+    void stop() {
+      if (!abort.isCompleted) abort.complete();
+    }
+
+    unawaited(cancelled.then((_) => stop()));
+    final timeout = Timer(const Duration(minutes: 5), stop);
+    try {
+      final request = http.AbortableRequest(
+        'GET',
+        _trusted(
+          'routines/${metadata.routineId}/references/${metadata.version}/video/',
+        ),
+        abortTrigger: abort.future,
+      )..followRedirects = false;
+      request.headers['Authorization'] = 'Bearer ${account.accessToken}';
+      request.headers['Accept-Encoding'] = 'identity';
+      final response = await _client.send(request);
+      if (response.statusCode != 200 ||
+          (response.contentLength ?? 0) > 200 * 1024 * 1024) {
+        await response.stream.listen(null).cancel();
+        throw const ReferenceException(
+          'Video no disponible. Comprueba tu sesión y que el video no supere 200 MiB.',
+        );
+      }
+      var received = 0;
+      await for (final chunk in response.stream) {
+        received += chunk.length;
+        if (received > 200 * 1024 * 1024) {
+          throw const ReferenceException('El video supera 200 MiB.');
+        }
+        yield chunk;
+      }
+    } on http.ClientException {
+      throw const ReferenceException(
+        'Descarga interrumpida. Vuelve a intentar con conexión.',
+      );
+    } finally {
+      timeout.cancel();
+      stop();
+    }
+  }
+
+  void close() => _client.close();
+}

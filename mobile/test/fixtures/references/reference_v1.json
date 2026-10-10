@@ -1,0 +1,112 @@
+{
+  "schema": "motion-features-v1",
+  "pose_schema": "pose-v1",
+  "feature_schema": "body-features-v1",
+  "normalization": "body-normalized-v1",
+  "algorithm_version": "reference-body-v1",
+  "engine": "fixture",
+  "model_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "sample_rate_hz": 12,
+  "duration_ms": 250,
+  "timeline": "video-start-cfr-v1",
+  "smoothing": "none",
+  "valid_frame_ratio": 0.3333333333333333,
+  "frames": [
+    {
+      "t": 0,
+      "angles": {
+        "leftElbow": 90.0,
+        "rightElbow": 90.0,
+        "leftShoulder": 90.0,
+        "rightShoulder": 90.0,
+        "leftKnee": 90.0,
+        "rightKnee": 180.0
+      },
+      "normalized": {
+        "nose": [
+          2.2204460492503126e-16,
+          -1.7999999999999998
+        ],
+        "leftShoulder": [
+          -0.5999999999999998,
+          -1.0
+        ],
+        "rightShoulder": [
+          0.5999999999999998,
+          -1.0
+        ],
+        "leftElbow": [
+          -1.1999999999999995,
+          -1.0
+        ],
+        "rightElbow": [
+          1.2000000000000002,
+          -1.0
+        ],
+        "leftWrist": [
+          -1.1999999999999995,
+          -0.20000000000000012
+        ],
+        "rightWrist": [
+          1.2000000000000002,
+          -1.7999999999999998
+        ],
+        "leftHip": [
+          -0.5999999999999998,
+          0.0
+        ],
+        "rightHip": [
+          0.5999999999999998,
+          0.0
+        ],
+        "leftKnee": [
+          -0.5999999999999998,
+          0.7999999999999996
+        ],
+        "rightKnee": [
+          0.5999999999999998,
+          0.7999999999999996
+        ],
+        "leftAnkle": [
+          2.2204460492503126e-16,
+          0.7999999999999996
+        ],
+        "rightAnkle": [
+          0.5999999999999998,
+          1.5999999999999992
+        ]
+      },
+      "quality": "SINGLE_PERSON"
+    },
+    {
+      "t": 83,
+      "angles": {},
+      "normalized": {
+        "leftShoulder": [
+          -0.5999999999999998,
+          -1.0
+        ],
+        "rightShoulder": [
+          0.5999999999999998,
+          -1.0
+        ],
+        "leftHip": [
+          -0.5999999999999998,
+          0.0
+        ],
+        "rightHip": [
+          0.5999999999999998,
+          0.0
+        ]
+      },
+      "quality": "NO_USABLE_POSE"
+    },
+    {
+      "t": 167,
+      "angles": {},
+      "normalized": {},
+      "quality": "MULTIPLE_PEOPLE"
+    }
+  ]
+}
