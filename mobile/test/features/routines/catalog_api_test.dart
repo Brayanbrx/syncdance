@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:syncdance_mobile/features/routines/reference/catalog_api.dart';
+import 'package:syncdance_mobile/features/routines/reference/master_video_cache.dart';
 import 'package:syncdance_mobile/features/routines/reference/motion_reference.dart';
 import 'reference_test_samples.dart';
 
@@ -32,6 +33,51 @@ void main() {
       expect(bytes, [1, 2, 3]);
     },
   );
+
+  for (final announced in [true, false]) {
+    test('video reports its progress (Content-Length: $announced)', () async {
+      final cancelled = Completer<void>();
+      final api = CatalogApi(
+        'http://localhost:8000/api',
+        client: MockClient.streaming((request, body) async {
+          await body.drain<void>();
+          return http.StreamedResponse(
+            Stream.fromIterable([
+              [1, 2],
+              [3, 4],
+            ]),
+            200,
+            contentLength: announced ? 4 : null,
+          );
+        }),
+      );
+      addTearDown(api.close);
+      addTearDown(() => cancelled.complete());
+      final progress = <(int, int?)>[];
+      await api
+          .video(
+            account,
+            metadata(),
+            cancelled: cancelled.future,
+            onProgress: (received, total) => progress.add((received, total)),
+          )
+          .toList();
+      final total = announced ? 4 : null;
+      expect(progress, [(0, total), (2, total), (4, total)]);
+    });
+  }
+
+  test('download progress reads as a percentage or as megabytes', () {
+    expect(downloadProgress(0, 200), (fraction: 0.0, label: '0 %'));
+    expect(downloadProgress(99, 200).label, '49 %');
+    expect(downloadProgress(200, 200).fraction, 1.0);
+    // Unknown size: no fraction, the received amount instead.
+    expect(downloadProgress(3 * 1024 * 1024, null), (
+      fraction: null,
+      label: '3.0 MB',
+    ));
+    expect(downloadProgress(5, 0).fraction, isNull);
+  });
 
   for (final code in [401, 404, 302]) {
     test('video rejects HTTP $code without saving its body', () async {

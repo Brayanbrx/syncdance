@@ -4,6 +4,19 @@ import 'package:crypto/crypto.dart';
 
 import 'motion_reference.dart';
 
+/// Download state for the screen: a fraction when the size is known, so
+/// a large master shows how much is left instead of an endless bar.
+({double? fraction, String label}) downloadProgress(int received, int? total) {
+  if (total != null && total > 0) {
+    final fraction = (received / total).clamp(0.0, 1.0);
+    return (fraction: fraction, label: '${(fraction * 100).floor()} %');
+  }
+  return (
+    fraction: null,
+    label: '${(received / (1024 * 1024)).toStringAsFixed(1)} MB',
+  );
+}
+
 /// Stored beneath an already account-scoped ReferenceCache directory.
 class MasterVideoCache {
   MasterVideoCache(Directory accountDirectory)

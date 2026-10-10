@@ -373,10 +373,13 @@ class CatalogApi {
   }
 
   /// Stream to disk: never allocate the whole (up to 200 MiB) master in memory.
+  /// [onProgress] gets the bytes received and the announced size (null when
+  /// the server does not send `Content-Length`).
   Stream<List<int>> video(
     Account account,
     ReferenceMetadata metadata, {
     required Future<void> cancelled,
+    void Function(int received, int? total)? onProgress,
   }) async* {
     final abort = Completer<void>();
     void stop() {
@@ -403,13 +406,16 @@ class CatalogApi {
           'Video no disponible. Comprueba tu sesión y que el video no supere 200 MiB.',
         );
       }
+      final total = response.contentLength;
       var received = 0;
+      onProgress?.call(0, total);
       await for (final chunk in response.stream) {
         received += chunk.length;
         if (received > 200 * 1024 * 1024) {
           throw const ReferenceException('El video supera 200 MiB.');
         }
         yield chunk;
+        onProgress?.call(received, total);
       }
     } on http.ClientException {
       throw const ReferenceException(

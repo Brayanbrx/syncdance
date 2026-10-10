@@ -56,6 +56,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   Map<int, GameSummary> _bestGames = {};
   bool _busy = true;
   String? _message;
+
+  /// Fraction of the master video downloaded; null when unknown or idle.
+  double? _progress;
   final _closed = Completer<void>();
 
   @override
@@ -242,9 +245,25 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
       var video = await videos.read(metadata);
       if (video == null) {
         final account = await _session.freshAccount();
+        var shown = '';
         video = await videos.save(
           metadata,
-          _session.api.video(account, metadata, cancelled: _closed.future),
+          _session.api.video(
+            account,
+            metadata,
+            cancelled: _closed.future,
+            onProgress: (received, total) {
+              final progress = downloadProgress(received, total);
+              // One rebuild per visible change, not per network chunk.
+              if (!mounted || progress.label == shown) return;
+              shown = progress.label;
+              setState(() {
+                _progress = progress.fraction;
+                _message =
+                    'Descargando el video de ${routine.name}… ${progress.label}';
+              });
+            },
+          ),
         );
       }
       if (!mounted) return;
@@ -270,7 +289,12 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     } catch (error) {
       if (mounted) setState(() => _message = _error(error));
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _progress = null;
+        });
+      }
     }
   }
 
@@ -370,7 +394,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 Text('Cuenta: ${_account.username}'),
-                if (_busy) const LinearProgressIndicator(),
+                if (_busy) LinearProgressIndicator(value: _progress),
                 if (_message != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),

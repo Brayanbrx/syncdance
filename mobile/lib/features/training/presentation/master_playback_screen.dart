@@ -71,6 +71,9 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
   int _comparisonEpoch = 0;
   double? _dragPosition;
   String? _error;
+
+  /// Master download state; null when not downloading.
+  ({double? fraction, String label})? _download;
   ReferenceMetadata get _metadata => widget.saved.reference.metadata;
   ReferenceTimeline get _timeline => ReferenceTimeline(widget.saved.reference);
 
@@ -101,7 +104,16 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
         if (!mounted) return;
         file = await widget.cache.save(
           _metadata,
-          widget.api.video(account, _metadata, cancelled: _cancelled.future),
+          widget.api.video(
+            account,
+            _metadata,
+            cancelled: _cancelled.future,
+            onProgress: (received, total) {
+              final progress = downloadProgress(received, total);
+              if (!mounted || progress.label == _download?.label) return;
+              setState(() => _download = progress);
+            },
+          ),
         );
       }
       if (!mounted || file == null) return;
@@ -136,7 +148,12 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
             : 'No se pudo abrir el video. Reintenta o usa un maestro MP4 compatible.';
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _download = null;
+        });
+      }
     }
   }
 
@@ -409,7 +426,9 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
                   child: const Text('Salir sin guardar'),
                 ),
               ],
-              if (_busy) const LinearProgressIndicator(),
+              if (_download != null)
+                Text('Descargando video del maestro… ${_download!.label}'),
+              if (_busy) LinearProgressIndicator(value: _download?.fraction),
               if (_error != null || value?.hasError == true)
                 Text(
                   _error ??
