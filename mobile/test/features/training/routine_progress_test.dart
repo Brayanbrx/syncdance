@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:syncdance_mobile/features/routines/reference/motion_reference.dart';
 import 'package:syncdance_mobile/features/training/comparison/follow_mode.dart';
 import 'package:syncdance_mobile/features/training/comparison/session_summary.dart';
+import 'package:syncdance_mobile/features/training/game/dance_game.dart';
 import 'package:syncdance_mobile/features/training/history/routine_progress.dart';
 import 'package:syncdance_mobile/features/training/history/saved_session.dart';
 
@@ -16,6 +17,8 @@ SavedSession practice(
   String scoring = 'pose-window-v1',
   FollowMode followMode = FollowMode.sameSide,
   double speed = 1.0,
+  int? perfectMoves,
+  String gameVersion = DanceGame.version,
 }) {
   final json = metadataJson(version: version)..['routine'] = routine;
   final evaluated = score == null ? 0 : (coverage * 250).round();
@@ -39,6 +42,22 @@ SavedSession practice(
       followMode: followMode,
       playbackSpeed: speed,
     ),
+    // A four-move game: [perfectMoves] PERFECT, the rest MISS.
+    game: perfectMoves == null
+        ? null
+        : GameSummary(
+            points: perfectMoves * 100,
+            maxPoints: 400,
+            maxCombo: perfectMoves,
+            counts: {
+              'perfect': perfectMoves,
+              'great': 0,
+              'good': 0,
+              'miss': 4 - perfectMoves,
+              'unrated': 0,
+            },
+            version: gameVersion,
+          ),
   );
 }
 
@@ -130,5 +149,32 @@ void main() {
       for (var d = 1; d <= 7; d++) practice(d * 10.0, day: d),
     ]).single;
     expect(progress.recentScores(), [30, 40, 50, 60, 70]);
+  });
+
+  test('best game is the highest score among comparable games', () {
+    final progress = calculator.compute([
+      practice(70, day: 1, perfectMoves: 2),
+      practice(80, day: 2, perfectMoves: 3),
+      practice(90, day: 3), // learn or free practice: no game
+      practice(60, day: 4, perfectMoves: 3), // ties keep the first
+      practice(50, day: 5, perfectMoves: 1),
+    ]).single;
+    expect(progress.bestGame!.startedAt.day, 2);
+    expect(progress.bestGame!.game!.stars, 4);
+    expect(calculator.compute([practice(70)]).single.bestGame, isNull);
+  });
+
+  test('games of another reference, game version or mode are not compared', () {
+    for (final older in [
+      practice(70, day: 1, perfectMoves: 4, version: 2),
+      practice(70, day: 1, perfectMoves: 4, gameVersion: 'dance-game-v1'),
+      practice(70, day: 1, perfectMoves: 4, followMode: FollowMode.mirror),
+    ]) {
+      final progress = calculator.compute([
+        older,
+        practice(70, day: 2, perfectMoves: 1),
+      ]).single;
+      expect(progress.bestGame!.game!.points, 100);
+    }
   });
 }

@@ -90,7 +90,7 @@ reconectar, abrir el historial y verificar la sesión en Django Admin
 
 ## Fase 6 · Paso 3 — mejor marca y tendencia por rutina (implementado)
 
-`RoutineProgressCalculator` (`routine-progress-v1`) agrupa por rutina usando la
+`RoutineProgressCalculator` (`routine-progress-v1`, ahora v2) agrupa por rutina usando la
 base de su práctica más reciente. Solo compara prácticas con la misma versión de
 referencia, `scoring_version` y `summary_version`, score con evidencia y
 cobertura de al menos 50 %. Ese mínimo es provisional hasta la validación física.
@@ -100,6 +100,11 @@ a la práctica comparable anterior y las cinco últimas. También indica cuánta
 quedaron fuera por falta de evidencia, poca cobertura u otra versión. Un 0 real
 cuenta; un resumen sin evidencia nunca se convierte en 0. En empate se conserva
 la primera vez que se alcanzó la marca. El detalle señala la mejor marca.
+
+**v2 (`routine-progress-v2`):** añade la mejor partida del modo juego por rutina
+(más puntos entre partidas con la misma referencia, versión del juego, modo
+espejo y velocidad que la última partida; en empate, la primera). Se muestra en
+el progreso del historial y bajo cada rutina del catálogo.
 
 Es un cálculo local sobre los resúmenes del dispositivo; no usa red.
 Mejora o empeora la similitud geométrica con el maestro, no certifica técnica.

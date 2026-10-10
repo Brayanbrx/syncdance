@@ -177,6 +177,10 @@ void main() {
       {...json, 'points': 400},
       {...json, 'max_points': 200},
       {...json, 'max_combo': 9},
+      // Points must follow the ratings: one PERFECT and one MISS give 100.
+      {...json, 'points': 175},
+      // Three moves but only two rated: an unrated move never extends a combo.
+      {...json, 'max_combo': 3},
       {
         ...json,
         'counts': {'perfect': 1},

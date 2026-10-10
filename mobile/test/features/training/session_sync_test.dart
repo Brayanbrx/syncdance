@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:syncdance_mobile/core/network/catalog_session.dart';
 import 'package:syncdance_mobile/core/network/credential_store.dart';
 import 'package:syncdance_mobile/features/routines/reference/catalog_api.dart';
+import 'package:syncdance_mobile/features/training/game/dance_game.dart';
 import 'package:syncdance_mobile/features/training/history/session_store.dart';
 import 'package:syncdance_mobile/features/training/history/session_sync.dart';
 
@@ -65,6 +66,27 @@ void main() {
       File('test/fixtures/sessions/upload_v1.json').readAsStringSync(),
     );
     expect(record.toUpload(), fixture);
+  });
+
+  test('a game practice uploads its game block (shared fixture)', () {
+    final record = savedPractice(
+      id: '9c4e7a21-0b3d-4f58-8e6a-1d2c3b4a5f60',
+      game: const GameSummary(
+        points: 175,
+        maxPoints: 400,
+        maxCombo: 2,
+        counts: {'perfect': 1, 'great': 1, 'good': 0, 'miss': 1, 'unrated': 1},
+      ),
+    );
+    final fixture = jsonDecode(
+      File('test/fixtures/sessions/upload_game_v1.json').readAsStringSync(),
+    );
+    expect(record.toUpload(), fixture);
+    // The phone parses what it uploads with the same rules as the server.
+    expect(
+      GameSummary.fromJson(fixture['game']).toJson(),
+      record.game!.toJson(),
+    );
   });
 
   test('summary without evidence uploads nulls, never zero', () {

@@ -37,7 +37,7 @@ video maestro -> FFmpeg 12 fps -> MediaPipe -> features/body.py
 | Feedback | `training/feedback/feedback_rules.dart`, `live_feedback.dart` | — |
 | Resumen e historial | `training/comparison/session_summary.dart`, `training/history/` | `apps/training/` |
 | Sincronización y progreso | `training/history/session_sync.dart`, `routine_progress.dart` | `apps/training/` (contrato en su README) |
-| Modo juego | `training/game/dance_game.dart`, `presentation/dance_game_screen.dart` | — (bloque `game` solo local) |
+| Modo juego | `training/game/dance_game.dart`, `presentation/dance_game_screen.dart`, `move_pictogram.dart` | `GameResult` en `apps/training/` (bloque `game` de la subida) |
 
 ## Invariantes (no negociables)
 
@@ -153,8 +153,8 @@ componente. Así los historiales guardados siguen siendo interpretables.
 | `follow_mode`: `mirror` / `same-side` | `FollowMode` en `comparison/follow_mode.dart`; resumen, subida y base del progreso |
 | `playback_speed`: 0.5 / 0.75 / 1 | `SessionAccumulator.speeds`; modo aprender, resumen, subida y base del progreso |
 | `syncdance-choreo-v1`, `estandar-v1` | `ai_engine/choreography/curriculum.py`: coreografías generadas (referencia exacta, sin MediaPipe) |
-| `routine-progress-v1` | `RoutineProgressCalculator.version` (cobertura mínima provisional) |
-| `dance-game-v1` | `DanceGame.version`: movimientos de 1 s, umbrales PERFECT/GREAT/GOOD, estrellas (provisionales) |
+| `routine-progress-v2` | `RoutineProgressCalculator.version` (cobertura mínima provisional; v2 añade la mejor partida) |
+| `dance-game-v2` (servidor acepta v1) | `DanceGame.version`: movimientos por rejilla de tiempos (`beat-grid-v1`) o 1 s, umbrales PERFECT/GREAT/GOOD, estrellas (provisionales); `GameResult.Version` en Django |
 | `motion-features-v1`, `reference-body-v1`, `video-start-cfr-v1` | `ai_engine/pose/reference.py` **y** la validación de `motion_reference.dart` |
 
 Cambiar el formato de la referencia toca a la vez el generador Python, el
@@ -162,8 +162,11 @@ validador Dart, el serializer/modelo de `RoutineReference` y las fixtures de
 `mobile/test/fixtures/references/`.
 
 Cambiar el resumen subido toca `SavedSession.toUpload()`, el serializer de
-`DanceSession` y la fixture compartida `mobile/test/fixtures/sessions/upload_v1.json`
-(Dart la compara; Django la publica y espera 201).
+`DanceSession` y las fixtures compartidas `mobile/test/fixtures/sessions/upload_v1.json` y
+`upload_game_v1.json` (Dart las compara; Django las publica y espera 201).
+Las reglas del bloque `game` (puntos = calificaciones, máximo = 100 × movimientos,
+combo ≤ movimientos calificados) están en `GameSummary.fromJson` **y** en
+`GameResultSerializer`.
 
 ## Flujo de trabajo para un cambio
 

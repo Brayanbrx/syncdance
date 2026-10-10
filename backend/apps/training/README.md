@@ -22,6 +22,7 @@ El móvil envía cada resumen `local-session-v1` congelado:
 | `scoring_version`, `summary_version`, `feedback_version` | `summary` | Obligatorias con resumen |
 | `timeline_segments` | `summary.segments` | Contiguos desde 0, cubren `duration_ms` |
 | `feedback_counts` | `summary.feedback` | Avisos mostrados, no todas las desviaciones |
+| `game` | `game` (opcional) | Solo partidas del modo juego; ver abajo |
 
 El servidor deriva `quality_ratio = evaluated_ms / duration_ms` (cobertura
 estimada) y copia `pose_schema_version`, `feature_schema_version` y
@@ -34,6 +35,24 @@ Se rechaza con 400, sin escribir filas parciales:
 - un tramo con score sin evidencia;
 - avisos duplicados o avisos sin tiempo evaluado;
 - valores no finitos, una referencia que no está `READY` o una rutina no visible.
+
+## Resultado del modo juego (`game`)
+
+Las prácticas jugadas en modo «Bailar» añaden el `GameSummary` del teléfono:
+
+```json
+"game": {"version": "dance-game-v2", "points": 175, "max_points": 400,
+         "max_combo": 2,
+         "counts": {"perfect": 1, "great": 1, "good": 0, "miss": 1, "unrated": 1}}
+```
+
+Se guarda en `GameResult` (1:1 con la sesión). Se rechaza con 400 si
+`points` no es 100·perfect + 75·great + 50·good, si `max_points` no es 100 por
+movimiento, si `max_combo` supera los movimientos calificados (sin `unrated`),
+con una versión desconocida (`dance-game-v1` y `v2`) o sin resumen terminado.
+`unrated` son movimientos en que no se vio al alumno: nunca cuentan como MISS.
+La respuesta añade `stars` (0–5), calculado aquí con los mismos umbrales que el
+teléfono (30/45/60/75/90 % de los puntos). Sin partida, `game` es `null`.
 
 ## Reintentos
 
@@ -56,4 +75,5 @@ disponibles para una fase posterior; el móvil actual no los produce.
 
 `apps/training/tests/`: contrato completo, nulls frente a cero real, reintento
 idempotente tras desactivar la rutina, conflicto entre cuentas e invariantes
-rechazadas sin filas parciales.
+rechazadas sin filas parciales. Las fixtures `upload_v1.json` y
+`upload_game_v1.json` las genera el teléfono (`session_sync_test.dart`).

@@ -8,6 +8,7 @@ class RoutineProgress {
     required this.lastPracticeAt,
     required List<SavedSession> comparable,
     required this.excluded,
+    this.bestGame,
   }) : comparable = List.unmodifiable(comparable);
 
   final String routineName;
@@ -22,6 +23,11 @@ class RoutineProgress {
   /// Practices of the same routine left out: no evidence, low coverage, or
   /// another reference/algorithm version.
   final int excluded;
+
+  /// Highest game points among games comparable with the latest one (same
+  /// reference, game version and follow mode); the first to reach it wins a
+  /// tie. Null when the routine was never played in game mode.
+  final SavedSession? bestGame;
 
   SavedSession? get best => comparable.isEmpty
       ? null
@@ -49,7 +55,9 @@ class RoutineProgress {
 /// modes, playback speeds and enough evaluated time. The coverage cutoff is provisional until physical validation.
 class RoutineProgressCalculator {
   const RoutineProgressCalculator();
-  static const version = 'routine-progress-v1';
+
+  /// v2: adds the best game per routine.
+  static const version = 'routine-progress-v2';
   static const minimumCoverage = 0.5;
 
   static bool _sameBasis(SavedSession a, SavedSession b) =>
@@ -59,6 +67,24 @@ class RoutineProgressCalculator {
       a.summary.summaryVersion == b.summary.summaryVersion &&
       a.summary.followMode == b.summary.followMode &&
       a.summary.playbackSpeed == b.summary.playbackSpeed;
+
+  static bool _sameGameBasis(SavedSession a, SavedSession b) =>
+      a.reference.routineId == b.reference.routineId &&
+      a.reference.version == b.reference.version &&
+      a.game!.version == b.game!.version &&
+      a.summary.followMode == b.summary.followMode &&
+      a.summary.playbackSpeed == b.summary.playbackSpeed;
+
+  static SavedSession? _bestGame(Iterable<SavedSession> ofRoutine) {
+    final games = ofRoutine.where((s) => s.game != null).toList();
+    if (games.isEmpty) return null;
+    SavedSession? best;
+    for (final s in games) {
+      if (!_sameGameBasis(s, games.last)) continue;
+      if (best == null || s.game!.points > best.game!.points) best = s;
+    }
+    return best;
+  }
 
   /// One entry per routine, based on the basis of its most recent practice.
   List<RoutineProgress> compute(List<SavedSession> sessions) {
@@ -90,6 +116,7 @@ class RoutineProgressCalculator {
           lastPracticeAt: anchor.startedAt,
           comparable: comparable,
           excluded: ofRoutine.length - comparable.length,
+          bestGame: _bestGame(ofRoutine),
         ),
       );
     }

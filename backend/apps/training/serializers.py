@@ -5,7 +5,14 @@ from rest_framework import serializers
 from apps.routines.models import Routine, RoutineReference
 from apps.routines.selectors import get_routines_for_user
 
-from .models import DanceSession, ErrorEvent, FeedbackCount, SegmentScore, TimelineSegment
+from .models import (
+    DanceSession,
+    ErrorEvent,
+    FeedbackCount,
+    GameResult,
+    SegmentScore,
+    TimelineSegment,
+)
 
 MAX_TIMELINE_SEGMENTS = 60
 MAX_FEEDBACK_CODES = 64
@@ -85,6 +92,37 @@ class ErrorEventSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class GameCountsSerializer(serializers.Serializer):
+    perfect = serializers.IntegerField(min_value=0)
+    great = serializers.IntegerField(min_value=0)
+    good = serializers.IntegerField(min_value=0)
+    miss = serializers.IntegerField(min_value=0)
+    unrated = serializers.IntegerField(min_value=0)
+
+
+class GameResultSerializer(serializers.ModelSerializer):
+    """Same shape and invariants as the mobile `GameSummary` JSON."""
+
+    counts = GameCountsSerializer(source="*")
+    max_points = serializers.IntegerField(min_value=0, max_value=100000)
+    stars = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = GameResult
+        fields = ("version", "points", "max_points", "max_combo", "counts", "stars")
+
+    def validate(self, attrs):
+        counts = {name: attrs[name] for name in GameResult.POINTS}
+        moves = sum(counts.values())
+        if attrs["max_points"] != moves * GameResult.POINTS["perfect"]:
+            raise serializers.ValidationError("El máximo no coincide con los movimientos.")
+        if attrs["points"] != sum(GameResult.POINTS[name] * n for name, n in counts.items()):
+            raise serializers.ValidationError("Los puntos no coinciden con las calificaciones.")
+        if attrs["max_combo"] > moves - counts["unrated"]:
+            raise serializers.ValidationError("El combo excede los movimientos calificados.")
+        return attrs
+
+
 class DanceSessionSerializer(serializers.ModelSerializer):
     """Client-calculated summary. The reference is given by PK or by routine + version."""
 
@@ -111,6 +149,7 @@ class DanceSessionSerializer(serializers.ModelSerializer):
     timeline_segments = TimelineSegmentSerializer(many=True, required=False)
     feedback_counts = FeedbackCountSerializer(many=True, required=False)
     error_events = ErrorEventSerializer(many=True, required=False)
+    game = GameResultSerializer(required=False, allow_null=True)
 
     class Meta:
         model = DanceSession
@@ -147,6 +186,7 @@ class DanceSessionSerializer(serializers.ModelSerializer):
             "timeline_segments",
             "feedback_counts",
             "error_events",
+            "game",
         )
         read_only_fields = (
             "student",
@@ -225,7 +265,7 @@ class DanceSessionSerializer(serializers.ModelSerializer):
         timeline = sorted(attrs.get("timeline_segments", []), key=lambda s: s["start_ms"])
         feedback = attrs.get("feedback_counts", [])
         if duration is None:
-            if attrs.get("evaluated_ms") is not None or timeline or feedback:
+            if attrs.get("evaluated_ms") is not None or timeline or feedback or attrs.get("game"):
                 raise serializers.ValidationError(
                     {"duration_ms": "Un resumen con evidencia requiere su duración."}
                 )
@@ -271,4 +311,8 @@ class DanceSessionSerializer(serializers.ModelSerializer):
         if feedback and evaluated == 0:
             raise serializers.ValidationError(
                 {"feedback_counts": "No hay avisos sin tiempo evaluado."}
+            )
+        if attrs.get("game") and attrs.get("status") != DanceSession.Status.COMPLETED:
+            raise serializers.ValidationError(
+                {"game": "Solo una partida terminada tiene resultado."}
             )

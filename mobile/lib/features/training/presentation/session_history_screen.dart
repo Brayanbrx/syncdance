@@ -168,6 +168,9 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
             '${progress.change == null ? '' : ' (${progress.change! >= 0 ? '+' : '−'}${_score(progress.change!.abs())} respecto a la anterior)'}',
         'Últimas: ${progress.recentScores().map(_score).join(' · ')}',
       ],
+      if (progress.bestGame?.game case final game?)
+        'Modo juego: mejor ${_stars(game)} · ${game.points} de '
+            '${game.maxPoints} pts',
       if (progress.excluded > 0)
         '${progress.excluded} prácticas no comparables: sin evidencia, poca '
             'cobertura u otra versión.',

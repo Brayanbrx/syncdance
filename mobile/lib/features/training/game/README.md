@@ -64,8 +64,14 @@ tira en cuanto empieza.
 ## Persistencia
 
 La partida se guarda como una práctica más (`local-session-v2`) con un bloque
-`game` (versión, puntos, máximo, combo y conteos). El resumen técnico se
-sincroniza con Django como siempre; el bloque `game` todavía no se sube.
+`game` (versión, puntos, máximo, combo y conteos) y se sube con el resumen
+(`GameResult` en Django, ver `backend/apps/training/README.md`). El servidor
+aplica las mismas reglas que `GameSummary.fromJson` y devuelve las estrellas.
+
+**Mejor marca:** `RoutineProgressCalculator` (v2) elige la partida con más
+puntos entre las comparables con la última (misma referencia, versión del juego
+y modo espejo). Se muestra en el historial («Modo juego: mejor ★★★★☆») y bajo
+cada rutina del catálogo, como en la lista de canciones de un juego.
 En modo juego `LivePractice` corre con `coaching: false`: no evalúa avisos de
 texto, así que el resumen no cuenta avisos que nunca se mostraron.
 

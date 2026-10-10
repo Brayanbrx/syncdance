@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:syncdance_mobile/features/training/comparison/follow_mode.dart';
 import 'package:syncdance_mobile/features/training/comparison/pose_matcher.dart';
 import 'package:syncdance_mobile/features/training/comparison/session_summary.dart';
+import 'package:syncdance_mobile/features/training/game/dance_game.dart';
 import 'package:syncdance_mobile/features/training/history/saved_session.dart';
 import 'package:syncdance_mobile/features/training/history/session_store.dart';
 
@@ -16,6 +17,7 @@ SavedSession savedPractice({
   DateTime? at,
   String? id,
   FollowMode followMode = FollowMode.sameSide,
+  GameSummary? game,
 }) {
   final accumulator = SessionAccumulator(250, followMode: followMode);
   if (evidence) {
@@ -30,6 +32,7 @@ SavedSession savedPractice({
     startedAt: start,
     finishedAt: start.add(const Duration(seconds: 10)),
     summary: accumulator.finish(reachedVideoEnd: false),
+    game: game,
   );
 }
 

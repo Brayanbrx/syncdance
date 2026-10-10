@@ -6,6 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/network/catalog_session.dart';
+import '../training/game/dance_game.dart';
+import '../training/history/routine_progress.dart';
+import '../training/history/session_store.dart';
 import '../training/history/session_sync.dart';
 import '../training/presentation/dance_game_screen.dart';
 import '../training/presentation/master_playback_screen.dart';
@@ -20,6 +23,7 @@ class RoutinesScreen extends StatefulWidget {
     this.cache,
     this.videos,
     this.openGame,
+    this.sessions,
     super.key,
   });
   final CatalogSession? session;
@@ -30,6 +34,9 @@ class RoutinesScreen extends StatefulWidget {
 
   /// Defaults to [DanceGameScreen]; injectable for tests without plugins.
   final Widget Function(SavedReference saved, File video)? openGame;
+
+  /// Local practice history for the best stars; defaults to the account's.
+  final SessionStore? sessions;
   @override
   State<RoutinesScreen> createState() => _RoutinesScreenState();
 }
@@ -40,6 +47,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   ReferenceCache? _cache;
   List<RoutineItem> _routines = [];
   List<SavedReference> _saved = [];
+
+  /// Best game per routine id, from the local history.
+  Map<int, GameSummary> _bestGames = {};
   bool _busy = true;
   String? _message;
   final _closed = Completer<void>();
@@ -74,6 +84,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
             '${_session.api.base}|${_account.id}',
           );
       await _reloadSaved();
+      unawaited(_loadBestGames());
       await _refresh();
     } catch (_) {
       if (mounted) {
@@ -83,6 +94,23 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
         });
       }
     }
+  }
+
+  /// Stars are a convenience: an unreadable history just hides them.
+  Future<void> _loadBestGames() async {
+    try {
+      final store =
+          widget.sessions ?? await SessionStore.open(_session.cacheScope);
+      final history = await store.readAll();
+      final best = {
+        for (final progress in const RoutineProgressCalculator().compute(
+          history.sessions,
+        ))
+          if (progress.bestGame case final session?)
+            session.reference.routineId: session.game!,
+      };
+      if (mounted) setState(() => _bestGames = best);
+    } catch (_) {}
   }
 
   Future<void> _reloadSaved() async {
@@ -214,6 +242,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               ),
         ),
       );
+      await _loadBestGames();
     } catch (error) {
       if (mounted) setState(() => _message = _error(error));
     } finally {
@@ -273,6 +302,16 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
         ],
       ),
     );
+  }
+
+  Widget? _subtitle(RoutineItem routine) {
+    final game = _bestGames[routine.id];
+    final lines = [
+      if (routine.details.isNotEmpty) routine.details,
+      if (game != null)
+        'Mejor marca: ${'★' * game.stars}${'☆' * (5 - game.stars)}',
+    ];
+    return lines.isEmpty ? null : Text(lines.join('\n'));
   }
 
   @override
@@ -339,9 +378,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               for (final routine in _routines)
                 ListTile(
                   title: Text(routine.name),
-                  subtitle: routine.details.isEmpty
-                      ? null
-                      : Text(routine.details),
+                  subtitle: _subtitle(routine),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

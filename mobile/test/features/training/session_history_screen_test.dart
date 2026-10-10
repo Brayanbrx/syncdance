@@ -99,7 +99,7 @@ void main() {
       ..account = const Account(1, 'demo', 'token');
     final store = MemorySessionStore();
     await store.save(practice(60, day: 1));
-    await store.save(practice(75, day: 2));
+    await store.save(practice(75, day: 2, perfectMoves: 3));
     await store.save(practice(null, day: 3));
     await tester.pumpWidget(
       MaterialApp(
@@ -115,6 +115,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Últimas: 60 · 75'), findsOneWidget);
+    expect(
+      find.textContaining('Modo juego: mejor ★★★★☆ · 300 de 400 pts'),
+      findsOneWidget,
+    );
     expect(find.textContaining('1 prácticas no comparables'), findsOneWidget);
     // Newest first: the practice without evidence, then the best mark.
     await tester.tap(find.text('Rutina 7').at(1));

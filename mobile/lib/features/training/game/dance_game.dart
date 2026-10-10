@@ -196,7 +196,8 @@ class DanceGame {
   }
 }
 
-/// Game outcome stored with the practice summary (local; not uploaded yet).
+/// Game outcome stored with the practice summary and uploaded with it
+/// (`game` in backend/apps/training/README.md).
 class GameSummary {
   const GameSummary({
     required this.points,
@@ -262,7 +263,19 @@ class GameSummary {
     }
     final moves = counts.values.fold(0, (sum, count) => sum + count);
     require(moves * MoveRating.perfect.points == maxPoints);
-    require(maxCombo is int && maxCombo >= 0 && maxCombo <= moves);
+    require(
+      points ==
+          MoveRating.values.fold<int>(
+            0,
+            (sum, rating) => sum + rating.points * counts[rating.name]!,
+          ),
+    );
+    // The combo only counts rated moves (same rules as the server).
+    require(
+      maxCombo is int &&
+          maxCombo >= 0 &&
+          maxCombo <= moves - counts['unrated']!,
+    );
     return GameSummary(
       points: points as int,
       maxPoints: maxPoints,

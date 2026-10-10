@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import DanceSession, ErrorEvent, FeedbackCount, SegmentScore, TimelineSegment
+from .models import (
+    DanceSession,
+    ErrorEvent,
+    FeedbackCount,
+    GameResult,
+    SegmentScore,
+    TimelineSegment,
+)
 
 
 class SegmentScoreInline(admin.TabularInline):
@@ -53,6 +60,26 @@ class ErrorEventInline(admin.TabularInline):
         return False
 
 
+class GameResultInline(admin.StackedInline):
+    model = GameResult
+    extra = 0
+    can_delete = False
+    readonly_fields = (
+        "version",
+        "points",
+        "max_points",
+        "max_combo",
+        "perfect",
+        "great",
+        "good",
+        "miss",
+        "unrated",
+    )
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(DanceSession)
 class DanceSessionAdmin(admin.ModelAdmin):
     list_display = (
@@ -65,7 +92,13 @@ class DanceSessionAdmin(admin.ModelAdmin):
         "started_at",
     )
     list_filter = ("status", "mode", "follow_mode")
-    inlines = (TimelineSegmentInline, FeedbackCountInline, SegmentScoreInline, ErrorEventInline)
+    inlines = (
+        GameResultInline,
+        TimelineSegmentInline,
+        FeedbackCountInline,
+        SegmentScoreInline,
+        ErrorEventInline,
+    )
     readonly_fields = tuple(field.name for field in DanceSession._meta.fields)
 
     def has_add_permission(self, request):

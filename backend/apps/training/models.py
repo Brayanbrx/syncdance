@@ -154,6 +154,47 @@ class FeedbackCount(models.Model):
         return f"{self.code} ×{self.count}"
 
 
+class GameResult(models.Model):
+    """Dance game outcome of a session (mobile `GameSummary`), rated on the phone."""
+
+    class Version(models.TextChoices):
+        V1 = "dance-game-v1", "1 s por movimiento"
+        V2 = "dance-game-v2", "Al ritmo de la música"
+
+    # Points per rating and star thresholds of every known version.
+    POINTS = {"perfect": 100, "great": 75, "good": 50, "miss": 0, "unrated": 0}
+    STAR_RATIOS = (0.3, 0.45, 0.6, 0.75, 0.9)
+
+    session = models.OneToOneField(DanceSession, on_delete=models.CASCADE, related_name="game")
+    version = models.CharField(max_length=32, choices=Version.choices)
+    points = models.PositiveIntegerField()
+    max_points = models.PositiveIntegerField(validators=[MaxValueValidator(100000)])
+    max_combo = models.PositiveIntegerField()
+    perfect = models.PositiveIntegerField()
+    great = models.PositiveIntegerField()
+    good = models.PositiveIntegerField()
+    miss = models.PositiveIntegerField()
+    # Moves where the learner was not measurable: no points, never a miss.
+    unrated = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(points__lte=models.F("max_points")),
+                name="game_points_within_max",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.session_id} · {self.points}/{self.max_points}"
+
+    @property
+    def stars(self):
+        """Unrated moves count as zero: stars require dancing in view."""
+        ratio = self.points / self.max_points if self.max_points else 0
+        return sum(ratio >= threshold for threshold in self.STAR_RATIOS)
+
+
 class SegmentScore(models.Model):
     class Segment(models.TextChoices):
         ARMS = "ARMS", "Brazos"

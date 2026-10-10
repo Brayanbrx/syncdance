@@ -14,6 +14,8 @@ import 'package:syncdance_mobile/features/routines/reference/motion_reference.da
 import 'package:syncdance_mobile/features/routines/reference/reference_cache.dart';
 import 'package:syncdance_mobile/features/routines/routines_screen.dart';
 
+import '../training/master_playback_screen_test.dart' show MemorySessionStore;
+import '../training/routine_progress_test.dart' show practice;
 import 'reference_test_samples.dart';
 
 // Disk persistence is covered by reference_cache_test. This substitute keeps
@@ -91,6 +93,8 @@ void main() {
     final session = CatalogSession(api)..account = account;
     final cache = MemoryCache();
     final videos = MemoryVideos();
+    final sessions = MemorySessionStore();
+    await sessions.save(practice(70, routine: 7, perfectMoves: 2));
     final opened = <String>[];
     await tester.pumpWidget(
       MaterialApp(
@@ -98,6 +102,7 @@ void main() {
           session: session,
           cache: cache,
           videos: videos,
+          sessions: sessions,
           openGame: (saved, video) {
             opened.add('${saved.name} v${saved.reference.metadata.version}');
             return const Scaffold(body: Text('Juego abierto'));
@@ -106,8 +111,12 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    // Like a song list: the best stars of the routine under its details.
     expect(
-      find.text('Hip hop · Principiante · 0.3 s · Video: Mixkit'),
+      find.text(
+        'Hip hop · Principiante · 0.3 s · Video: Mixkit\n'
+        'Mejor marca: ★★☆☆☆',
+      ),
       findsOneWidget,
     );
     // Streams of MockClient responses complete on the real event loop.
@@ -121,9 +130,17 @@ void main() {
     expect(cache.entries, hasLength(1));
     expect(videos.saved[1], [1, 2, 3]);
 
+    // A better game saved while playing shows up on returning.
+    await sessions.save(practice(80, day: 2, routine: 7, perfectMoves: 4));
+
     // Back to the catalog and offline: the saved version and video are reused.
-    Navigator.of(tester.element(find.text('Juego abierto'))).pop();
+    // The tap ran on the real event loop, and so does the code after the game.
+    await tester.runAsync(() async {
+      Navigator.of(tester.element(find.text('Juego abierto'))).pop();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
     await tester.pumpAndSettle();
+    expect(find.textContaining('Mejor marca: ★★★★★'), findsOneWidget);
     offline = true;
     await tester.runAsync(() async {
       await tester.tap(find.byTooltip('Bailar'));

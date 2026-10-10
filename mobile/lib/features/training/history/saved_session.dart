@@ -124,6 +124,7 @@ class SavedSession {
           'max_severity': f.maxSeverity,
         },
     ],
+    if (game != null) 'game': game!.toJson(),
   };
 
   factory SavedSession.fromJson(Map<String, dynamic> data) {

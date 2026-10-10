@@ -1,7 +1,14 @@
 from django.db import IntegrityError, transaction
 from rest_framework.exceptions import APIException
 
-from .models import DanceSession, ErrorEvent, FeedbackCount, SegmentScore, TimelineSegment
+from .models import (
+    DanceSession,
+    ErrorEvent,
+    FeedbackCount,
+    GameResult,
+    SegmentScore,
+    TimelineSegment,
+)
 
 
 class SessionAlreadyExists(APIException):
@@ -23,6 +30,7 @@ def create_session(
     timeline_segments=(),
     feedback_counts=(),
     error_events=(),
+    game=None,
     **data,
 ):
     """Return (session, created). Summaries are immutable: a same-owner retry never rewrites."""
@@ -51,6 +59,8 @@ def create_session(
             ErrorEvent.objects.bulk_create(
                 ErrorEvent(session=session, **event) for event in error_events
             )
+            if game:
+                GameResult.objects.create(session=session, **game)
     except IntegrityError:
         # A concurrent retry of the same upload may win the insert.
         existing = find_synced_session(student=student, session_id=data.get("id"))
