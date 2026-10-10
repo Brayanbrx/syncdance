@@ -71,6 +71,8 @@ def test_login_attempts_are_throttled_per_account_name():
     # A classmate behind the same address is not affected.
     other = {"username": "otra", "password": "not-the-password"}
     assert client.post(reverse("login"), other, format="json").status_code == 401
+    # A body that is not an object is a bad request, never a server error.
+    assert client.post(reverse("login"), [], format="json").status_code == 400
     # Token refresh stays unthrottled: the phone renews access on its own.
     refresh = client.post(reverse("token-refresh"), {"refresh": "x"}, format="json")
     assert refresh.status_code == 401

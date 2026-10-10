@@ -16,7 +16,8 @@ class LoginThrottle(SimpleRateThrottle):
     scope = "login"
 
     def get_cache_key(self, request, view):
-        username = str(request.data.get("username", "")).strip().lower()
+        data = request.data if hasattr(request.data, "get") else {}
+        username = str(data.get("username", "")).strip().lower()
         ident = hashlib.sha256(username.encode()).hexdigest() if username else None
         return self.cache_format % {"scope": self.scope, "ident": ident or self.get_ident(request)}
 
