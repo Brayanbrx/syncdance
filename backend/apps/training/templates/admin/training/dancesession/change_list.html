@@ -1,0 +1,5 @@
+{% extends "admin/change_list.html" %}
+{% block object-tools-items %}
+  <li><a href="{% url 'admin:training_dancesession_progress' %}">Progreso por alumno</a></li>
+  {{ block.super }}
+{% endblock %}

@@ -54,6 +54,19 @@ con una versión desconocida (`dance-game-v1` y `v2`) o sin resumen terminado.
 La respuesta añade `stars` (0–5), calculado aquí con los mismos umbrales que el
 teléfono (30/45/60/75/90 % de los puntos). Sin partida, `game` es `null`.
 
+## Vista del instructor (Django Admin)
+
+Con un usuario staff (en desarrollo, la semilla `admin` / `admin`):
+
+- **Sesiones de baile:** alumno, rutina, modo (Juego o Práctica), estrellas,
+  puntos, similitud y cobertura; filtros por modo, rutina, espejo y velocidad,
+  búsqueda por alumno o rutina y navegación por fecha. Solo lectura.
+- **Progreso por alumno** (`/admin/training/dancesession/progreso/`): por alumno
+  y rutina, prácticas, partidas, mejor similitud (velocidad normal y cobertura
+  ≥ 50 %, el mismo corte provisional del teléfono), mejores estrellas y última
+  práctica (`get_student_progress` en `selectors.py`). «—» es sin evidencia,
+  nunca cero.
+
 ## Reintentos
 
 | Situación | Respuesta | Qué hace el cliente |

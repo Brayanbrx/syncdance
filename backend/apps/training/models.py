@@ -188,11 +188,14 @@ class GameResult(models.Model):
     def __str__(self):
         return f"{self.session_id} · {self.points}/{self.max_points}"
 
+    @classmethod
+    def stars_for(cls, ratio):
+        return sum(ratio >= threshold for threshold in cls.STAR_RATIOS)
+
     @property
     def stars(self):
         """Unrated moves count as zero: stars require dancing in view."""
-        ratio = self.points / self.max_points if self.max_points else 0
-        return sum(ratio >= threshold for threshold in self.STAR_RATIOS)
+        return self.stars_for(self.points / self.max_points if self.max_points else 0)
 
 
 class SegmentScore(models.Model):

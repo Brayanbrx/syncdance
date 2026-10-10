@@ -1,0 +1,40 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:training_dancesession_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; {{ title }}
+</div>
+{% endblock %}
+{% block content %}
+<p>
+  Mejor similitud: prácticas a velocidad normal con cobertura de al menos
+  {{ min_coverage }} (mismo criterio provisional que el teléfono). Estrellas: mejor
+  partida del modo juego. «—» significa sin evidencia, no cero. La similitud es
+  experimental y no certifica la técnica.
+</p>
+<table>
+  <thead>
+    <tr>
+      <th>Alumno</th><th>Rutina</th><th>Prácticas</th><th>Partidas</th>
+      <th>Mejor similitud</th><th>Mejores estrellas</th><th>Última práctica</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.student__username }}</td>
+      <td>{{ row.routine__name }}</td>
+      <td>{{ row.practices }}</td>
+      <td>{{ row.games }}</td>
+      <td>{% if row.best_score is None %}—{% else %}{{ row.best_score|floatformat:0 }}{% endif %}</td>
+      <td>{% if row.stars is None %}—{% else %}{{ row.stars }}{% endif %}</td>
+      <td>{{ row.last_practice|date:"d/m/Y H:i" }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7">Todavía no hay prácticas sincronizadas.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
