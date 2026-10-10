@@ -1,16 +1,7 @@
 import pytest
-from django.core.cache import cache
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework.throttling import ScopedRateThrottle
-
-
-@pytest.fixture(autouse=True)
-def fresh_throttle():
-    # Throttle counters live in the cache and would leak between tests.
-    cache.clear()
-    yield
-    cache.clear()
 
 
 @pytest.mark.django_db

@@ -54,8 +54,12 @@ Requisitos: Docker y Docker Compose.
 ```powershell
 Copy-Item .env.example .env
 docker compose up --build
-docker compose exec backend python manage.py createsuperuser
 ```
+
+En desarrollo, Compose crea la semilla **admin / admin** (superusuario, rol
+Administrador) si no existe. Para volver a esa contraseña:
+`docker compose exec backend python manage.py seed_admin --reset-password`.
+La semilla se niega a correr con `DEBUG` desactivado: nunca usarla en producción.
 
 Para tener clases listas para bailar, instalar el catálogo por defecto (9 rutinas
 con videos de licencia libre; ver `backend/apps/routines/README.md`):
@@ -70,8 +74,8 @@ básicos y una coreografía original por nivel) con coach animado, ritmo propio,
 rejilla de tiempos y referencia exacta; ver
 `backend/ai_engine/choreography/README.md`.
 
-Ejecutar `createsuperuser` en otra terminal. Compose aplica las migraciones al
-iniciar Django, sin borrar los datos existentes.
+Compose aplica las migraciones al iniciar Django, sin borrar los datos
+existentes.
 
 - API: http://localhost:8000/api/
 - Swagger: http://localhost:8000/api/docs/
