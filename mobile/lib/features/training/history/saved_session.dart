@@ -127,6 +127,49 @@ class SavedSession {
     if (game != null) 'game': game!.toJson(),
   };
 
+  /// Rebuilds a practice from `GET training/sessions/` (another phone or a
+  /// reinstall). It goes through [SavedSession.fromJson], so a server record
+  /// must satisfy every local invariant; anything else is a [FormatException].
+  factory SavedSession.fromServer(Map<String, dynamic> data) {
+    String utc(Object? value) {
+      if (value is! String) throw const FormatException('Fecha inválida.');
+      return DateTime.parse(value).toUtc().toIso8601String();
+    }
+
+    final reference = object(data['reference_metadata']);
+    if (reference['routine'] != data['routine'] ||
+        reference['version'] != data['reference_version'] ||
+        data['status'] != 'COMPLETED') {
+      throw const FormatException('Práctica del servidor incompleta.');
+    }
+    return SavedSession.fromJson({
+      'schema': 'local-session-v2',
+      'id': data['id'],
+      'routine_name': data['routine_name'],
+      'reference': reference,
+      'started_at': utc(data['started_at']),
+      'finished_at': utc(data['finished_at']),
+      'summary': {
+        'duration_ms': data['duration_ms'],
+        'evaluated_ms': data['evaluated_ms'],
+        'score': data['pose_score'],
+        'angle_score': data['angle_score'],
+        'position_score': data['position_score'],
+        'mean_error_degrees': data['mean_error_degrees'],
+        'mean_position_error': data['mean_position_error'],
+        'reached_video_end': data['reached_video_end'],
+        'scoring_version': data['scoring_version'],
+        'summary_version': data['summary_version'],
+        'feedback_version': data['feedback_version'],
+        'follow_mode': data['follow_mode'],
+        'playback_speed': data['playback_speed'],
+        'segments': data['timeline_segments'],
+        'feedback': data['feedback_counts'],
+      },
+      if (data['game'] != null) 'game': data['game'],
+    });
+  }
+
   factory SavedSession.fromJson(Map<String, dynamic> data) {
     void require(bool condition) {
       if (!condition) throw const FormatException('Resumen local inválido.');

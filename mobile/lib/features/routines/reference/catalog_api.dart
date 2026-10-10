@@ -312,6 +312,24 @@ class CatalogApi {
     return routines.values.toList();
   }
 
+  /// The account's synced practices as the server lists them (all pages).
+  Future<List<Map<String, dynamic>>> sessions(Account account) async {
+    String? next = 'training/sessions/';
+    final visited = <String>{};
+    final sessions = <Map<String, dynamic>>[];
+    while (next != null) {
+      if (!visited.add(next) || visited.length > 50) {
+        throw const FormatException('Paginación inválida.');
+      }
+      final data = await _json(next, account: account);
+      final results = data['results'];
+      if (results is! List) throw const FormatException('Historial inválido.');
+      sessions.addAll(results.map(object));
+      next = data['next'] as String?;
+    }
+    return sessions;
+  }
+
   Future<ReferenceMetadata> metadata(Account account, int routineId) async {
     final metadata = ReferenceMetadata.fromJson(
       await _json('routines/$routineId/reference/', account: account),

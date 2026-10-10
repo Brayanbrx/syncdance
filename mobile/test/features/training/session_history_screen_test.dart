@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -9,6 +11,7 @@ import 'package:syncdance_mobile/features/training/presentation/session_history_
 import 'master_playback_screen_test.dart' show MemorySessionStore;
 import 'routine_progress_test.dart' show practice;
 import 'session_store_test.dart' show savedPractice;
+import 'session_sync_test.dart' show asServer;
 
 void main() {
   testWidgets('history opens persisted detail offline and confirms deletion', (
@@ -124,6 +127,48 @@ void main() {
     await tester.tap(find.text('Rutina 7').at(1));
     await tester.pumpAndSettle();
     expect(find.text('Mejor marca personal en esta rutina'), findsOneWidget);
+  });
+
+  testWidgets('an empty history can be recovered from the server', (
+    tester,
+  ) async {
+    final remote = savedPractice();
+    final api = CatalogApi(
+      'http://localhost/api',
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'results': [asServer(remote)],
+            'next': null,
+          }),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        ),
+      ),
+    );
+    addTearDown(api.close);
+    final session = CatalogSession(api)
+      ..account = const Account(1, 'demo', 'token');
+    final store = MemorySessionStore();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SessionHistoryScreen(session: session, store: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Todavía no hay prácticas guardadas.'), findsOneWidget);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Recuperar mis prácticas del servidor'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Se recuperaron 1 prácticas del servidor.'),
+      findsOneWidget,
+    );
+    expect(find.text('Mi rutina'), findsOneWidget);
+    expect(find.textContaining('Sincronizada con el servidor'), findsOneWidget);
+    expect(store.records.keys, [remote.id]);
   });
 
   testWidgets('guest cannot read a supplied history store', (tester) async {

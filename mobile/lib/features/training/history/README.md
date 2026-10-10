@@ -107,6 +107,14 @@ espejo y velocidad que la última partida; en empate, la primera). Se muestra en
 el progreso del historial y bajo cada rutina del catálogo.
 
 Es un cálculo local sobre los resúmenes del dispositivo; no usa red.
+
+**Recuperar del servidor:** en otro teléfono o tras reinstalar, el historial
+ofrece **Traer prácticas del servidor** (`SessionSync.restore`). Descarga la
+lista de la cuenta, reconstruye cada práctica con `SavedSession.fromServer`
+(que pasa por `SavedSession.fromJson`, así que rige toda validación local) y
+guarda solo las que faltan, ya marcadas como sincronizadas. Nunca sobrescribe
+una práctica local. Las prácticas pendientes se suben al abrir la app, al
+iniciar sesión, al guardar y al abrir el historial.
 Mejora o empeora la similitud geométrica con el maestro, no certifica técnica.
 
 Prueba manual pendiente: repetir una rutina tres veces, una de ellas con poca

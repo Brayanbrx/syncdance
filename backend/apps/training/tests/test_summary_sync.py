@@ -306,3 +306,16 @@ def test_game_result_requires_a_finished_summary(mobile_upload):
     payload["overall_score"] = None
     assert client.post(URL, payload, format="json").status_code == 400
     assert DanceSession.objects.count() == 0
+
+
+def test_history_lists_what_a_phone_needs_to_rebuild_it():
+    client, payload = _phone_upload(MOBILE_GAME_FIXTURE)
+    assert client.post(URL, payload, format="json").status_code == 201
+    listed = client.get(URL).data["results"][0]
+    assert listed["routine_name"] == "Demo"
+    reference = listed["reference_metadata"]
+    assert reference["version"] == payload["reference_version"]
+    assert reference["checksum_sha256"] == "a" * 64
+    assert reference["status"] == "READY"
+    assert listed["game"]["counts"] == payload["game"]["counts"]
+    assert listed["timeline_segments"] and listed["feedback_counts"]

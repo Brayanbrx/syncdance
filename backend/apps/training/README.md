@@ -54,6 +54,14 @@ con una versión desconocida (`dance-game-v1` y `v2`) o sin resumen terminado.
 La respuesta añade `stars` (0–5), calculado aquí con los mismos umbrales que el
 teléfono (30/45/60/75/90 % de los puntos). Sin partida, `game` es `null`.
 
+## Historial en otro teléfono
+
+`GET /api/training/sessions/` añade, solo lectura, `routine_name` y
+`reference_metadata` (el mismo formato de `GET /routines/{id}/reference/`). Con
+eso el teléfono reconstruye su historial local (**Traer prácticas del
+servidor** en el historial) pasando cada registro por las mismas reglas que un
+resumen local; los que no las cumplen (formatos anteriores) se omiten.
+
 ## Vista del instructor (Django Admin)
 
 Con un usuario staff (en desarrollo, la semilla `admin` / `admin`):

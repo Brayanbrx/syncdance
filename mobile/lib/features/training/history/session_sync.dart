@@ -1,6 +1,17 @@
 import '../../../core/network/catalog_session.dart';
 import '../../routines/reference/motion_reference.dart';
+import 'saved_session.dart';
 import 'session_store.dart';
+
+class RestoreReport {
+  const RestoreReport({required this.restored, required this.skipped});
+
+  /// Practices written to this phone, already marked as synced.
+  final int restored;
+
+  /// Server records that do not meet the local rules (older formats).
+  final int skipped;
+}
 
 class SessionSyncReport {
   const SessionSyncReport({
@@ -39,6 +50,29 @@ class SessionSync {
     return _running[key] ??= _run().whenComplete(() {
       _running.remove(key);
     });
+  }
+
+  /// Brings the account's synced practices that this phone lacks (another
+  /// phone, a reinstall). Local records are never overwritten. Network and
+  /// storage errors propagate to the caller.
+  Future<RestoreReport> restore() async {
+    final remote = await session.authorized(session.api.sessions);
+    final local = {for (final s in (await store.readAll()).sessions) s.id};
+    var restored = 0, skipped = 0;
+    for (final data in remote) {
+      if (local.contains(data['id'])) continue;
+      final SavedSession record;
+      try {
+        record = SavedSession.fromServer(data);
+      } on Object {
+        skipped++;
+        continue;
+      }
+      await store.save(record);
+      await store.markSync(record.id, SyncState.synced);
+      restored++;
+    }
+    return RestoreReport(restored: restored, skipped: skipped);
   }
 
   Future<SessionSyncReport> _run() async {

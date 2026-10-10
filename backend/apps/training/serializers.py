@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from apps.routines.models import Routine, RoutineReference
 from apps.routines.selectors import get_routines_for_user
+from apps.routines.serializers import RoutineReferenceSerializer
 
 from .models import (
     DanceSession,
@@ -150,6 +151,9 @@ class DanceSessionSerializer(serializers.ModelSerializer):
     feedback_counts = FeedbackCountSerializer(many=True, required=False)
     error_events = ErrorEventSerializer(many=True, required=False)
     game = GameResultSerializer(required=False, allow_null=True)
+    # Read-only context so a phone can rebuild its local history from here.
+    routine_name = serializers.CharField(source="routine.name", read_only=True)
+    reference_metadata = RoutineReferenceSerializer(source="reference", read_only=True)
 
     class Meta:
         model = DanceSession
@@ -187,6 +191,8 @@ class DanceSessionSerializer(serializers.ModelSerializer):
             "feedback_counts",
             "error_events",
             "game",
+            "routine_name",
+            "reference_metadata",
         )
         read_only_fields = (
             "student",

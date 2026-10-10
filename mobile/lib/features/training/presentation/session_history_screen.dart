@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/catalog_session.dart';
+import '../../routines/reference/motion_reference.dart';
 import '../game/dance_game.dart';
 import '../history/routine_progress.dart';
 import '../history/saved_session.dart';
@@ -57,6 +58,46 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _syncMessage = 'No se pudo sincronizar el historial.');
+      }
+    } finally {
+      if (mounted) setState(() => _syncing = false);
+    }
+  }
+
+  /// Brings practices synced from another phone or before a reinstall.
+  Future<void> _restore() async {
+    final store = _store;
+    if (_syncing || store == null) return;
+    setState(() {
+      _syncing = true;
+      _syncMessage = null;
+    });
+    try {
+      final report = await SessionSync(
+        store: store,
+        session: _session,
+      ).restore();
+      final history = await store.readAll();
+      if (mounted) {
+        setState(() {
+          _history = history;
+          _syncMessage = [
+            if (report.restored == 0 && report.skipped == 0)
+              'Este teléfono ya tiene todas tus prácticas del servidor.'
+            else
+              'Se recuperaron ${report.restored} prácticas del servidor.',
+            if (report.skipped > 0)
+              '${report.skipped} en formatos antiguos no se pudieron leer.',
+          ].join(' ');
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _syncMessage = error is ReferenceException
+              ? error.message
+              : 'No se pudo traer el historial del servidor.',
+        );
       }
     } finally {
       if (mounted) setState(() => _syncing = false);
@@ -205,6 +246,12 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
           ),
         if (_scope != null)
           IconButton(
+            tooltip: 'Traer prácticas del servidor',
+            onPressed: _busy || _syncing ? null : _restore,
+            icon: const Icon(Icons.cloud_download_outlined),
+          ),
+        if (_scope != null)
+          IconButton(
             tooltip: 'Actualizar historial',
             onPressed: _busy ? null : _load,
             icon: const Icon(Icons.refresh),
@@ -241,6 +288,14 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
                   _error == null &&
                   _history?.sessions.isEmpty == true)
                 const Text('Todavía no hay prácticas guardadas.'),
+              if (!_busy &&
+                  _error == null &&
+                  _history?.sessions.isEmpty == true)
+                TextButton.icon(
+                  onPressed: _syncing ? null : _restore,
+                  icon: const Icon(Icons.cloud_download_outlined),
+                  label: const Text('Recuperar mis prácticas del servidor'),
+                ),
               if (_history?.sessions.isNotEmpty == true) ...[
                 const SizedBox(height: 16),
                 Text(

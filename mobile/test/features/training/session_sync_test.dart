@@ -9,11 +9,34 @@ import 'package:syncdance_mobile/core/network/catalog_session.dart';
 import 'package:syncdance_mobile/core/network/credential_store.dart';
 import 'package:syncdance_mobile/features/routines/reference/catalog_api.dart';
 import 'package:syncdance_mobile/features/training/game/dance_game.dart';
+import 'package:syncdance_mobile/features/training/history/saved_session.dart';
 import 'package:syncdance_mobile/features/training/history/session_store.dart';
 import 'package:syncdance_mobile/features/training/history/session_sync.dart';
 
 import '../../core/catalog_session_test.dart' show MemoryCredentialStore;
+import '../routines/reference_test_samples.dart';
 import 'session_store_test.dart' show savedPractice;
+
+/// [record] as `GET training/sessions/` returns it: La Paz offsets, read-only
+/// context fields and the server's stars.
+Map<String, dynamic> asServer(SavedSession record) {
+  String laPaz(DateTime at) => at
+      .toUtc()
+      .subtract(const Duration(hours: 4))
+      .toIso8601String()
+      .replaceFirst('Z', '-04:00');
+  final upload = record.toUpload();
+  return {
+    ...upload,
+    'started_at': laPaz(record.startedAt),
+    'finished_at': laPaz(record.finishedAt),
+    'routine_name': record.routineName,
+    'reference_metadata': metadataJson(),
+    'quality_ratio': record.summary.coverage,
+    if (record.game != null)
+      'game': {...record.game!.toJson(), 'stars': record.game!.stars},
+  };
+}
 
 /// Records uploads; [answer] decides the status for each one.
 class FakeSessionsServer {
@@ -23,11 +46,17 @@ class FakeSessionsServer {
   bool expireNextAccess = false;
   Completer<void>? gate;
 
+  /// What `GET training/sessions/` lists (one page).
+  List<Map<String, dynamic>> listed = [];
+
   late final client = MockClient((request) async {
     if (!online) throw http.ClientException('offline');
     final path = request.url.path;
     if (path.endsWith('auth/token/refresh/')) {
       return http.Response('{"access":"renewed","refresh":"r2"}', 200);
+    }
+    if (path.endsWith('training/sessions/') && request.method == 'GET') {
+      return http.Response(jsonEncode({'results': listed, 'next': null}), 200);
     }
     if (path.endsWith('training/sessions/')) {
       if (expireNextAccess) {
@@ -87,6 +116,55 @@ void main() {
       GameSummary.fromJson(fixture['game']).toJson(),
       record.game!.toJson(),
     );
+  });
+
+  test('a server record rebuilds the same local practice', () {
+    for (final record in [
+      savedPractice(),
+      savedPractice(evidence: false),
+      savedPractice(
+        game: const GameSummary(
+          points: 175,
+          maxPoints: 400,
+          maxCombo: 2,
+          counts: {
+            'perfect': 1,
+            'great': 1,
+            'good': 0,
+            'miss': 1,
+            'unrated': 1,
+          },
+        ),
+      ),
+    ]) {
+      final rebuilt = SavedSession.fromServer(asServer(record));
+      expect(rebuilt.toJson(), record.toJson());
+    }
+  });
+
+  test('restore brings only missing practices, marked as synced', () async {
+    final mine = savedPractice(at: DateTime.utc(2026, 10, 1));
+    await store.save(mine);
+    final other = savedPractice(at: DateTime.utc(2026, 10, 2));
+    final broken = asServer(savedPractice())..['duration_ms'] = 999;
+    server.listed = [
+      {...asServer(mine), 'routine_name': 'Renombrada'},
+      asServer(other),
+      broken,
+    ];
+    final report = await sync().restore();
+    expect((report.restored, report.skipped), (1, 1));
+    final history = await store.readAll();
+    expect(history.sessions.map((s) => s.id).toSet(), {mine.id, other.id});
+    // Local records are never overwritten by the server copy.
+    expect(
+      history.sessions.firstWhere((s) => s.id == mine.id).routineName,
+      'Mi rutina',
+    );
+    expect(history.syncOf(other.id).state, SyncState.synced);
+    // Restored practices are not uploaded again.
+    expect((await sync().run()).synced, 1);
+    expect(server.uploads.map((u) => u['id']), [mine.id]);
   });
 
   test('summary without evidence uploads nulls, never zero', () {
