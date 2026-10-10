@@ -11,7 +11,9 @@ Rutinas → referencia guardada → Abrir maestro (con video descargado) →
 2. **Cuenta 3-2-1:** empieza sola cuando el encuadre está calibrado; si sales
    del encuadre durante la cuenta, se cancela.
 3. **Canción:** maestro grande, puntos, combo y calificación de cada movimiento.
-   Sin textos de corrección: el juego no distrae mientras bailas.
+   Sin textos de corrección: el juego no distrae mientras bailas. Encima del
+   maestro, **pictogramas** de los tres movimientos siguientes (el inminente en
+   ámbar); se ven también durante la colocación para anticipar el primero.
 4. **Resultados:** estrellas, puntos, conteo por calificación, combo máximo,
    porcentaje de la canción en que se te vio y movimientos para practicar.
    **Bailar otra vez** reinicia sin salir.
@@ -48,6 +50,17 @@ se comparan las poses.
 Todos los umbrales son provisionales: se ajustan con el set controlado de
 `mobile/VALIDACION_FISICA.md` y cada ajuste sube `DanceGame.version`.
 
+## Pictogramas
+
+Figuras de palitos dibujadas desde los puntos normalizados de la referencia
+(`move_pictogram.dart`), sin assets ni red. Cada movimiento usa la muestra
+`SINGLE_PERSON` más cercana al tiempo que abre el movimiento si hay rejilla de
+tiempos (el entrenador generado llega a cada pose en el tiempo) o a su mitad si
+no la hay; si el maestro no es dibujable dentro del movimiento, no hay
+pictograma. Se dibujan como el maestro en el video, nunca reflejados: en modo
+espejo el alumno los sigue igual que al entrenador. Un movimiento sale de la
+tira en cuanto empieza.
+
 ## Persistencia
 
 La partida se guarda como una práctica más (`local-session-v2`) con un bloque
@@ -60,11 +73,13 @@ texto, así que el resumen no cuenta avisos que nunca se mostraron.
 
 `dance_game_test.dart`: movimientos, umbrales, combo, sin medir, cierre
 diferido, estrellas, movimientos a practicar y JSON del resultado.
+`move_pictogram_test.dart`: pose clave con y sin rejilla, sin pictograma
+cuando el maestro no es dibujable, y tira de próximos movimientos.
 `dance_game_screen_test.dart` (cámara, estimador y reproductor simulados):
-calibración, cuenta automática, PERFECT en vivo, resultados con estrellas y
-guardado; salir del encuadre queda sin medir y nunca como MISS; alejarse
+calibración, cuenta automática, PERFECT en vivo, pictogramas que avanzan con la
+canción, resultados con estrellas y guardado; salir del encuadre queda sin medir y nunca como MISS; alejarse
 durante la cuenta la cancela.
 
 Pendiente en teléfono: latencia percibida de las calificaciones, legibilidad a
-2–3 m, umbrales con ejecuciones correctas e incorrectas y temperatura en una
+2–3 m (incluidos los pictogramas), umbrales con ejecuciones correctas e incorrectas y temperatura en una
 canción completa.

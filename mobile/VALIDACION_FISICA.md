@@ -152,6 +152,8 @@ Rutinas → maestro → **Bailar (modo juego)**, con «Seguir como espejo» acti
    quedan «sin medir», no MISS.
 4. Registrar el retardo percibido entre el movimiento y su calificación, y si los
    textos se leen bien a 2–3 m.
+5. Pictogramas: a 2–3 m, ¿se distingue la pose del siguiente movimiento antes
+   de que llegue? Anotar si hace falta más tamaño o más anticipación.
 
 ## Después de validar
 

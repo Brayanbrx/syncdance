@@ -20,6 +20,7 @@ import '../pose/pose_estimator.dart';
 import '../pose/pose_frame.dart';
 import '../pose/pose_measurements.dart';
 import 'camera_training_screen.dart';
+import 'move_pictogram.dart';
 
 enum _Phase { positioning, countdown, playing, finished }
 
@@ -76,6 +77,11 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   LivePractice? _practice;
   SessionAccumulator? _session;
   DanceGame? _game;
+
+  /// Pictogram pose of each move, from the master as filmed (not mirrored).
+  late final List<MotionSample?> _poses = [
+    for (final move in _game!.moves) keySample(widget.saved.reference, move),
+  ];
   RatedMove? _lastRated;
   Timer? _ratingTimer;
   DanceGameResult? _result;
@@ -340,6 +346,14 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                           ready && player.value.duration.inMilliseconds > 0
                           ? _position / player.value.duration.inMilliseconds
                           : 0,
+                    ),
+                    SizedBox(
+                      height: 92,
+                      child: UpcomingMoves(
+                        moves: _game!.moves,
+                        poses: _poses,
+                        positionMs: _phase == _Phase.playing ? _position : 0,
+                      ),
                     ),
                     Expanded(
                       child: Stack(

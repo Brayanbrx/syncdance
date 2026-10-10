@@ -12,6 +12,7 @@ import 'package:syncdance_mobile/features/training/game/dance_game.dart';
 import 'package:syncdance_mobile/features/training/pose/body_features.dart';
 import 'package:syncdance_mobile/features/training/pose/pose_frame.dart';
 import 'package:syncdance_mobile/features/training/presentation/dance_game_screen.dart';
+import 'package:syncdance_mobile/features/training/presentation/move_pictogram.dart';
 
 import '../routines/reference_test_samples.dart';
 import 'camera_training_screen_test.dart' show PreviewEstimator;
@@ -155,6 +156,9 @@ void main() {
       final game = GameHarness(tester);
       await game.mount();
       expect(find.textContaining('El baile empieza solo'), findsOneWidget);
+      // The first moves are previewed before the song starts.
+      expect(find.byKey(const ValueKey('pictogram-0')), findsOneWidget);
+      expect(find.byType(MovePictogram), findsNWidgets(3));
       await game.calibrate();
       expect(find.text('3'), findsOneWidget);
       await game.countdown();
@@ -165,6 +169,9 @@ void main() {
         if (position == 1500) {
           expect(find.text('PERFECT'), findsOneWidget);
           expect(find.text('100'), findsOneWidget);
+          // Moves already started leave the strip; the last one is next.
+          expect(find.byType(MovePictogram), findsOneWidget);
+          expect(find.byKey(const ValueKey('pictogram-2')), findsOneWidget);
         }
       }
       await game.complete();
