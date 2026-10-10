@@ -144,7 +144,7 @@ componente. Así los historiales guardados siguen siendo interpretables.
 | `pose-v1` | `PoseFrame.schemaVersion` |
 | `body-normalized-v1` | `NormalizedPose.schemaVersion` |
 | `body-features-v1` | `BodyFeatures.schemaVersion` |
-| `pose-measurements-v1` | `PoseMeasurementProcessor.version` |
+| `pose-measurements-v2` | `PoseMeasurementProcessor.version` (v2: encuadre antes que confianza) |
 | `angle-window-v1` | `AngleMatcher.version` |
 | `pose-window-v1` | `PoseMatcher.version` (= `scoringVersion`) |
 | `geometric-feedback-v2` | `FeedbackRules.version` |

@@ -116,6 +116,12 @@ plano Y se copió entero) y rechaza buffers cortos. El error del detector ahora 
 registra en el log y el modo juego lo muestra en vez de quedarse esperando.
 Las pruebas sintéticas no podían detectarlo: usaban buffers exactos.
 
+Con la detección ya activa apareció otro fallo: de pie muy cerca de la cámara
+el aviso decía «Necesitas más luz». ML Kit estima con baja confianza las
+articulaciones fuera de imagen y el gate miraba la confianza antes que el
+encuadre. Desde `pose-measurements-v2` comprueba primero que todo esté dentro
+de la imagen; la condición de «listo» no cambia, solo el motivo explicado.
+
 Medido tras la corrección (sin persona en cuadro): 29,3 imágenes/s de captura,
 77 ms por inferencia, 1 255 analizadas de 3 892 recibidas (~9–10 poses/s, en el
 límite inferior del objetivo de 10–20). Falta repetirlo con una persona y con

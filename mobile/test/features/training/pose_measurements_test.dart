@@ -58,6 +58,15 @@ void main() {
     );
     expect(gate.evaluate(wrist(-0.1)), PoseQuality.bodyNotVisible);
     expect(gate.evaluate(wrist(0.01)), PoseQuality.tooClose);
+    // Standing too close: ML Kit guesses off-screen knees with low confidence.
+    // That is a framing problem, never reported as poor lighting.
+    final close = modify(
+      fixture(),
+      (p) => p.joint == Joint.leftKnee || p.joint == Joint.rightKnee
+          ? PoseLandmark(joint: p.joint, x: p.x, y: 1.3, confidence: 0.1)
+          : p,
+    );
+    expect(gate.evaluate(close), PoseQuality.bodyNotVisible);
     final small = modify(
       fixture(),
       (p) => PoseLandmark(

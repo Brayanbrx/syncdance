@@ -37,10 +37,12 @@ class PoseQualityGate {
     final points = requiredJoints.map(frame.landmark).toList();
     if (points.any((p) => p == null)) return PoseQuality.bodyNotVisible;
     final body = points.cast<PoseLandmark>();
-    if (body.any((p) => p.confidence < 0.6)) return PoseQuality.lowConfidence;
+    // Out of frame first: ML Kit still estimates off-screen joints, with low
+    // confidence, so standing too close must not read as poor lighting.
     if (body.any((p) => p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1)) {
       return PoseQuality.bodyNotVisible;
     }
+    if (body.any((p) => p.confidence < 0.6)) return PoseQuality.lowConfidence;
     if (body.any((p) => p.x < 0.02 || p.x > 0.98 || p.y < 0.02 || p.y > 0.98)) {
       return PoseQuality.tooClose;
     }
@@ -125,7 +127,7 @@ class AngleSmoother {
 
 /// One instance per camera screen. Call reset on pause, rotation and expiry.
 class PoseMeasurementProcessor {
-  static const version = 'pose-measurements-v1';
+  static const version = 'pose-measurements-v2';
   final _smoother = AngleSmoother();
   int? _lastTime;
   double? _aspect;
