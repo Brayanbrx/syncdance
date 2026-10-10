@@ -15,8 +15,9 @@ describen invariantes y dónde viven. Leer el archivo antes de cambiarlo.
 ```text
 LIVE (solo Flutter, sin red):
 cámara -> PoseEstimator -> PoseFrame -> PoseQualityGate/calibración
-       -> PoseNormalizer -> BodyFeatureExtractor -> PoseMatcher (ventana)
-       -> FeedbackRules -> LiveFeedback -> SessionAccumulator -> historial local
+       -> LivePractice: PoseNormalizer -> BodyFeatureExtractor -> PoseMatcher
+          (ventana) -> FeedbackRules -> LiveFeedback -> SessionAccumulator
+       -> historial local -> SessionSync (fuera del loop, cola offline) -> Django
 
 OFFLINE (Django + Celery):
 video maestro -> FFmpeg 12 fps -> MediaPipe -> features/body.py
@@ -31,9 +32,11 @@ video maestro -> FFmpeg 12 fps -> MediaPipe -> features/body.py
 | Normalización y ángulos | `training/pose/body_features.dart` | `ai_engine/features/body.py` |
 | Referencia | `routines/reference/motion_reference.dart`, `reference_cache.dart` | `ai_engine/pose/reference.py`, `apps/routines/tasks.py` |
 | Reloj video↔captura | `training/comparison/capture_video_clock.dart` | — |
+| Loop live (sin widgets) | `training/comparison/live_practice.dart` | — |
 | Matching y score | `training/comparison/angle_matcher.dart`, `pose_matcher.dart` | `ai_engine/alignment/`, `ai_engine/scoring/` (offline) |
 | Feedback | `training/feedback/feedback_rules.dart`, `live_feedback.dart` | — |
 | Resumen e historial | `training/comparison/session_summary.dart`, `training/history/` | `apps/training/` |
+| Sincronización y progreso | `training/history/session_sync.dart`, `routine_progress.dart` | `apps/training/` (contrato en su README) |
 
 ## Invariantes (no negociables)
 
@@ -141,11 +144,17 @@ componente. Así los historiales guardados siguen siendo interpretables.
 | `pose-window-v1` | `PoseMatcher.version` (= `scoringVersion`) |
 | `geometric-feedback-v2` | `FeedbackRules.version` |
 | `pose-summary-v1` | `SessionAccumulator.version` |
+| `local-session-v1`, `session-sync-v1` | `SavedSession.toJson`, marcadores de `SessionStore` |
+| `routine-progress-v1` | `RoutineProgressCalculator.version` (cobertura mínima provisional) |
 | `motion-features-v1`, `reference-body-v1`, `video-start-cfr-v1` | `ai_engine/pose/reference.py` **y** la validación de `motion_reference.dart` |
 
 Cambiar el formato de la referencia toca a la vez el generador Python, el
 validador Dart, el serializer/modelo de `RoutineReference` y las fixtures de
 `mobile/test/fixtures/references/`.
+
+Cambiar el resumen subido toca `SavedSession.toUpload()`, el serializer de
+`DanceSession` y la fixture compartida `mobile/test/fixtures/sessions/upload_v1.json`
+(Dart la compara; Django la publica y espera 201).
 
 ## Flujo de trabajo para un cambio
 
@@ -185,6 +194,7 @@ pytest
 - Puntuar frames que no pasaron el quality gate, o bajar el score por mala calidad.
 - Buscar el mejor match saltando huecos de la referencia o fuera de la ventana.
 - Enviar frames o landmarks al backend, o usar WebSockets/Celery en el loop live.
+- Sincronizar o llamar a la red desde `LivePractice` o durante la práctica.
 - Cambiar un umbral sin subir la versión, o presentar un umbral como validado.
 - Modificar `body_features.dart` sin `features/body.py` (o al revés).
 - Errores públicos con rutas del sistema de archivos o logs nativos (`ReferenceError`).
