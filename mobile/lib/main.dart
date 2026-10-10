@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:go_router/go_router.dart';
@@ -5,11 +7,20 @@ import 'package:go_router/go_router.dart';
 import 'core/network/catalog_session.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/training/history/session_sync.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env.example');
   final restored = await catalogSession.restore();
+  // Results saved offline go up on the next launch, before any practice.
+  if (restored) {
+    unawaited(
+      SessionSync.forSession(
+        catalogSession,
+      ).then((_) {}, onError: (Object _) {}),
+    );
+  }
   runApp(
     SyncDanceApp(
       router: createAppRouter(initialLocation: restored ? '/home' : '/login'),

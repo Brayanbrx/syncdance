@@ -169,12 +169,16 @@ void main() {
       );
       addTearDown(api.close);
       final session = CatalogSession(api);
+      final synced = <int?>[];
       final router = GoRouter(
         initialLocation: '/login',
         routes: [
           GoRoute(
             path: '/login',
-            builder: (_, _) => LoginScreen(session: session),
+            builder: (_, _) => LoginScreen(
+              session: session,
+              syncPending: (session) async => synced.add(session.account?.id),
+            ),
           ),
           GoRoute(
             path: '/home',
@@ -196,9 +200,12 @@ void main() {
       if (success) {
         expect(find.text('Inicio de prueba'), findsOneWidget);
         expect(session.account?.id, 1);
+        // Practices saved offline for this account go up after signing in.
+        expect(synced, [1]);
       } else {
         expect(find.textContaining('contraseña incorrectos'), findsOneWidget);
         expect(session.account, isNull);
+        expect(synced, isEmpty);
         expect(
           tester
               .widget<TextField>(find.byType(TextField).last)

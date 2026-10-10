@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/network/catalog_session.dart';
 import '../routines/reference/motion_reference.dart';
+import '../training/history/session_sync.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({this.session, super.key});
+  const LoginScreen({this.session, this.syncPending, super.key});
   final CatalogSession? session;
+
+  /// Uploads the account's pending practices; defaults to [SessionSync].
+  final Future<Object?> Function(CatalogSession)? syncPending;
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -30,6 +34,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await _session.signIn(_username.text.trim(), _password.text);
+      // Practices this account saved offline go up now, in the background.
+      unawaited(
+        (widget.syncPending ?? SessionSync.forSession)(
+          _session,
+        ).then((_) {}, onError: (Object _) {}),
+      );
       if (!mounted) return;
       context.go('/home');
     } catch (error) {
