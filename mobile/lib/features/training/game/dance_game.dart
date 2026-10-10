@@ -79,7 +79,8 @@ class DanceGame {
   DanceGame({required MotionReference reference, required this.session})
     : moves = List.unmodifiable(movesFor(reference));
 
-  static const version = 'dance-game-v1';
+  /// v2: moves follow the beat grid when the reference has one.
+  static const version = 'dance-game-v2';
   static const moveMs = 1000;
 
   /// Inference arrives after capture; wait before closing a move.
@@ -103,13 +104,30 @@ class DanceGame {
   int get maxPoints => moves.length * MoveRating.perfect.points;
   List<RatedMove> get rated => List.unmodifiable(_rated);
 
-  /// Windows where the master itself is measurable; a short tail is dropped.
+  /// Candidate windows: every [BeatGrid.beatsPerMove] beats from the first
+  /// counted beat when the tempo is known; otherwise 1 s from the start.
+  static List<(int, int)> _windows(ReferenceMetadata metadata) {
+    final duration = metadata.durationMs;
+    final grid = metadata.beatGrid;
+    final windows = <(int, int)>[];
+    final length = grid == null
+        ? moveMs.toDouble()
+        : grid.beatMs * grid.beatsPerMove;
+    final origin = grid?.firstBeatMs ?? 0;
+    for (var index = 0; ; index++) {
+      final start = (origin + index * length).round();
+      final end = math.min((origin + (index + 1) * length).round(), duration);
+      // A short tail is dropped.
+      if (start >= duration || end - start < length / 2) break;
+      windows.add((start, end));
+    }
+    return windows;
+  }
+
+  /// Windows where the master itself is measurable.
   static List<DanceMove> movesFor(MotionReference reference) {
-    final duration = reference.metadata.durationMs;
     final result = <DanceMove>[];
-    for (var start = 0; start < duration; start += moveMs) {
-      final end = math.min(start + moveMs, duration);
-      if (end - start < moveMs ~/ 2) break;
+    for (final (start, end) in _windows(reference.metadata)) {
       final samples = reference.samples.where(
         (s) => s.timestampMs >= start && s.timestampMs < end,
       );

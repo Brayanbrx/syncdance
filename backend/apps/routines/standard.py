@@ -40,7 +40,7 @@ def catalog_key(spec):
     return f"estandar-{spec.key}"
 
 
-def _publish_reference(routine, version, payload, artifact, source_sha256):
+def _publish_reference(routine, version, payload, artifact, source_sha256, profile):
     reference = RoutineReference(
         routine=routine,
         version=version,
@@ -52,6 +52,7 @@ def _publish_reference(routine, version, payload, artifact, source_sha256):
         checksum_sha256=hashlib.sha256(payload).hexdigest(),
         source_video=routine.master_video.name,
         source_sha256=source_sha256,
+        scoring_profile=profile,
     )
     reference.reference_asset.save(
         f"{routine.catalog_key}-v{version}.json.gz", ContentFile(payload), save=False
@@ -79,6 +80,8 @@ def install(specs=STANDARD_V1, *, renderer=render, only=None, refresh=False, log
             video = renderer(spec, directory)
         source_sha256 = hashlib.sha256(video).hexdigest()
         payload, artifact = build_reference(spec, source_sha256=source_sha256)
+        # The beat grid lets the dance game rate moves on the music.
+        profile = {"beat_grid": spec.beat_grid()}
         details = {
             "name": spec.name,
             "description": spec.description,
@@ -97,12 +100,16 @@ def install(specs=STANDARD_V1, *, renderer=render, only=None, refresh=False, log
                     master_video=ContentFile(video, name=f"{key}.mp4"),
                     **details,
                 )
-                _publish_reference(routine, 1, payload, artifact, source_sha256)
+                _publish_reference(routine, 1, payload, artifact, source_sha256, profile)
                 log(f"+ {key}: {spec.name} ({artifact['duration_ms'] / 1000:.1f} s)")
             else:
                 routine = Routine.objects.select_for_update().get(pk=routine.pk)
                 latest = routine.references.filter(status=RoutineReference.Status.READY).first()
-                if latest and latest.checksum_sha256 == hashlib.sha256(payload).hexdigest():
+                if (
+                    latest
+                    and latest.checksum_sha256 == hashlib.sha256(payload).hexdigest()
+                    and latest.scoring_profile == profile
+                ):
                     log(f"= {key}: sin cambios")
                     continue
                 for field, value in details.items():
@@ -112,7 +119,7 @@ def install(specs=STANDARD_V1, *, renderer=render, only=None, refresh=False, log
                 routine.save()
                 newest = routine.references.first()  # ordered by version, descending
                 version = (newest.version if newest else 0) + 1
-                _publish_reference(routine, version, payload, artifact, source_sha256)
+                _publish_reference(routine, version, payload, artifact, source_sha256, profile)
                 log(f"~ {key}: nueva versión v{version}")
         changed += 1
     return changed

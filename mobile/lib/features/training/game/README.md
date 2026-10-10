@@ -19,14 +19,20 @@ Rutinas → referencia guardada → Abrir maestro (con video descargado) →
 Volver atrás durante la canción o salir de la app termina la partida y la
 guarda; no hay forma manos libres de reanudar.
 
-## Calificación (`dance-game-v1`, provisional)
+## Calificación (`dance-game-v2`, provisional)
 
 `DanceGame` consume la salida del scorer (`SessionAccumulator`); no cambia cómo
 se comparan las poses.
 
-- **Movimientos:** ventanas de 1 s donde el maestro es medible (al menos la mitad
-  de sus muestras `SINGLE_PERSON` con seis ángulos). Una cola menor a 0,5 s se
-  descarta.
+- **Movimientos al ritmo (v2):** si la referencia trae `scoring_profile.beat_grid`
+  (las coreografías generadas del estándar), cada movimiento dura
+  `beats_per_move` tiempos desde el primer «1», así que las calificaciones caen
+  sobre la música y la entrada «5, 6, 7, 8» nunca se califica. Sin rejilla
+  (videos de stock, tempo desconocido) se usan ventanas de 1 s desde el inicio.
+  En ambos casos solo cuentan ventanas donde el maestro es medible (al menos la
+  mitad de sus muestras `SINGLE_PERSON` con seis ángulos) y se descarta una cola
+  menor a medio movimiento. Una rejilla mal formada se ignora; no impide la
+  descarga.
 - **Calificación:** similitud media de las comparaciones del movimiento.
   PERFECT ≥ 85 · GREAT ≥ 70 · GOOD ≥ 50 · MISS < 50. Puntos 100/75/50/0.
 - **Sin medir:** con evidencia menor al 40 % del movimiento (fuera de encuadre o

@@ -38,6 +38,49 @@ String hashValue(Object? value) {
   return value;
 }
 
+/// Counted beats of a generated routine (`scoring_profile.beat_grid`): the
+/// dance game rates one move every [beatsPerMove] beats, on the music.
+class BeatGrid {
+  const BeatGrid({
+    required this.bpm,
+    required this.firstBeatMs,
+    required this.beatsPerMove,
+  });
+  static const version = 'beat-grid-v1';
+  final double bpm;
+  final int firstBeatMs, beatsPerMove;
+  double get beatMs => 60000 / bpm;
+
+  /// A missing or malformed grid only disables beat timing: never the download.
+  static BeatGrid? tryParse(Object? profile, int durationMs) {
+    if (profile is! Map<String, dynamic>) return null;
+    final grid = profile['beat_grid'];
+    if (grid is! Map<String, dynamic> || grid['version'] != version) {
+      return null;
+    }
+    final bpm = grid['bpm'];
+    final first = grid['first_beat_ms'];
+    final perMove = grid['beats_per_move'];
+    if (bpm is! num || !bpm.isFinite || bpm < 60 || bpm > 180) return null;
+    if (first is! int || first < 0 || first >= durationMs) return null;
+    if (perMove is! int || perMove < 1 || perMove > 8) return null;
+    return BeatGrid(
+      bpm: bpm.toDouble(),
+      firstBeatMs: first,
+      beatsPerMove: perMove,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'beat_grid': {
+      'version': version,
+      'bpm': bpm,
+      'first_beat_ms': firstBeatMs,
+      'beats_per_move': beatsPerMove,
+    },
+  };
+}
+
 class ReferenceMetadata {
   ReferenceMetadata.fromJson(Map<String, dynamic> json)
     : routineId = positiveInt(json['routine']),
@@ -46,7 +89,11 @@ class ReferenceMetadata {
       sourceHash = hashValue(json['source_sha256']),
       durationMs = positiveInt(json['duration_ms']),
       engine = json['engine_name'] as String,
-      downloadUrl = json['download_url'] as String {
+      downloadUrl = json['download_url'] as String,
+      beatGrid = BeatGrid.tryParse(
+        json['scoring_profile'],
+        positiveInt(json['duration_ms']),
+      ) {
     if (json['status'] != 'READY' ||
         json['pose_schema_version'] != 'pose-v1' ||
         json['feature_schema'] != 'motion-features-v1' ||
@@ -61,6 +108,9 @@ class ReferenceMetadata {
   }
   final int routineId, version, durationMs;
   final String checksum, sourceHash, engine, downloadUrl;
+
+  /// Present for generated choreographies; stock videos have no known tempo.
+  final BeatGrid? beatGrid;
   Map<String, dynamic> toJson() => {
     'routine': routineId,
     'version': version,
@@ -74,6 +124,7 @@ class ReferenceMetadata {
     'feature_schema': 'motion-features-v1',
     'algorithm_version': 'reference-body-v1',
     'sample_rate_hz': 12,
+    if (beatGrid != null) 'scoring_profile': beatGrid!.toJson(),
   };
 }
 

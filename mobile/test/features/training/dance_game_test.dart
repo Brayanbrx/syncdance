@@ -24,8 +24,13 @@ const fullAngles = {
 MotionReference reference(
   int durationMs, {
   Set<int> unusable = const {},
+  Map<String, dynamic>? grid,
 }) => MotionReference(
-  ReferenceMetadata.fromJson({...metadataJson(), 'duration_ms': durationMs}),
+  ReferenceMetadata.fromJson({
+    ...metadataJson(),
+    'duration_ms': durationMs,
+    'scoring_profile': ?grid,
+  }),
   [
     for (var i = 0; i * 1000 / 12 < durationMs; i++)
       unusable.contains((i * 1000 / 12) ~/ 1000)
@@ -180,5 +185,72 @@ void main() {
     ]) {
       expect(() => GameSummary.fromJson(broken), throwsFormatException);
     }
+  });
+
+  group('beat grid', () {
+    Map<String, dynamic> grid({
+      Object bpm = 120,
+      Object first = 2000,
+      Object perMove = 2,
+      String version = 'beat-grid-v1',
+    }) => {
+      'beat_grid': {
+        'version': version,
+        'bpm': bpm,
+        'first_beat_ms': first,
+        'beats_per_move': perMove,
+      },
+    };
+
+    test('moves follow the counted beats and skip the lead-in', () {
+      // 400 ms tail is less than half a move: dropped.
+      final moves = DanceGame.movesFor(reference(5400, grid: grid()));
+      // 120 BPM, two beats per move: one move per second from count 1.
+      expect(moves.map((m) => (m.startMs, m.endMs)), [
+        (2000, 3000),
+        (3000, 4000),
+        (4000, 5000),
+      ]);
+    });
+
+    test('a non-integer beat length stays exact over the song', () {
+      final moves = DanceGame.movesFor(
+        reference(30000, grid: grid(bpm: 104, first: 2308)),
+      );
+      final beat = 60000 / 104;
+      expect(
+        moves.last.startMs,
+        (2308 + (moves.length - 1) * 2 * beat).round(),
+      );
+      for (var i = 1; i < moves.length; i++) {
+        expect(moves[i].startMs, moves[i - 1].endMs);
+      }
+    });
+
+    test('a malformed grid is ignored and the game keeps 1 s moves', () {
+      for (final bad in [
+        grid(version: 'beat-grid-v9'),
+        grid(bpm: 400),
+        grid(first: -1),
+        grid(first: 99999),
+        grid(perMove: 0),
+        {'beat_grid': 'x'},
+      ]) {
+        expect(reference(3000, grid: bad).metadata.beatGrid, isNull);
+        expect(DanceGame.movesFor(reference(3000, grid: bad)), hasLength(3));
+      }
+    });
+
+    test('the grid survives the metadata round trip used by caches', () {
+      final metadata = reference(5500, grid: grid()).metadata;
+      final copy = ReferenceMetadata.fromJson(metadata.toJson());
+      expect(copy.beatGrid!.bpm, 120);
+      expect(copy.beatGrid!.firstBeatMs, 2000);
+      expect(copy.beatGrid!.beatsPerMove, 2);
+      expect(
+        reference(3000).metadata.toJson().containsKey('scoring_profile'),
+        isFalse,
+      );
+    });
   });
 }

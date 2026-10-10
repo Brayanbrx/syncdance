@@ -95,3 +95,23 @@ def test_refresh_publishes_a_new_version_only_when_the_result_changes():
     assert newest.source_video.name == routine.master_video.name != first_video
     assert previous.source_video.name == first_video
     assert newest.source_sha256 == hashlib.sha256(b"re-rendered coach").hexdigest()
+
+
+def test_references_carry_the_beat_grid_and_refresh_publishes_it():
+    from ai_engine.choreography.curriculum import BEAT_GRID_VERSION
+
+    spec = STANDARD_V1[0]
+    standard.install([spec], renderer=renderer, log=lambda _: None)
+    reference = Routine.objects.get().references.get()
+    grid = reference.scoring_profile["beat_grid"]
+    assert grid == {
+        "version": BEAT_GRID_VERSION,
+        "bpm": spec.bpm,
+        "first_beat_ms": round(4 * 60_000 / spec.bpm),
+        "beats_per_move": 2,
+    }
+    # A reference published before the grid existed gets a new version on refresh.
+    RoutineReference.objects.filter(pk=reference.pk).update(scoring_profile={})
+    assert standard.install([spec], renderer=renderer, refresh=True, log=lambda _: None) == 1
+    newest = Routine.objects.get().references.first()
+    assert newest.version == 2 and newest.scoring_profile["beat_grid"] == grid

@@ -15,6 +15,8 @@ from .timeline import Timeline
 
 GENERATOR_VERSION = "syncdance-choreo-v1"
 CURRICULUM_VERSION = "estandar-v1"
+BEAT_GRID_VERSION = "beat-grid-v1"
+BEATS_PER_MOVE = 2  # one rated move every two counts
 
 
 @dataclass(frozen=True)
@@ -36,6 +38,16 @@ class RoutineSpec:
 
     def timeline(self):
         return Timeline(self.blocks(), self.bpm)
+
+    def beat_grid(self):
+        """Where the counted beats are: lets the dance game rate on the music."""
+        lead_in = self.blocks()[0].beats
+        return {
+            "version": BEAT_GRID_VERSION,
+            "bpm": self.bpm,
+            "first_beat_ms": round(lead_in * 60_000 / self.bpm),
+            "beats_per_move": BEATS_PER_MOVE,
+        }
 
 
 LEVELS = {
