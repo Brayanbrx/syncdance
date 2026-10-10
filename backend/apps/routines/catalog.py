@@ -1,6 +1,6 @@
 """Default dance catalog: free-license masters downloaded from their source.
 
-The manifest (catalog/default_catalog.json) holds only metadata, provenance and
+The manifest (data/default_catalog.json) holds only metadata, provenance and
 SHA-256 pins. Videos are fetched at install time, never committed: the Mixkit
 license allows free use without attribution but not redistributing raw files.
 """
@@ -20,7 +20,7 @@ from ai_engine.pose.reference import MAX_SOURCE_BYTES
 from .models import Routine
 from .services import create_routine
 
-MANIFEST = Path(__file__).resolve().parent / "catalog" / "default_catalog.json"
+MANIFEST = Path(__file__).resolve().parent / "data" / "default_catalog.json"
 ALLOWED_HOSTS = {"assets.mixkit.co"}
 CATALOG_USERNAME = "catalogo"
 REQUIRED = ("key", "name", "style", "difficulty", "description", "video_url")

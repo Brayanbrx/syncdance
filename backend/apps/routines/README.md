@@ -142,7 +142,7 @@ y [modelo oficial](https://developers.google.com/edge/mediapipe/solutions/vision
 docker compose exec backend python manage.py load_default_catalog
 ```
 
-Crea las rutinas que falten a partir de `catalog/default_catalog.json` y encola
+Crea las rutinas que falten a partir de `data/default_catalog.json` y encola
 sus referencias. Es idempotente por `catalog_key`; `--only clave …` instala
 algunas. Los videos se descargan de su origen al instalar y **nunca se suben al
 repositorio**: la licencia permite usarlos, no redistribuir los archivos.
