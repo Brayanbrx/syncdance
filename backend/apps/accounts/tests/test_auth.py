@@ -1,6 +1,16 @@
 import pytest
+from django.core.cache import cache
 from django.urls import reverse
 from rest_framework.test import APIClient
+from rest_framework.throttling import ScopedRateThrottle
+
+
+@pytest.fixture(autouse=True)
+def fresh_throttle():
+    # Throttle counters live in the cache and would leak between tests.
+    cache.clear()
+    yield
+    cache.clear()
 
 
 @pytest.mark.django_db
@@ -46,3 +56,33 @@ def test_refresh_rotates_and_logout_revokes_the_phone_session():
         reverse("token-refresh"), {"refresh": rotated.data["refresh"]}, format="json"
     )
     assert after.status_code == 401
+
+
+@pytest.mark.django_db
+def test_login_attempts_are_throttled_per_account_name():
+    client = APIClient()
+    wrong = {"username": "Nadie", "password": "not-the-password"}
+    statuses = [client.post(reverse("login"), wrong, format="json").status_code for _ in range(11)]
+    assert statuses[:10] == [401] * 10
+    assert statuses[10] == 429
+    # Same name with other spelling: same account, still throttled.
+    retry = {"username": " nadie ", "password": "x"}
+    assert client.post(reverse("login"), retry, format="json").status_code == 429
+    # A classmate behind the same address is not affected.
+    other = {"username": "otra", "password": "not-the-password"}
+    assert client.post(reverse("login"), other, format="json").status_code == 401
+    # Token refresh stays unthrottled: the phone renews access on its own.
+    refresh = client.post(reverse("token-refresh"), {"refresh": "x"}, format="json")
+    assert refresh.status_code == 401
+
+
+@pytest.mark.django_db
+def test_sign_ups_are_throttled_per_address(monkeypatch):
+    monkeypatch.setattr(ScopedRateThrottle, "THROTTLE_RATES", {"register": "2/minute"})
+    client = APIClient()
+
+    def sign_up(name):
+        payload = {"username": name, "email": f"{name}@example.com", "password": "safe-password-1"}
+        return client.post(reverse("register"), payload, format="json").status_code
+
+    assert [sign_up("a1"), sign_up("a2"), sign_up("a3")] == [201, 201, 429]

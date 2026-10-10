@@ -3,7 +3,7 @@
 Entrenador móvil de baile en tiempo real: seguir una referencia, analizar la
 pose en el teléfono y recibir feedback técnico inmediato.
 
-**Estado: Fase 6 implementada en código (pasos 1–3); validación física de Fases 1–6 pendiente.**
+**Estado: Fase 6 implementada en código (pasos 1–3) y modo juego «Bailar»; validación física de Fases 1–6 pendiente.**
 Flutter incluye cámara frontal, pose ML Kit para Android, esqueleto sobre la
 preview, normalización corporal, evaluación inicial del encuadre, calibración
 de estabilidad y seis ángulos 2D suavizados. El benchmark físico, ajuste de
@@ -219,10 +219,14 @@ API nueva, autenticada con JWT:
 | `GET /api/training/sessions/{uuid}/` | Consultar su propio resumen |
 
 El backend guarda scores calculados por el cliente; todavía no certifica su
-precisión. Las sesiones no se editan por API. El cliente debe enviar el resumen
-al terminar; un UUID repetido devuelve 409 y no duplica hijos. La cola offline,
-los reintentos automáticos y el flujo de sincronización móvil son trabajo de Fase 6.
+precisión. Las sesiones no se editan por API. El teléfono los sube con una cola
+offline: reenviar el mismo UUID desde la misma cuenta devuelve 200 con la copia
+guardada (sin duplicar hijos) y un UUID de otra cuenta devuelve 409. Las
+partidas del modo juego añaden su bloque `game`. Ver
+`backend/apps/training/README.md`.
 Los valores sin evidencia permanecen `null`, no se convierten en cero.
+El login admite 10 intentos por minuto por nombre de cuenta y el registro 100
+por hora por dirección; la renovación del token no se limita.
 
 ## Validación
 
@@ -249,10 +253,9 @@ tarea, pero no sustituye la comprobación de Redis/worker en Docker.
 
 ## Siguiente paso
 
-El próximo desarrollo continúa Fase 6: sincronización de resúmenes con Django,
-cola offline/reintentos y resolución de UUID duplicados. Después quedan mejor
-marca personal y tendencia por rutina con criterios de comparabilidad y cobertura.
-El paso 1 ya conserva resúmenes y avisos frecuentes en el historial local.
+La sincronización offline, la mejor marca por rutina y el modo juego (ritmo,
+pictogramas, estrellas y práctica por movimiento) ya están en código. Lo
+siguiente es la validación física con baile real (`mobile/VALIDACION_FISICA.md`).
 La métrica de ritmo y sus
 avisos siguen pendientes de evidencia temporal fiable. Al retomar el
 teléfono, completar alineación de overlay, benchmark y

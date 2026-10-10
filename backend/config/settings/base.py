@@ -103,6 +103,8 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    # Login per account name and sign-up per address (see accounts.views).
+    "DEFAULT_THROTTLE_RATES": {"login": "10/minute", "register": "100/hour"},
 }
 
 # The phone keeps only the refresh token (secure storage) to reopen offline and

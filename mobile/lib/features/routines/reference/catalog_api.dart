@@ -145,6 +145,7 @@ class CatalogApi {
           403 => 'No tienes acceso a esta rutina.',
           404 =>
             'Esta rutina todavía no tiene una referencia lista o ya no está disponible.',
+          429 => 'Demasiados intentos. Espera un minuto y vuelve a intentar.',
           _ => 'No se pudo completar la solicitud al servidor.',
         });
       }
