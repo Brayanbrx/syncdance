@@ -56,6 +56,10 @@ class MemoryVideos extends MasterVideoCache {
     ];
     return File('master.mp4');
   }
+
+  @override
+  Future<void> remove(ReferenceMetadata metadata) async =>
+      saved.remove(metadata.version);
 }
 
 void main() {
@@ -149,6 +153,54 @@ void main() {
     await tester.pumpAndSettle();
     expect(opened, ['Hip hop v1', 'Hip hop v1']);
     expect(videoRequests, 1);
+  });
+
+  testWidgets('a newer version fully on the phone replaces the older one', (
+    tester,
+  ) async {
+    final bytes = referenceBytes();
+    final api = CatalogApi(
+      'http://localhost:8000/api',
+      client: MockClient((request) async {
+        final path = request.url.path;
+        if (path.endsWith('reference/')) {
+          return http.Response(
+            jsonEncode(metadataJson(bytes: bytes, version: 2)),
+            200,
+          );
+        }
+        if (path.endsWith('download/')) return http.Response.bytes(bytes, 200);
+        if (path.endsWith('video/')) return http.Response.bytes([9, 9], 200);
+        return http.Response(
+          '{"results":[{"id":7,"name":"Hip hop"}],"next":null}',
+          200,
+        );
+      }),
+    );
+    addTearDown(api.close);
+    final cache = MemoryCache();
+    await cache.save('Hip hop', metadata(bytes: bytes), bytes);
+    final videos = MemoryVideos()..saved[1] = [1, 2, 3];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RoutinesScreen(
+          session: CatalogSession(api)..account = account,
+          cache: cache,
+          videos: videos,
+          sessions: MemorySessionStore(),
+          openGame: (_, _) => const Scaffold(body: Text('Juego abierto')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.runAsync(() async {
+      await tester.tap(find.byTooltip('Bailar'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Juego abierto'), findsOneWidget);
+    expect(cache.entries.map((e) => e.reference.metadata.version), [2]);
+    expect(videos.saved.keys, [2]);
   });
 
   testWidgets('reopened offline, saved routines are still one-tap Bailar', (

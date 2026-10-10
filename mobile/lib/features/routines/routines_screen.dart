@@ -266,6 +266,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
           ),
         );
       }
+      await _pruneOlder(saved, videos);
       if (!mounted) return;
       setState(() {
         _busy = false;
@@ -295,6 +296,32 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
           _progress = null;
         });
       }
+    }
+  }
+
+  /// Once a version is fully on the phone (reference and video), older ones of
+  /// the same routine only take space: the history keeps its own metadata.
+  /// Best effort; whatever fails is reclaimed on the next dance.
+  Future<void> _pruneOlder(
+    SavedReference current,
+    MasterVideoCache videos,
+  ) async {
+    final metadata = current.reference.metadata;
+    final older = [
+      for (final saved in _saved)
+        if (saved.reference.metadata.routineId == metadata.routineId &&
+            saved.reference.metadata.version < metadata.version)
+          saved.reference.metadata,
+    ];
+    if (older.isEmpty) return;
+    try {
+      for (final stale in older) {
+        await videos.remove(stale);
+        await _cache!.remove(stale);
+      }
+    } catch (_) {
+    } finally {
+      await _reloadSaved();
     }
   }
 
