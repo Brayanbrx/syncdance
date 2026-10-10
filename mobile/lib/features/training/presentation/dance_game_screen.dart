@@ -70,6 +70,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   String? _error;
   _Phase _phase = _Phase.positioning;
   PoseMeasurements? _measurements;
+  String? _poseError;
   int _countdown = DanceGameScreen.countdownSeconds;
   Timer? _countdownTimer;
   LivePractice? _practice;
@@ -390,6 +391,14 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                         onFrameCaptured: _captured,
                         onMeasurements: _measured,
                         onInvalidated: () => _practice?.invalidate(),
+                        onPoseError: (message) {
+                          if (_phase == _Phase.playing) {
+                            unawaited(_finish(reachedVideoEnd: false));
+                          } else if (_phase == _Phase.countdown) {
+                            _cancelCountdown();
+                          }
+                          setState(() => _poseError = message);
+                        },
                       ),
                     ),
                   ],
@@ -400,6 +409,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   }
 
   String _guidance() {
+    if (_poseError != null) return _poseError!;
     final measurements = _measurements;
     if (measurements == null) {
       return 'Apoya el teléfono vertical a la altura de la cadera y aléjate '

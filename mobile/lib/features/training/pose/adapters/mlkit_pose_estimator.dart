@@ -90,6 +90,13 @@ class MlKitPoseEstimator implements PoseEstimator {
         canonicalAndroidPose(frame, poses.isEmpty ? null : poses.first),
       );
     } catch (error, stack) {
+      // Terminal for this screen; log it so device failures are diagnosable.
+      final image = frame.image;
+      debugPrint(
+        'Pose estimator failed: ${error.runtimeType}: $error '
+        '(${image.width}x${image.height}, ${image.format.group.name}, '
+        '${image.planes.length} planes, ${image.planes.map((p) => '${p.bytes.length}B/${p.bytesPerRow}').join(' ')})',
+      );
       if (!_stopped && capture.isFrameCurrent(frame)) {
         _failed = true;
         _poses.addError(error, stack);

@@ -102,6 +102,25 @@ corrección físicamente. No se completaron rotación, reapertura ni prueba offl
 No se guardaron fotos/video ni se confirmó visualmente la orientación de imagen.
 El usuario pidió continuar con el siguiente paso y retomar pruebas después.
 
+## Prueba física de pose — 2026-10-10
+
+Equipo: Xiaomi 2311DRK48G, Android 16 / API 36, APK debug.
+
+**Fallo encontrado y corregido.** ML Kit no recibía ninguna imagen válida: el
+detector se desactivaba en el primer frame con «El tamaño del buffer NV21 no es
+válido». `camera_android_camerax` 0.7.5+1 (`planesToNV21`) reserva el array con
+el tamaño del plano Y *con relleno* (stride 768 para 720 de ancho): llegaban
+541 392 bytes en lugar de 518 400. Los primeros 518 400 forman un NV21 válido y
+el resto queda en cero. `compactNv21` usa ese prefijo (o recompone Y + VU si el
+plano Y se copió entero) y rechaza buffers cortos. El error del detector ahora se
+registra en el log y el modo juego lo muestra en vez de quedarse esperando.
+Las pruebas sintéticas no podían detectarlo: usaban buffers exactos.
+
+Medido tras la corrección (sin persona en cuadro): 29,3 imágenes/s de captura,
+77 ms por inferencia, 1 255 analizadas de 3 892 recibidas (~9–10 poses/s, en el
+límite inferior del objetivo de 10–20). Falta repetirlo con una persona y con
+video + cámara simultáneos.
+
 ## Fase 1 · Paso 2 — pose local Android (implementado)
 
 Logrado:

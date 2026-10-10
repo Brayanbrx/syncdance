@@ -53,6 +53,42 @@ void main() {
     expect(image.metadata!.format, ml.InputImageFormat.nv21);
   });
 
+  group('compactNv21 (camera_android_camerax 0.7.5+1 padded buffers)', () {
+    // 4x2 frame: 8 Y bytes + 4 interleaved VU bytes.
+    final frame = Uint8List.fromList(List.generate(12, (i) => i + 1));
+
+    test('a tight buffer is used as is', () {
+      expect(identical(compactNv21(frame, 4, 2), frame), isTrue);
+    });
+
+    test('rows copied without padding leave a zero tail that is dropped', () {
+      final padded = Uint8List(16)..setRange(0, 12, frame);
+      expect(compactNv21(padded, 4, 2), frame);
+    });
+
+    test('a whole padded Y plane keeps the chroma at the end', () {
+      final whole = Uint8List.fromList([
+        ...frame.sublist(0, 8),
+        99, 99, 99, 99, // Y padding copied with the plane
+        ...frame.sublist(8),
+      ]);
+      expect(compactNv21(whole, 4, 2), frame);
+    });
+
+    test('the geometry measured on the Xiaomi 2311DRK48G is accepted', () {
+      // 720x480 with a 768 Y row stride: 768 * 479 + 720 + 720 * 480 / 2.
+      final device = Uint8List(541392)..[0] = 7;
+      final compact = compactNv21(device, 720, 480);
+      expect(compact.length, 720 * 480 * 3 ~/ 2);
+      expect(compact[0], 7);
+    });
+
+    test('short or implausibly long buffers are rejected', () {
+      expect(() => compactNv21(Uint8List(11), 4, 2), throwsFormatException);
+      expect(() => compactNv21(Uint8List(25), 4, 2), throwsFormatException);
+    });
+  });
+
   test('rejects YUV masquerading as NV21 and truncated buffers', () {
     expect(
       () => androidInputImage(sampleFrame(format: ImageFormatGroup.yuv420)),

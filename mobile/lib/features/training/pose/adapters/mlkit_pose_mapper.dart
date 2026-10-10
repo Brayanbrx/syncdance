@@ -20,6 +20,36 @@ int androidImageRotation(CameraFrame frame) {
       : (sensor - deviceDegrees + 360) % 360;
 }
 
+/// Tightly packed NV21 (`width * height * 1.5` bytes) from the plugin buffer.
+///
+/// camera_android_camerax 0.7.5+1 (`planesToNV21`) sizes its array from the
+/// *padded* Y plane, so devices with a Y row stride above the width (e.g. 768
+/// for 720) deliver extra bytes. Two layouts are possible:
+/// - rows copied without padding: a valid frame followed by an unwritten,
+///   all-zero tail, so the prefix is the frame;
+/// - Y plane copied whole (stride equal to width but a longer buffer): the
+///   interleaved VU plane is at the end.
+/// Never reinterprets arbitrary YUV420 planes; shorter buffers are rejected.
+Uint8List compactNv21(Uint8List bytes, int width, int height) {
+  final ySize = width * height;
+  final expected = ySize + ySize ~/ 2;
+  if (bytes.length < expected || bytes.length > 2 * expected) {
+    throw const FormatException('El tamaño del buffer NV21 no es válido.');
+  }
+  if (bytes.length == expected) return bytes;
+  var zeroTail = true;
+  for (var i = expected; i < bytes.length; i++) {
+    if (bytes[i] != 0) {
+      zeroTail = false;
+      break;
+    }
+  }
+  if (zeroTail) return Uint8List.sublistView(bytes, 0, expected);
+  return Uint8List(expected)
+    ..setRange(0, ySize, bytes)
+    ..setRange(ySize, expected, bytes, bytes.length - ySize ~/ 2);
+}
+
 ml.InputImage androidInputImage(CameraFrame frame) {
   final image = frame.image;
   // Never reinterpret arbitrary YUV420 planes as packed NV21. CameraX 0.7.5+1
@@ -32,19 +62,18 @@ ml.InputImage androidInputImage(CameraFrame frame) {
   if (image.width <= 0 ||
       image.height <= 0 ||
       image.width.isOdd ||
-      image.height.isOdd ||
-      image.planes.single.bytes.length != image.width * image.height * 3 ~/ 2) {
+      image.height.isOdd) {
     throw const FormatException('El tamaño del buffer NV21 no es válido.');
   }
   return ml.InputImage.fromBytes(
-    bytes: image.planes.single.bytes,
+    bytes: compactNv21(image.planes.single.bytes, image.width, image.height),
     metadata: ml.InputImageMetadata(
       size: Size(image.width.toDouble(), image.height.toDouble()),
       rotation: ml.InputImageRotationValue.fromRawValue(
         androidImageRotation(frame),
       )!,
       format: ml.InputImageFormat.nv21,
-      bytesPerRow: image.planes.single.bytesPerRow,
+      bytesPerRow: image.width,
     ),
   );
 }

@@ -22,6 +22,7 @@ class CameraTrainingScreen extends StatefulWidget {
     this.onInvalidated,
     this.highlightedJoints = const {},
     this.showDetails = true,
+    this.onPoseError,
     super.key,
   });
 
@@ -36,6 +37,9 @@ class CameraTrainingScreen extends StatefulWidget {
 
   /// Embedded hosts with their own guidance (the dance game) hide the side text.
   final bool showDetails;
+
+  /// Lets hosts that hide the details explain a failed detector.
+  final ValueChanged<String>? onPoseError;
 
   @override
   State<CameraTrainingScreen> createState() => _CameraTrainingScreenState();
@@ -104,6 +108,7 @@ class _CameraTrainingScreenState extends State<CameraTrainingScreen>
               ? 'La detección de postura de este paso está disponible en Android.'
               : 'No se pudo analizar la postura. Vuelve a abrir esta pantalla para reintentar.';
         });
+        widget.onPoseError?.call(_poseError!);
       },
     );
   }
