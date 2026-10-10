@@ -227,3 +227,13 @@ def test_payload_generated_by_the_phone_is_accepted():
     assert response.data["pose_score"] == 0
     assert response.data["quality_ratio"] == pytest.approx(0.4)
     assert client.post(URL, payload, format="json").status_code == 200
+
+
+@pytest.mark.parametrize("mode,status", [("mirror", 201), ("same-side", 201), ("espejo", 400)])
+def test_follow_mode_is_stored_and_validated(mobile_upload, mode, status):
+    client, _, payload = mobile_upload
+    payload["follow_mode"] = mode
+    response = client.post(URL, payload, format="json")
+    assert response.status_code == status, response.data
+    if status == 201:
+        assert DanceSession.objects.get().follow_mode == mode

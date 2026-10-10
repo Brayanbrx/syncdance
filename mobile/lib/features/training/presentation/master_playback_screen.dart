@@ -9,6 +9,7 @@ import '../../routines/reference/master_video_cache.dart';
 import '../../routines/reference/motion_reference.dart';
 import '../../routines/reference/reference_cache.dart';
 import '../playback/reference_timeline.dart';
+import '../comparison/follow_mode.dart';
 import '../comparison/session_summary.dart';
 import '../history/saved_session.dart';
 import '../history/session_store.dart';
@@ -54,6 +55,8 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
   bool _hasVideo = false;
   bool _practice = false;
   SessionAccumulator? _session;
+  FollowMode _followMode = FollowMode.mirror;
+  MotionReference? _practiceReference;
   SessionSummary? _summary;
   SessionStore? _store;
   SavedSession? _record;
@@ -161,7 +164,11 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
       return;
     }
     setState(() {
-      _session = SessionAccumulator(_metadata.durationMs);
+      _session = SessionAccumulator(
+        _metadata.durationMs,
+        followMode: _followMode,
+      );
+      _practiceReference = referenceFor(widget.saved.reference, _followMode);
       _summary = null;
       _record = null;
       _saved = false;
@@ -425,6 +432,22 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
                   ],
                 ),
                 if (value.isBuffering) const Text('Esperando al reproductor…'),
+                SwitchListTile(
+                  title: const Text('Seguir como espejo'),
+                  subtitle: Text(
+                    _followMode == FollowMode.mirror
+                        ? 'Si el maestro te mira de frente: tu derecha sigue a su izquierda.'
+                        : 'Mismos lados: para un maestro filmado de espaldas.',
+                  ),
+                  value: _followMode == FollowMode.mirror,
+                  onChanged: _practice
+                      ? null
+                      : (mirror) => setState(
+                          () => _followMode = mirror
+                              ? FollowMode.mirror
+                              : FollowMode.sameSide,
+                        ),
+                ),
                 TextButton.icon(
                   onPressed:
                       _busy ||
@@ -449,7 +472,8 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
                 if (_practice)
                   LiveComparisonPanel(
                     player: controller,
-                    reference: widget.saved.reference,
+                    reference: _practiceReference!,
+                    followMode: _session!.followMode,
                     enabled: !_busy && _active && _dragPosition == null,
                     epoch: _comparisonEpoch,
                     session: _session,

@@ -20,6 +20,12 @@ class DanceSession(models.Model):
         LIVE = "LIVE", "En vivo"
         RECORDED = "RECORDED", "Grabada"
 
+    class FollowMode(models.TextChoices):
+        # The learner's sides never change; MIRROR compares with the master's
+        # mirror image. Sessions in different modes are not comparable.
+        SAME_SIDE = "same-side", "Mismos lados"
+        MIRROR = "mirror", "Espejo"
+
     # Client-generated UUID supports future offline synchronization.
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey(
@@ -35,6 +41,9 @@ class DanceSession(models.Model):
     finished_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.STARTED)
     mode = models.CharField(max_length=16, choices=Mode.choices, default=Mode.LIVE)
+    follow_mode = models.CharField(
+        max_length=16, choices=FollowMode.choices, default=FollowMode.SAME_SIDE
+    )
     overall_score = models.FloatField(null=True, blank=True, validators=score_validators)
     pose_score = models.FloatField(null=True, blank=True, validators=score_validators)
     timing_score = models.FloatField(null=True, blank=True, validators=score_validators)

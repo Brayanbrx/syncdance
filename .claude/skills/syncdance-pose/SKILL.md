@@ -62,9 +62,13 @@ video maestro -> FFmpeg 12 fps -> MediaPipe -> features/body.py
 8. `z` queda ausente hasta validar su escala entre motores.
 
 ### Lados y espejo
-9. **Izquierda/derecha son anatómicas y nunca se intercambian.** El espejo de la
-   cámara frontal es solo una transformación de dibujo en el overlay.
+9. **Izquierda/derecha son anatómicas y nunca se intercambian en el alumno.** El
+   espejo de la cámara frontal es solo una transformación de dibujo en el overlay.
    Convención visual: izquierda anatómica naranja, derecha celeste.
+   El **modo espejo** (`FollowMode.mirror`, por defecto) refleja la *referencia del
+   maestro* de forma explícita (`mirrorReference`: swap de lados + x → −x) para que
+   el alumno lo siga como en un espejo. Es una transformación de la coreografía,
+   versionada en `follow_mode`, nunca una corrección de la preview.
 
 ### Ausente ≠ cero
 10. Un joint no detectado **no está** en la lista; un ángulo no calculable **no está**
@@ -144,7 +148,8 @@ componente. Así los historiales guardados siguen siendo interpretables.
 | `pose-window-v1` | `PoseMatcher.version` (= `scoringVersion`) |
 | `geometric-feedback-v2` | `FeedbackRules.version` |
 | `pose-summary-v1` | `SessionAccumulator.version` |
-| `local-session-v1`, `session-sync-v1` | `SavedSession.toJson`, marcadores de `SessionStore` |
+| `local-session-v2` (lee v1), `session-sync-v1` | `SavedSession.toJson`, marcadores de `SessionStore` |
+| `follow_mode`: `mirror` / `same-side` | `FollowMode` en `comparison/follow_mode.dart`; resumen, subida y base del progreso |
 | `routine-progress-v1` | `RoutineProgressCalculator.version` (cobertura mínima provisional) |
 | `motion-features-v1`, `reference-body-v1`, `video-start-cfr-v1` | `ai_engine/pose/reference.py` **y** la validación de `motion_reference.dart` |
 
@@ -188,7 +193,9 @@ pytest
 ## Antipatrones a rechazar
 
 - Importar `google_mlkit_*` o `mediapipe` fuera de los adaptadores.
-- Intercambiar left/right para "corregir" el espejo.
+- Intercambiar left/right del alumno para "corregir" el espejo (el modo espejo
+  refleja la referencia del maestro, no al alumno).
+- Comparar o promediar prácticas con distinto `follow_mode`.
 - `?? 0` o `0.0` como valor por defecto de un landmark, ángulo o score.
 - Calcular distancias con x sin corregir por aspect ratio.
 - Puntuar frames que no pasaron el quality gate, o bajar el score por mala calidad.

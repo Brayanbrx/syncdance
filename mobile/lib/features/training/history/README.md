@@ -13,7 +13,8 @@ cuenta como máximo una vez por intervalo de 100 ms del video para evitar contar
 de nuevo el mismo intervalo al repetirlo. No mide duración del error ni representa
 todas las desviaciones; ausencia de avisos no certifica ejecución correcta.
 
-Los archivos `local-session-v1` están en el directorio privado de soporte de la
+Los archivos `local-session-v2` (desde el modo espejo; los `v1` siguen leyéndose
+como mismos lados) están en el directorio privado de soporte de la
 app, bajo `sessions-v1/<hash de servidor|cuenta>`. Son independientes de los
 videos y referencias descargados. Se valida al escribir y al leer, con límite
 de 256 KiB por archivo y 32 MiB por cuenta/servidor. La publicación usa temporal,

@@ -64,7 +64,7 @@ class DanceSessionAdmin(admin.ModelAdmin):
         "quality_ratio",
         "started_at",
     )
-    list_filter = ("status", "mode")
+    list_filter = ("status", "mode", "follow_mode")
     inlines = (TimelineSegmentInline, FeedbackCountInline, SegmentScoreInline, ErrorEventInline)
     readonly_fields = tuple(field.name for field in DanceSession._meta.fields)
 

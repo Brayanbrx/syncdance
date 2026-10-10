@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncdance_mobile/features/routines/reference/motion_reference.dart';
+import 'package:syncdance_mobile/features/training/comparison/follow_mode.dart';
 import 'package:syncdance_mobile/features/training/comparison/session_summary.dart';
 import 'package:syncdance_mobile/features/training/history/routine_progress.dart';
 import 'package:syncdance_mobile/features/training/history/saved_session.dart';
@@ -13,6 +14,7 @@ SavedSession practice(
   int routine = 7,
   int version = 1,
   String scoring = 'pose-window-v1',
+  FollowMode followMode = FollowMode.sameSide,
 }) {
   final json = metadataJson(version: version)..['routine'] = routine;
   final evaluated = score == null ? 0 : (coverage * 250).round();
@@ -33,6 +35,7 @@ SavedSession practice(
       reachedVideoEnd: true,
       segments: const [],
       scoringVersion: scoring,
+      followMode: followMode,
     ),
   );
 }
@@ -76,6 +79,17 @@ void main() {
     expect(progress.recentScores(), [60]);
     expect(progress.change, isNull);
     expect(progress.excluded, 2);
+  });
+
+  test('mirror and same-side practices are never compared', () {
+    final progress = calculator.compute([
+      practice(90, day: 1),
+      practice(55, day: 2, followMode: FollowMode.mirror),
+      practice(65, day: 3, followMode: FollowMode.mirror),
+    ]).single;
+    expect(progress.recentScores(), [55, 65]);
+    expect(progress.best!.summary.score, 65);
+    expect(progress.excluded, 1);
   });
 
   test('routines are separate and ordered by their last practice', () {

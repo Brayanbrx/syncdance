@@ -123,6 +123,7 @@ class DanceSessionSerializer(serializers.ModelSerializer):
             "finished_at",
             "status",
             "mode",
+            "follow_mode",
             "overall_score",
             "pose_score",
             "timing_score",

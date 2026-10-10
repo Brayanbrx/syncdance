@@ -23,6 +23,24 @@ No se graban ni suben imágenes. Con referencia y video descargados funciona sin
 red durante la sesión; desde Fase 6, paso 2, la sesión guardada también reabre
 la app sin red.
 
+## Modo espejo (por defecto)
+
+Quien sigue a un maestro filmado de frente lo imita como en un espejo: cuando el
+maestro levanta su brazo izquierdo, el alumno levanta el derecho. Antes la app
+exigía los mismos lados anatómicos y penalizaba ese gesto natural.
+
+**Seguir como espejo** (activado por defecto) compara contra la imagen especular
+del maestro: `mirrorReference` intercambia izquierda↔derecha en joints y ángulos
+y niega x alrededor del punto medio de caderas. Los lados del alumno nunca
+cambian: avisos y aros hablan de su propio cuerpo. Desactivarlo deja la
+comparación de mismos lados, útil para un maestro filmado de espaldas.
+
+El modo se guarda en el resumen (`local-session-v2`; los `v1` se leen como
+`same-side`), se envía como `follow_mode` y forma parte de la base comparable
+del progreso: prácticas en espejo y sin espejo nunca se comparan entre sí.
+`follow_mode_test.dart` verifica que la imagen especular de una pose asimétrica
+puntúa ~100 solo en modo espejo y que reflejar dos veces es la identidad.
+
 ## Estructura
 
 `LivePractice` (`live_practice.dart`) contiene el loop live sin widgets ni

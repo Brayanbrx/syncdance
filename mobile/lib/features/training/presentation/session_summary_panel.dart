@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../comparison/follow_mode.dart';
 import '../comparison/session_summary.dart';
 
 class SessionSummaryPanel extends StatelessWidget {
@@ -26,6 +27,11 @@ class SessionSummaryPanel extends StatelessWidget {
           ),
           Text(
             '${summary.reachedVideoEnd ? 'Fin del video' : 'Práctica finalizada'} · referencia v$referenceVersion',
+          ),
+          Text(
+            summary.followMode == FollowMode.mirror
+                ? 'Seguido como espejo'
+                : 'Seguido con los mismos lados',
           ),
           const SizedBox(height: 12),
           Text(

@@ -19,6 +19,7 @@
   "scoring_version": "pose-window-v1",
   "summary_version": "pose-summary-v1",
   "feedback_version": "geometric-feedback-v2",
+  "follow_mode": "same-side",
   "timeline_segments": [
     {
       "start_ms": 0,

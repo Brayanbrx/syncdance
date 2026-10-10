@@ -45,8 +45,8 @@ class RoutineProgress {
   ];
 }
 
-/// Progress is only meaningful between equal references, algorithms and enough
-/// evaluated time. The coverage cutoff is provisional until physical validation.
+/// Progress is only meaningful between equal references, algorithms, follow
+/// modes and enough evaluated time. The coverage cutoff is provisional until physical validation.
 class RoutineProgressCalculator {
   const RoutineProgressCalculator();
   static const version = 'routine-progress-v1';
@@ -56,7 +56,8 @@ class RoutineProgressCalculator {
       a.reference.routineId == b.reference.routineId &&
       a.reference.version == b.reference.version &&
       a.summary.scoringVersion == b.summary.scoringVersion &&
-      a.summary.summaryVersion == b.summary.summaryVersion;
+      a.summary.summaryVersion == b.summary.summaryVersion &&
+      a.summary.followMode == b.summary.followMode;
 
   /// One entry per routine, based on the basis of its most recent practice.
   List<RoutineProgress> compute(List<SavedSession> sessions) {

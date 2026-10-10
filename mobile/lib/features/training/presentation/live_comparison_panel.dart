@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import '../../routines/reference/motion_reference.dart';
 import '../camera/camera_capture.dart';
 import '../camera/camera_frame.dart';
+import '../comparison/follow_mode.dart';
 import '../comparison/live_practice.dart';
 import '../comparison/session_summary.dart';
 import '../pose/adapters/mlkit_pose_estimator.dart';
@@ -23,6 +24,7 @@ class LiveComparisonPanel extends StatefulWidget {
     this.capture,
     this.createPoseEstimator,
     this.nowMs,
+    this.followMode = FollowMode.sameSide,
     super.key,
   });
   final VideoPlayerController player;
@@ -33,6 +35,9 @@ class LiveComparisonPanel extends StatefulWidget {
   final CameraCapture? capture;
   final PoseEstimator Function(CameraCapture)? createPoseEstimator;
   final int Function()? nowMs;
+
+  /// Only selects the instruction; [reference] is already mirrored if needed.
+  final FollowMode followMode;
 
   @override
   State<LiveComparisonPanel> createState() => _LiveComparisonPanelState();
@@ -120,7 +125,11 @@ class _LiveComparisonPanelState extends State<LiveComparisonPanel> {
     final cue = _practice.activeCue;
     return Column(
       children: [
-        const Text('Tu cámara · sigue los mismos lados anatómicos del maestro'),
+        Text(
+          widget.followMode == FollowMode.mirror
+              ? 'Tu cámara · sigue al maestro como en un espejo'
+              : 'Tu cámara · sigue los mismos lados anatómicos del maestro',
+        ),
         SizedBox(
           height: 220,
           child: CameraTrainingScreen(

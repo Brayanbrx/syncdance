@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../../routines/reference/motion_reference.dart';
+import '../comparison/follow_mode.dart';
 import '../comparison/session_summary.dart';
 
 String newSessionId() {
@@ -31,7 +32,7 @@ class SavedSession {
   );
 
   Map<String, dynamic> toJson() => {
-    'schema': 'local-session-v1',
+    'schema': 'local-session-v2',
     'id': id,
     'routine_name': routineName,
     'reference': reference.toJson(),
@@ -49,6 +50,7 @@ class SavedSession {
       'scoring_version': summary.scoringVersion,
       'summary_version': summary.summaryVersion,
       'feedback_version': summary.feedbackVersion,
+      'follow_mode': summary.followMode.code,
       'segments': [
         for (final s in summary.segments)
           {
@@ -94,6 +96,7 @@ class SavedSession {
     'scoring_version': summary.scoringVersion,
     'summary_version': summary.summaryVersion,
     'feedback_version': summary.feedbackVersion,
+    'follow_mode': summary.followMode.code,
     'timeline_segments': [
       for (final s in summary.segments)
         {
@@ -139,7 +142,9 @@ class SavedSession {
       return (value as num).toDouble();
     }
 
-    require(data['schema'] == 'local-session-v1');
+    // v1 predates follow modes: it always compared the same anatomical sides.
+    final schema = data['schema'];
+    require(schema == 'local-session-v1' || schema == 'local-session-v2');
     final id = label(data['id']);
     require(validId.hasMatch(id));
     final reference = ReferenceMetadata.fromJson(object(data['reference']));
@@ -150,6 +155,10 @@ class SavedSession {
     final finishedAt = DateTime.parse(endText);
     require(!finishedAt.isBefore(startedAt));
     final s = object(data['summary']);
+    final followMode = schema == 'local-session-v1'
+        ? FollowMode.sameSide
+        : FollowMode.fromCode(s['follow_mode']);
+    require(followMode != null);
     final duration = integer(s['duration_ms'], 1, 300000);
     require(duration == reference.durationMs);
     final evaluated = integer(s['evaluated_ms'], 0, duration);
@@ -229,6 +238,7 @@ class SavedSession {
         scoringVersion: label(s['scoring_version'], 100),
         summaryVersion: label(s['summary_version'], 100),
         feedbackVersion: label(s['feedback_version'], 100),
+        followMode: followMode!,
       ),
     );
   }

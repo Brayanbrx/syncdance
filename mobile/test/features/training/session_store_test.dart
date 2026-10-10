@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:syncdance_mobile/features/training/comparison/follow_mode.dart';
 import 'package:syncdance_mobile/features/training/comparison/pose_matcher.dart';
 import 'package:syncdance_mobile/features/training/comparison/session_summary.dart';
 import 'package:syncdance_mobile/features/training/history/saved_session.dart';
@@ -10,8 +11,13 @@ import 'package:syncdance_mobile/features/training/history/session_store.dart';
 import '../routines/reference_test_samples.dart';
 import 'feedback_test.dart' show cue;
 
-SavedSession savedPractice({bool evidence = true, DateTime? at, String? id}) {
-  final accumulator = SessionAccumulator(250);
+SavedSession savedPractice({
+  bool evidence = true,
+  DateTime? at,
+  String? id,
+  FollowMode followMode = FollowMode.sameSide,
+}) {
+  final accumulator = SessionAccumulator(250, followMode: followMode);
   if (evidence) {
     accumulator.record(0, const PoseMatch(90, 1, 0));
     accumulator.recordFeedback(0, cue('leftElbow_extend'));
@@ -128,4 +134,23 @@ void main() {
       }
     },
   );
+
+  test('follow mode round trips and v1 files read as same sides', () {
+    final mirror = savedPractice(followMode: FollowMode.mirror);
+    final json = mirror.toJson();
+    expect(json['schema'], 'local-session-v2');
+    expect(SavedSession.fromJson(json).summary.followMode, FollowMode.mirror);
+    final legacy =
+        jsonDecode(jsonEncode(savedPractice().toJson()))
+            as Map<String, dynamic>;
+    legacy['schema'] = 'local-session-v1';
+    (legacy['summary'] as Map<String, dynamic>).remove('follow_mode');
+    expect(
+      SavedSession.fromJson(legacy).summary.followMode,
+      FollowMode.sameSide,
+    );
+    final invalid = jsonDecode(jsonEncode(json)) as Map<String, dynamic>;
+    (invalid['summary'] as Map<String, dynamic>)['follow_mode'] = 'espejo';
+    expect(() => SavedSession.fromJson(invalid), throwsFormatException);
+  });
 }

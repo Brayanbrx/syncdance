@@ -1,3 +1,4 @@
+import 'follow_mode.dart';
 import 'pose_matcher.dart';
 import '../feedback/feedback_rules.dart';
 
@@ -41,12 +42,16 @@ class SessionSummary {
     this.scoringVersion = PoseMatcher.version,
     this.summaryVersion = SessionAccumulator.version,
     this.feedbackVersion = FeedbackRules.version,
+    this.followMode = FollowMode.sameSide,
   }) : segments = List.unmodifiable(segments),
        feedback = List.unmodifiable(feedback);
   final int durationMs, evaluatedMs;
   final double? score, meanErrorDegrees;
   final double? meanPositionError, angleScore, positionScore;
   final String scoringVersion, summaryVersion, feedbackVersion;
+
+  /// Compared against the mirrored master or the same sides; never mixed.
+  final FollowMode followMode;
   final List<FeedbackSummary> feedback;
   final bool reachedVideoEnd;
   final List<SegmentSummary> segments;
@@ -56,7 +61,7 @@ class SessionSummary {
 /// Unique 100 ms video bins, first valid result wins. Missing evidence is null.
 /// This is estimated sampled coverage, not continuous biomechanical observation.
 class SessionAccumulator {
-  SessionAccumulator(this.durationMs) {
+  SessionAccumulator(this.durationMs, {this.followMode = FollowMode.sameSide}) {
     if (durationMs <= 0 || durationMs > 300000) {
       throw ArgumentError.value(durationMs);
     }
@@ -65,6 +70,7 @@ class SessionAccumulator {
   static const binMs = 100;
   static const segmentMs = 5000;
   final int durationMs;
+  final FollowMode followMode;
   final _bins = <int, PoseMatch>{};
   final _feedbackBins = <String>{};
   final _feedback = <String, FeedbackSummary>{};
@@ -167,6 +173,7 @@ class SessionAccumulator {
       reachedVideoEnd: reachedVideoEnd,
       segments: segments,
       feedback: feedback,
+      followMode: followMode,
     );
   }
 }
