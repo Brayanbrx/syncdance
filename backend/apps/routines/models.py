@@ -26,6 +26,9 @@ class Routine(models.Model):
     source_url = models.URLField(blank=True)
     license_name = models.CharField(max_length=120, blank=True)
     credit = models.CharField(max_length=200, blank=True)
+    # Set for masters rendered from a choreography: their reference is exact and
+    # comes from the step sheet, never from running pose detection on the video.
+    generator = models.CharField(max_length=40, blank=True)
     duration_ms = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

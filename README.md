@@ -62,7 +62,12 @@ con videos de licencia libre; ver `backend/apps/routines/README.md`):
 
 ```powershell
 docker compose exec backend python manage.py load_default_catalog
+docker compose exec backend python manage.py generate_standard_catalog
 ```
+
+El segundo genera el **estándar SyncDance** (Nivel 1: cinco pasos básicos y
+«Primer baile») con coach animado, ritmo propio y referencia exacta; ver
+`backend/ai_engine/choreography/README.md`.
 
 Ejecutar `createsuperuser` en otra terminal. Compose aplica las migraciones al
 iniciar Django, sin borrar los datos existentes.

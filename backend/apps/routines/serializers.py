@@ -23,10 +23,18 @@ class RoutineSerializer(serializers.ModelSerializer):
             "source_url",
             "license_name",
             "credit",
+            "generator",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "instructor", "catalog_key", "created_at", "updated_at")
+        read_only_fields = (
+            "id",
+            "instructor",
+            "catalog_key",
+            "generator",
+            "created_at",
+            "updated_at",
+        )
 
 
 class RoutineReferenceSerializer(serializers.ModelSerializer):

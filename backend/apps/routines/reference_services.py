@@ -49,6 +49,10 @@ def _dispatch(reference_id):
 def queue_reference(*, routine_id):
     # Serialize version allocation for this routine under PostgreSQL.
     routine = Routine.objects.select_for_update().get(pk=routine_id)
+    if routine.generator:
+        raise ValidationError(
+            "Rutina generada desde su coreografía: se actualiza con generate_standard_catalog."
+        )
     if not routine.master_video:
         raise ValidationError("La rutina requiere un video maestro.")
     expire_stale_references(routine=routine)

@@ -13,6 +13,8 @@ class RoutineAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
+        if obj.generator:
+            return  # generated masters keep their exact choreography reference
         if not change or "master_video" in form.changed_data:
             obj.duration_ms = 0
             obj.save(update_fields=["duration_ms"])
@@ -22,10 +24,12 @@ class RoutineAdmin(admin.ModelAdmin):
     @admin.action(description="Generar nueva referencia del video maestro", permissions=["change"])
     def generate_references(self, request, queryset):
         count = 0
-        for routine in queryset.exclude(master_video=""):
+        for routine in queryset.exclude(master_video="").filter(generator=""):
             queue_reference(routine_id=routine.pk)
             count += 1
-        self.message_user(request, f"Referencias solicitadas para {count} rutinas.")
+        skipped = queryset.exclude(generator="").count()
+        note = f" Omitidas {skipped} generadas desde coreografía." if skipped else ""
+        self.message_user(request, f"Referencias solicitadas para {count} rutinas.{note}")
 
 
 @admin.register(RoutineReference)

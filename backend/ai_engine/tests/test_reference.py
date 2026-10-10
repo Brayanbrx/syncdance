@@ -52,8 +52,7 @@ def test_artifact_reproducible_preserves_timeline_and_missing_samples(pose):
     assert payload == encode_reference(samples, **kwargs)[0]
     assert json.loads(gzip.decompress(payload)) == artifact
     fixture = (
-        Path(__file__).resolve().parents[3]
-        / "mobile/test/fixtures/references/reference_v1.json.gz"
+        Path(__file__).resolve().parents[3] / "mobile/test/fixtures/references/reference_v1.json.gz"
     )
     assert payload == fixture.read_bytes()
     assert artifact == json.loads(fixture.with_suffix("").read_text())
