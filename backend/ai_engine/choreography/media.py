@@ -5,6 +5,8 @@ All content is synthesized here, so the result carries no third-party license.
 """
 
 import math
+import os
+import unicodedata
 import wave
 
 from .body import Camera, skeleton
@@ -85,8 +87,84 @@ def synth_audio(timeline, path, rate=AUDIO_RATE):
         wav.writeframes(pcm.tobytes())
 
 
-def _text(cv2, frame, text, center, scale, thickness=2, color=TEXT):
+FONT_CANDIDATES = (
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # fonts-dejavu-core
+    "C:/Windows/Fonts/arialbd.ttf",  # local previews on Windows
+)
+
+
+def font_path():
+    candidates = [os.environ.get("SYNCDANCE_FONT"), *FONT_CANDIDATES]
+    try:
+        import matplotlib
+
+        candidates.append(
+            os.path.join(
+                os.path.dirname(matplotlib.__file__),
+                "mpl-data",
+                "fonts",
+                "ttf",
+                "DejaVuSans-Bold.ttf",
+            )
+        )
+    except ImportError:
+        pass
+    return next((path for path in candidates if path and os.path.isfile(path)), None)
+
+
+def ascii_caption(text):
+    """Hershey fonts only draw ASCII: drop accents and inverted marks."""
+    plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return plain.strip()
+
+
+class Captions:
+    """Spanish captions (accents, ¡) via Pillow and a TTF font; ASCII fallback."""
+
+    def __init__(self, path=None):
+        self.path = path if path is not None else font_path()
+        self._fonts = {}
+        self.items = []
+
+    def add(self, text, center, size, color=TEXT):
+        self.items.append((text, center, size, color))
+
+    def _font(self, size):
+        from PIL import ImageFont
+
+        if size not in self._fonts:
+            self._fonts[size] = ImageFont.truetype(self.path, size)
+        return self._fonts[size]
+
+    def render(self, cv2, np, frame):
+        items, self.items = self.items, []
+        if not items:
+            return frame
+        if not self.path:
+            for text, center, size, color in items:
+                _hershey(cv2, frame, ascii_caption(text), center, size, color)
+            return frame
+        from PIL import Image, ImageDraw
+
+        image = Image.fromarray(frame)
+        draw = ImageDraw.Draw(image)
+        for text, center, size, color in items:
+            draw.text(
+                center,
+                text,
+                font=self._font(size),
+                fill=color,
+                anchor="mm",
+                stroke_width=max(2, size // 12),
+                stroke_fill=SHADOW_TEXT,
+            )
+        return np.asarray(image).copy()
+
+
+def _hershey(cv2, frame, text, center, size, color):
     font = cv2.FONT_HERSHEY_DUPLEX
+    scale = size / 32
+    thickness = max(1, size // 20)
     (w, h), _ = cv2.getTextSize(text, font, scale, thickness)
     origin = (int(center[0] - w / 2), int(center[1] + h / 2))
     cv2.putText(frame, text, origin, font, scale, SHADOW_TEXT, thickness + 6, cv2.LINE_AA)
@@ -107,7 +185,8 @@ LIMBS = (
 )
 
 
-def draw_frame(cv2, np, background, timeline, seconds, camera):
+def draw_frame(cv2, np, background, timeline, seconds, camera, captions=None):
+    captions = captions or Captions()
     frame = background.copy()
     pose = timeline.pose_at(seconds)
     joints = skeleton(pose)
@@ -162,10 +241,10 @@ def draw_frame(cv2, np, background, timeline, seconds, camera):
     cv2.circle(frame, head, int(0.11 * ppm), COACH, -1, cv2.LINE_AA)
 
     cue = timeline.cue_at(seconds)
-    _text(cv2, frame, cue.caption, (camera.width / 2, 52), 1.25)
+    captions.add(cue.caption, (camera.width / 2, 52), 42)
     if not cue.evaluated:
         # Beside the coach, never over the body.
-        _text(cv2, frame, str(cue.count), (camera.width * 0.82, camera.height * 0.45), 5, 8, ACCENT)
+        captions.add(str(cue.count), (camera.width * 0.82, camera.height * 0.45), 170, ACCENT)
     else:
         beat = timeline.beat_at(seconds)
         here = timeline.pose_at(seconds).pelvis[0]
@@ -184,10 +263,10 @@ def draw_frame(cv2, np, background, timeline, seconds, camera):
         color = ACCENT if active else (90, 80, 120)
         cv2.circle(frame, (x, dots_y), 15 if active else 9, color, -1, cv2.LINE_AA)
     if cue.evaluated:
-        _text(cv2, frame, str(cue.count), (camera.width - 70, 60), 1.8, 3, ACCENT)
+        captions.add(str(cue.count), (camera.width - 70, 60), 60, ACCENT)
     if cue.next_caption:
-        _text(cv2, frame, f"SIGUE: {cue.next_caption}", (camera.width / 2, 104), 0.8, 2)
-    return frame
+        captions.add(f"SIGUE: {cue.next_caption}", (camera.width / 2, 104), 28)
+    return captions.render(cv2, np, frame)
 
 
 def render_video(timeline, path, *, audio_path=None, camera=None, fps=30):
@@ -213,10 +292,11 @@ def render_video(timeline, path, *, audio_path=None, camera=None, fps=30):
         audio_path=str(audio_path) if audio_path else None,
         audio_codec="aac" if audio_path else None,
     )
+    captions = Captions()
     writer.send(None)
     try:
         for index in range(round(timeline.duration_s * fps)):
-            frame = draw_frame(cv2, np, background, timeline, index / fps, camera)
+            frame = draw_frame(cv2, np, background, timeline, index / fps, camera, captions)
             writer.send(np.ascontiguousarray(frame))
     finally:
         writer.close()

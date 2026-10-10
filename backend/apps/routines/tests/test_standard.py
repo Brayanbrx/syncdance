@@ -69,3 +69,29 @@ def test_students_can_download_the_generated_reference():
     listed = client.get("/api/routines/").data["results"][0]
     assert listed["generator"] == GENERATOR_VERSION
     assert listed["credit"].startswith("SyncDance")
+
+
+def test_refresh_publishes_a_new_version_only_when_the_result_changes():
+    standard.install(STANDARD_V1[:1], renderer=renderer, log=lambda _: None)
+    routine = Routine.objects.get()
+    first_video = routine.master_video.name
+    assert (
+        standard.install(STANDARD_V1[:1], renderer=renderer, refresh=True, log=lambda _: None) == 0
+    )
+    assert routine.references.count() == 1
+
+    def new_renderer(spec, directory):
+        return b"re-rendered coach"
+
+    assert (
+        standard.install(STANDARD_V1[:1], renderer=new_renderer, refresh=True, log=lambda _: None)
+        == 1
+    )
+    routine.refresh_from_db()
+    assert list(routine.references.values_list("version", flat=True)) == [2, 1]
+    newest, previous = routine.references.all()
+    assert newest.status == previous.status == RoutineReference.Status.READY
+    assert routine.master_video.read() == b"re-rendered coach"
+    assert newest.source_video.name == routine.master_video.name != first_video
+    assert previous.source_video.name == first_video
+    assert newest.source_sha256 == hashlib.sha256(b"re-rendered coach").hexdigest()

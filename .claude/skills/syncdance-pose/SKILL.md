@@ -151,6 +151,8 @@ componente. Así los historiales guardados siguen siendo interpretables.
 | `pose-summary-v1` | `SessionAccumulator.version` |
 | `local-session-v2` (lee v1), `session-sync-v1` | `SavedSession.toJson`, marcadores de `SessionStore` |
 | `follow_mode`: `mirror` / `same-side` | `FollowMode` en `comparison/follow_mode.dart`; resumen, subida y base del progreso |
+| `playback_speed`: 0.5 / 0.75 / 1 | `SessionAccumulator.speeds`; modo aprender, resumen, subida y base del progreso |
+| `syncdance-choreo-v1`, `estandar-v1` | `ai_engine/choreography/curriculum.py`: coreografías generadas (referencia exacta, sin MediaPipe) |
 | `routine-progress-v1` | `RoutineProgressCalculator.version` (cobertura mínima provisional) |
 | `dance-game-v1` | `DanceGame.version`: movimientos de 1 s, umbrales PERFECT/GREAT/GOOD, estrellas (provisionales) |
 | `motion-features-v1`, `reference-body-v1`, `video-start-cfr-v1` | `ai_engine/pose/reference.py` **y** la validación de `motion_reference.dart` |
@@ -197,7 +199,9 @@ pytest
 - Importar `google_mlkit_*` o `mediapipe` fuera de los adaptadores.
 - Intercambiar left/right del alumno para "corregir" el espejo (el modo espejo
   refleja la referencia del maestro, no al alumno).
-- Comparar o promediar prácticas con distinto `follow_mode`.
+- Comparar o promediar prácticas con distinto `follow_mode` o `playback_speed`.
+- Procesar con MediaPipe una rutina con `generator`: su referencia sale de la
+  coreografía (`generate_standard_catalog`).
 - `?? 0` o `0.0` como valor por defecto de un landmark, ángulo o score.
 - Calcular distancias con x sin corregir por aspect ratio.
 - Puntuar frames que no pasaron el quality gate, o bajar el score por mala calidad.

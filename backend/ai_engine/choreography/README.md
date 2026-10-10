@@ -20,21 +20,25 @@ docker compose exec backend python manage.py generate_standard_catalog
 ```
 
 Idempotente por `catalog_key` (`estandar-<clave>`); `--only n1-marcha` genera
-una sola rutina. Estas rutinas llevan `generator = syncdance-choreo-v1` y nunca
+una sola rutina. `--refresh` vuelve a renderizar las instaladas y publica una
+**versión nueva** de la referencia solo si el resultado cambió (el render es
+determinista: sin cambios no crea versiones); las anteriores siguen disponibles. Estas rutinas llevan `generator = syncdance-choreo-v1` y nunca
 pasan por la detección de pose: la API, el admin y `queue_reference` lo impiden.
 
-## Nivel 1 (`estandar-v1`, 104 BPM, principiante)
+## Currículo `estandar-v1`
 
-| Rutina | Pasos | Duración |
-|---|---|---|
-| Marcha con brazos | marcha + brazos en V/abajo alternos | 20,8 s |
-| Step touch con palmada | paso lateral + palmada al frente | 20,8 s |
-| Step touch con brazos en V | paso lateral + brazos en V | 20,8 s |
-| Rodilla arriba | rodilla alterna + codos a los hombros | 20,8 s |
-| Toque lateral | punta al lado + brazo abierto | 20,8 s |
-| Primer baile | los cinco pasos encadenados, dos vueltas (80 tiempos) | 48,5 s |
+Cada práctica: entrada de 4 tiempos + 4 frases de 8 tiempos. Cada nivel cierra
+con una coreografía original que encadena sus pasos.
 
-Cada práctica: entrada de 4 tiempos + 4 frases de 8 tiempos.
+| Nivel | Ritmo | Prácticas | Coreografía |
+|---|---|---|---|
+| 1 · Fundamentos (principiante) | 104 BPM | Marcha con brazos · Step touch con palmada · Step touch con brazos en V · Rodilla arriba · Toque lateral | Primer baile (80 tiempos, 48,5 s) |
+| 2 · Desplazamientos (intermedio) | 112 BPM | Grapevine (vid) · V-step · Box step · Step touch doble | Vid y V (64 tiempos, 36,4 s) |
+| 3 · Ritmo urbano (avanzado) | 118 BPM | Two-step con rebote · Kick ball change · Grapevine con brazos · Step touch con hombros | Urbano básico (64 tiempos, 34,6 s) |
+
+Los pasos urbanos tienen más rebote de rodillas (`Block.bounce`). Los
+desplazamientos son cortos para que el coach, con los brazos abiertos, nunca
+salga del encuadre (lo comprueba un test sobre todas las rutinas).
 
 ## Decisiones
 
@@ -51,8 +55,8 @@ Cada práctica: entrada de 4 tiempos + 4 frases de 8 tiempos.
   teléfono a 2–3 m.
 - **Un solo color para el coach.** Los colores izquierda/derecha del esqueleto
   del alumno confundirían al seguirlo en espejo.
-- **Textos ASCII en el video** (fuentes Hershey de OpenCV); los nombres con
-  acentos están en la rutina.
+- **Textos con acentos** («¡LISTOS!») con Pillow y DejaVu Sans Bold
+  (`fonts-dejavu-core` en la imagen). Sin fuente TTF se dibujan en ASCII.
 
 ## Vocabulario y fuentes
 
@@ -72,6 +76,5 @@ instalación con referencia READY sin worker, idempotencia y bloqueo de la
 detección de pose.
 
 Pendiente en teléfono: comprobar con personas reales que seguir al coach en
-espejo puntúa alto y equivocarse de lado puntúa bajo, y ajustar el BPM si 104
-resulta rápido para principiantes. Siguientes niveles: grapevine, V-step,
-box step y two-step.
+espejo puntúa alto y equivocarse de lado puntúa bajo, y ajustar los BPM por
+nivel. Para aprender un paso nuevo, el móvil permite practicar a 0,5× o 0,75×.

@@ -40,50 +40,79 @@ def catalog_key(spec):
     return f"estandar-{spec.key}"
 
 
-def install(specs=STANDARD_V1, *, renderer=render, only=None, log=print):
-    """Create missing routines; existing keys are left untouched (idempotent)."""
+def _publish_reference(routine, version, payload, artifact, source_sha256):
+    reference = RoutineReference(
+        routine=routine,
+        version=version,
+        status=RoutineReference.Status.READY,
+        engine_name=artifact["engine"],
+        algorithm_version=artifact["algorithm_version"],
+        sample_rate_hz=artifact["sample_rate_hz"],
+        duration_ms=artifact["duration_ms"],
+        checksum_sha256=hashlib.sha256(payload).hexdigest(),
+        source_video=routine.master_video.name,
+        source_sha256=source_sha256,
+    )
+    reference.reference_asset.save(
+        f"{routine.catalog_key}-v{version}.json.gz", ContentFile(payload), save=False
+    )
+    reference.full_clean()
+    reference.save()
+    return reference
+
+
+def install(specs=STANDARD_V1, *, renderer=render, only=None, refresh=False, log=print):
+    """Create missing routines. With `refresh`, re-render installed ones and
+    publish a new reference version only when the result changed; earlier
+    versions stay available, like any re-processed master."""
     instructor = catalog_instructor()
-    created = 0
+    changed = 0
     for spec in specs:
         key = catalog_key(spec)
         if only and spec.key not in only and key not in only:
             continue
-        if Routine.objects.filter(catalog_key=key).exists():
+        routine = Routine.objects.filter(catalog_key=key).first()
+        if routine and not refresh:
             log(f"= {key}: ya instalada")
             continue
         with TemporaryDirectory(prefix="syncdance-standard-") as directory:
             video = renderer(spec, directory)
         source_sha256 = hashlib.sha256(video).hexdigest()
         payload, artifact = build_reference(spec, source_sha256=source_sha256)
+        details = {
+            "name": spec.name,
+            "description": spec.description,
+            "difficulty": spec.difficulty,
+            "style": spec.style,
+            "generator": GENERATOR_VERSION,
+            "license_name": LICENSE,
+            "credit": f"SyncDance {CURRICULUM_VERSION}",
+            "duration_ms": artifact["duration_ms"],
+        }
         with transaction.atomic():
-            routine = Routine.objects.create(
-                instructor=instructor,
-                name=spec.name,
-                description=spec.description,
-                difficulty=spec.difficulty,
-                style=spec.style,
-                catalog_key=key,
-                generator=GENERATOR_VERSION,
-                license_name=LICENSE,
-                credit=f"SyncDance {CURRICULUM_VERSION}",
-                master_video=ContentFile(video, name=f"{key}.mp4"),
-                duration_ms=artifact["duration_ms"],
-            )
-            reference = RoutineReference(
-                routine=routine,
-                version=1,
-                status=RoutineReference.Status.READY,
-                engine_name=artifact["engine"],
-                algorithm_version=artifact["algorithm_version"],
-                sample_rate_hz=artifact["sample_rate_hz"],
-                duration_ms=artifact["duration_ms"],
-                checksum_sha256=hashlib.sha256(payload).hexdigest(),
-                source_video=routine.master_video.name,
-                source_sha256=source_sha256,
-            )
-            reference.reference_asset.save(f"{key}-v1.json.gz", ContentFile(payload), save=False)
-            reference.full_clean()
-            reference.save()
-        created += 1
-        log(f"+ {key}: {spec.name} ({artifact['duration_ms'] / 1000:.1f} s)")
-    return created
+            if routine is None:
+                routine = Routine.objects.create(
+                    instructor=instructor,
+                    catalog_key=key,
+                    master_video=ContentFile(video, name=f"{key}.mp4"),
+                    **details,
+                )
+                _publish_reference(routine, 1, payload, artifact, source_sha256)
+                log(f"+ {key}: {spec.name} ({artifact['duration_ms'] / 1000:.1f} s)")
+            else:
+                routine = Routine.objects.select_for_update().get(pk=routine.pk)
+                latest = routine.references.filter(status=RoutineReference.Status.READY).first()
+                if latest and latest.checksum_sha256 == hashlib.sha256(payload).hexdigest():
+                    log(f"= {key}: sin cambios")
+                    continue
+                for field, value in details.items():
+                    setattr(routine, field, value)
+                # A new file: the previous version keeps pointing at its own video.
+                routine.master_video.save(f"{key}.mp4", ContentFile(video), save=False)
+                routine.save()
+                newest = routine.references.first()  # ordered by version, descending
+                version = (newest.version if newest else 0) + 1
+                _publish_reference(routine, version, payload, artifact, source_sha256)
+                log(f"~ {key}: nueva versión v{version}")
+        changed += 1
+    return changed

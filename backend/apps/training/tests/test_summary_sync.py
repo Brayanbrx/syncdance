@@ -229,6 +229,16 @@ def test_payload_generated_by_the_phone_is_accepted():
     assert client.post(URL, payload, format="json").status_code == 200
 
 
+@pytest.mark.parametrize("speed,status", [(0.5, 201), (0.75, 201), (1.0, 201), (2.0, 400)])
+def test_playback_speed_is_stored_and_validated(mobile_upload, speed, status):
+    client, _, payload = mobile_upload
+    payload["playback_speed"] = speed
+    response = client.post(URL, payload, format="json")
+    assert response.status_code == status, response.data
+    if status == 201:
+        assert DanceSession.objects.get().playback_speed == speed
+
+
 @pytest.mark.parametrize("mode,status", [("mirror", 201), ("same-side", 201), ("espejo", 400)])
 def test_follow_mode_is_stored_and_validated(mobile_upload, mode, status):
     client, _, payload = mobile_upload

@@ -124,7 +124,11 @@ class Timeline:
             lambda a, b, s: Legs(_foot(a.r, b.r, s), _foot(a.l, b.l, s)),
         )
         arms = _at(self._arms, beat, lambda a, b, s: Arms(_arm(a.r, b.r, s), _arm(a.l, b.l, s)))
-        depth = INTRO_BOUNCE if not self.evaluated_at(seconds) else BOUNCE
+        _, _, block = self._span(beat)
+        if block.key == "intro":
+            depth = INTRO_BOUNCE
+        else:
+            depth = BOUNCE if block.bounce is None else block.bounce
         # Deepest exactly on the beat, like a dancer marking the count.
         drop = depth * (0.5 + 0.5 * math.cos(2 * math.pi * beat))
         height = _pelvis_height(STAND_HEIGHT - drop, legs.pelvis_x, legs)

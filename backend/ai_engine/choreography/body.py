@@ -142,7 +142,7 @@ class Camera:
 
     width: int = 960
     height: int = 960
-    pixels_per_metre: float = 380.0
+    pixels_per_metre: float = 360.0  # open arms while travelling still fit
     floor: float = 0.93  # fraction of the height
 
     def project(self, point):

@@ -7,7 +7,7 @@ WORKDIR /app
 
 # MediaPipe Tasks loads GLES/EGL even when inference runs on CPU.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 libgles2 libegl1 libglib2.0-0 libportaudio2 \
+    libgl1 libgles2 libegl1 libglib2.0-0 libportaudio2 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt requirements-pose.txt ./

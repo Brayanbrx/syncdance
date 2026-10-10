@@ -124,6 +124,7 @@ class DanceSessionSerializer(serializers.ModelSerializer):
             "status",
             "mode",
             "follow_mode",
+            "playback_speed",
             "overall_score",
             "pose_score",
             "timing_score",

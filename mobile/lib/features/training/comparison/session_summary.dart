@@ -43,6 +43,7 @@ class SessionSummary {
     this.summaryVersion = SessionAccumulator.version,
     this.feedbackVersion = FeedbackRules.version,
     this.followMode = FollowMode.sameSide,
+    this.playbackSpeed = 1.0,
   }) : segments = List.unmodifiable(segments),
        feedback = List.unmodifiable(feedback);
   final int durationMs, evaluatedMs;
@@ -52,6 +53,10 @@ class SessionSummary {
 
   /// Compared against the mirrored master or the same sides; never mixed.
   final FollowMode followMode;
+
+  /// Learn mode slows the master (0.5x, 0.75x): timing windows widen in real
+  /// time, so practices at different speeds are never compared.
+  final double playbackSpeed;
   final List<FeedbackSummary> feedback;
   final bool reachedVideoEnd;
   final List<SegmentSummary> segments;
@@ -61,7 +66,14 @@ class SessionSummary {
 /// Unique 100 ms video bins, first valid result wins. Missing evidence is null.
 /// This is estimated sampled coverage, not continuous biomechanical observation.
 class SessionAccumulator {
-  SessionAccumulator(this.durationMs, {this.followMode = FollowMode.sameSide}) {
+  SessionAccumulator(
+    this.durationMs, {
+    this.followMode = FollowMode.sameSide,
+    this.playbackSpeed = 1.0,
+  }) {
+    if (!SessionAccumulator.speeds.contains(playbackSpeed)) {
+      throw ArgumentError.value(playbackSpeed, 'playbackSpeed');
+    }
     if (durationMs <= 0 || durationMs > 300000) {
       throw ArgumentError.value(durationMs);
     }
@@ -71,6 +83,8 @@ class SessionAccumulator {
   static const segmentMs = 5000;
   final int durationMs;
   final FollowMode followMode;
+  final double playbackSpeed;
+  static const speeds = [0.5, 0.75, 1.0];
   final _bins = <int, PoseMatch>{};
   final _feedbackBins = <String>{};
   final _feedback = <String, FeedbackSummary>{};
@@ -180,6 +194,7 @@ class SessionAccumulator {
       segments: segments,
       feedback: feedback,
       followMode: followMode,
+      playbackSpeed: playbackSpeed,
     );
   }
 }

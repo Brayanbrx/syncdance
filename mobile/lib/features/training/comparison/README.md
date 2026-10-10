@@ -41,6 +41,16 @@ del progreso: prácticas en espejo y sin espejo nunca se comparan entre sí.
 `follow_mode_test.dart` verifica que la imagen especular de una pose asimétrica
 puntúa ~100 solo en modo espejo y que reflejar dos veces es la identidad.
 
+## Modo aprender (cámara lenta)
+
+**Velocidad 0,5× / 0,75× / 1×** reproduce al maestro más despacio para aprender
+un paso; también sirve para mirarlo sin practicar. La comparación usa la
+posición del video, así que la referencia sigue alineada a cualquier velocidad.
+La ventana de ±200 ms del video equivale a más tiempo real, por eso una práctica
+lenta es más fácil: guarda `playback_speed`, se envía al servidor y forma parte
+de la base comparable del progreso (nunca se compara con 1×). La velocidad no
+puede cambiar durante una práctica; el modo juego siempre va a 1×.
+
 ## Estructura
 
 `LivePractice` (`live_practice.dart`) contiene el loop live sin widgets ni

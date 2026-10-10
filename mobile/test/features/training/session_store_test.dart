@@ -153,4 +153,30 @@ void main() {
     (invalid['summary'] as Map<String, dynamic>)['follow_mode'] = 'espejo';
     expect(() => SavedSession.fromJson(invalid), throwsFormatException);
   });
+
+  test('playback speed round trips; files without it are normal speed', () {
+    final slow = SavedSession(
+      id: newSessionId(),
+      routineName: 'Lenta',
+      reference: metadata(),
+      startedAt: DateTime.utc(2026, 10, 5),
+      finishedAt: DateTime.utc(2026, 10, 5, 0, 1),
+      summary: SessionAccumulator(
+        250,
+        playbackSpeed: 0.5,
+      ).finish(reachedVideoEnd: true),
+    );
+    final json = slow.toJson();
+    expect(SavedSession.fromJson(json).summary.playbackSpeed, 0.5);
+    expect(slow.toUpload()['playback_speed'], 0.5);
+    final older = jsonDecode(jsonEncode(json)) as Map<String, dynamic>;
+    (older['summary'] as Map<String, dynamic>).remove('playback_speed');
+    expect(SavedSession.fromJson(older).summary.playbackSpeed, 1.0);
+    (older['summary'] as Map<String, dynamic>)['playback_speed'] = 2.0;
+    expect(() => SavedSession.fromJson(older), throwsFormatException);
+    expect(
+      () => SessionAccumulator(250, playbackSpeed: 0.6),
+      throwsArgumentError,
+    );
+  });
 }

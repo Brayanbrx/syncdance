@@ -29,9 +29,8 @@ class SessionSummaryPanel extends StatelessWidget {
             '${summary.reachedVideoEnd ? 'Fin del video' : 'Práctica finalizada'} · referencia v$referenceVersion',
           ),
           Text(
-            summary.followMode == FollowMode.mirror
-                ? 'Seguido como espejo'
-                : 'Seguido con los mismos lados',
+            '${summary.followMode == FollowMode.mirror ? 'Seguido como espejo' : 'Seguido con los mismos lados'}'
+            '${summary.playbackSpeed == 1.0 ? '' : ' · velocidad ${summary.playbackSpeed.toString().replaceAll('.', ',')}×'}',
           ),
           const SizedBox(height: 12),
           Text(

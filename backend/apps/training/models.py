@@ -44,6 +44,10 @@ class DanceSession(models.Model):
     follow_mode = models.CharField(
         max_length=16, choices=FollowMode.choices, default=FollowMode.SAME_SIDE
     )
+    # Learn mode slows the master; practices at different speeds are not comparable.
+    playback_speed = models.FloatField(
+        default=1.0, choices=[(0.5, "0.5x"), (0.75, "0.75x"), (1.0, "1x")]
+    )
     overall_score = models.FloatField(null=True, blank=True, validators=score_validators)
     pose_score = models.FloatField(null=True, blank=True, validators=score_validators)
     timing_score = models.FloatField(null=True, blank=True, validators=score_validators)

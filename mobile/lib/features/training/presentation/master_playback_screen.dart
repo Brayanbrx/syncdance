@@ -57,6 +57,7 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
   bool _practice = false;
   SessionAccumulator? _session;
   FollowMode _followMode = FollowMode.mirror;
+  double _speed = 1.0;
   MotionReference? _practiceReference;
   SessionSummary? _summary;
   SessionStore? _store;
@@ -117,6 +118,8 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
       _controller = controller;
       await controller.initialize();
       if (!mounted) return;
+      if (_speed != 1.0) await controller.setPlaybackSpeed(_speed);
+      if (!mounted) return;
       if (!_timeline.acceptsDuration(controller.value.duration)) {
         throw const ReferenceException(
           'La duración del video no coincide con la referencia. Genera una versión nueva.',
@@ -168,6 +171,7 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
       _session = SessionAccumulator(
         _metadata.durationMs,
         followMode: _followMode,
+        playbackSpeed: _speed,
       );
       _practiceReference = referenceFor(widget.saved.reference, _followMode);
       _summary = null;
@@ -459,6 +463,40 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
                     onPressed: _busy || _saving ? null : _openGame,
                     icon: const Icon(Icons.music_note),
                     label: const Text('Bailar (modo juego)'),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      const Text('Velocidad'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SegmentedButton<double>(
+                          segments: const [
+                            ButtonSegment(value: 0.5, label: Text('0,5×')),
+                            ButtonSegment(value: 0.75, label: Text('0,75×')),
+                            ButtonSegment(value: 1.0, label: Text('1×')),
+                          ],
+                          selected: {_speed},
+                          // A practice keeps one speed; summaries never mix them.
+                          onSelectionChanged: _practice || _busy
+                              ? null
+                              : (selection) {
+                                  final speed = selection.single;
+                                  setState(() => _speed = speed);
+                                  unawaited(
+                                    _command((c) => c.setPlaybackSpeed(speed)),
+                                  );
+                                },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_speed != 1.0)
+                  const Text(
+                    'Modo aprender: el maestro va más lento. Estas prácticas '
+                    'se guardan aparte y no cuentan para tu mejor marca a velocidad normal.',
                   ),
                 SwitchListTile(
                   title: const Text('Seguir como espejo'),

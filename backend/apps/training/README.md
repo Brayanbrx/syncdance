@@ -18,6 +18,7 @@ El móvil envía cada resumen `local-session-v1` congelado:
 | `angle_score`, `position_score`, `mean_error_degrees`, `mean_position_error` | `summary` | `null` si `evaluated_ms == 0` |
 | `reached_video_end` | `summary` | |
 | `follow_mode` | `summary.follow_mode` | `mirror` (espejo) o `same-side`; v1 local = `same-side` |
+| `playback_speed` | `summary.playback_speed` | 0.5, 0.75 o 1 (modo aprender); ausente = 1 |
 | `scoring_version`, `summary_version`, `feedback_version` | `summary` | Obligatorias con resumen |
 | `timeline_segments` | `summary.segments` | Contiguos desde 0, cubren `duration_ms` |
 | `feedback_counts` | `summary.feedback` | Avisos mostrados, no todas las desviaciones |

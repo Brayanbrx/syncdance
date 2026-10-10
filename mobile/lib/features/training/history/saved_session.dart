@@ -56,6 +56,7 @@ class SavedSession {
       'summary_version': summary.summaryVersion,
       'feedback_version': summary.feedbackVersion,
       'follow_mode': summary.followMode.code,
+      'playback_speed': summary.playbackSpeed,
       'segments': [
         for (final s in summary.segments)
           {
@@ -103,6 +104,7 @@ class SavedSession {
     'summary_version': summary.summaryVersion,
     'feedback_version': summary.feedbackVersion,
     'follow_mode': summary.followMode.code,
+    'playback_speed': summary.playbackSpeed,
     'timeline_segments': [
       for (final s in summary.segments)
         {
@@ -165,6 +167,11 @@ class SavedSession {
         ? FollowMode.sameSide
         : FollowMode.fromCode(s['follow_mode']);
     require(followMode != null);
+    // Absent before learn mode existed: those practices ran at normal speed.
+    final rawSpeed = s['playback_speed'] ?? 1.0;
+    require(rawSpeed is num);
+    final playbackSpeed = (rawSpeed as num).toDouble();
+    require(SessionAccumulator.speeds.contains(playbackSpeed));
     final duration = integer(s['duration_ms'], 1, 300000);
     require(duration == reference.durationMs);
     final evaluated = integer(s['evaluated_ms'], 0, duration);
@@ -252,6 +259,7 @@ class SavedSession {
         summaryVersion: label(s['summary_version'], 100),
         feedbackVersion: label(s['feedback_version'], 100),
         followMode: followMode!,
+        playbackSpeed: playbackSpeed,
       ),
     );
   }

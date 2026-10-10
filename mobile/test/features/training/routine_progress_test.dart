@@ -15,6 +15,7 @@ SavedSession practice(
   int version = 1,
   String scoring = 'pose-window-v1',
   FollowMode followMode = FollowMode.sameSide,
+  double speed = 1.0,
 }) {
   final json = metadataJson(version: version)..['routine'] = routine;
   final evaluated = score == null ? 0 : (coverage * 250).round();
@@ -36,6 +37,7 @@ SavedSession practice(
       segments: const [],
       scoringVersion: scoring,
       followMode: followMode,
+      playbackSpeed: speed,
     ),
   );
 }
@@ -89,6 +91,16 @@ void main() {
     ]).single;
     expect(progress.recentScores(), [55, 65]);
     expect(progress.best!.summary.score, 65);
+    expect(progress.excluded, 1);
+  });
+
+  test('learn-mode speeds are never compared with normal speed', () {
+    final progress = calculator.compute([
+      practice(90, day: 1, speed: 0.5),
+      practice(60, day: 2),
+      practice(70, day: 3),
+    ]).single;
+    expect(progress.recentScores(), [60, 70]);
     expect(progress.excluded, 1);
   });
 

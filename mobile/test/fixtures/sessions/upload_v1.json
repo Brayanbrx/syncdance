@@ -20,6 +20,7 @@
   "summary_version": "pose-summary-v1",
   "feedback_version": "geometric-feedback-v2",
   "follow_mode": "same-side",
+  "playback_speed": 1.0,
   "timeline_segments": [
     {
       "start_ms": 0,

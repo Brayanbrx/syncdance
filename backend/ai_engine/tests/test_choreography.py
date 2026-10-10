@@ -136,9 +136,59 @@ def test_cues_count_the_lead_in_and_announce_the_next_step():
 
 def test_curriculum_shape():
     keys = [routine.key for routine in STANDARD_V1]
-    assert len(keys) == len(set(keys)) == 6
-    assert all(routine.difficulty == "BEGINNER" for routine in STANDARD_V1)
+    assert len(keys) == len(set(keys)) == 16
+    expected = {1: "BEGINNER", 2: "INTERMEDIATE", 3: "ADVANCED"}
+    assert all(routine.difficulty == expected[routine.level] for routine in STANDARD_V1)
+    assert {routine.level for routine in STANDARD_V1} == {1, 2, 3}
     assert all(routine.timeline().duration_s < 300 for routine in STANDARD_V1)
+
+
+def test_the_coach_never_leaves_the_frame():
+    """Travelling steps with open arms stay inside the video in every routine."""
+    camera = Camera()
+    for routine in STANDARD_V1:
+        timeline = routine.timeline()
+        for index in range(0, round(timeline.duration_s * 30), 3):
+            for point in camera.landmarks(timeline.pose_at(index / 30)):
+                assert 0.0 < point["x"] < 1.0 and 0.0 < point["y"] < 1.0, (
+                    routine.key,
+                    point["joint"],
+                )
+
+
+def test_grapevine_crosses_behind_and_kick_ball_change_kicks():
+    timeline = spec("n2-grapevine").timeline()
+    behind = timeline.pose_at(5 * timeline.seconds_per_beat)  # count 2
+    joints = skeleton(behind)
+    # The screen-left foot (coach's right) crosses behind the screen-right foot.
+    assert joints["rightAnkle"][0] > joints["leftAnkle"][0]
+    assert joints["rightAnkle"][2] < 0
+    kick = spec("n3-kick-ball-change").timeline()
+    raised = skeleton(kick.pose_at(4 * kick.seconds_per_beat))
+    assert raised["leftAnkle"][1] > body.ANKLE_HEIGHT + 0.15
+    assert raised["leftAnkle"][2] > 0.25
+
+
+def test_captions_keep_accents_or_fall_back_to_ascii():
+    from ai_engine.choreography.media import Captions, ascii_caption
+
+    assert ascii_caption("¡LISTOS!") == "LISTOS!"
+    assert ascii_caption("Rodilla Arriba") == "Rodilla Arriba"
+    np = pytest.importorskip("numpy")
+    cv2 = pytest.importorskip("cv2")
+    frame = np.zeros((200, 400, 3), np.uint8)
+    fallback = Captions(path="")
+    fallback.add("¡LISTOS!", (200, 100), 40)
+    assert fallback.render(cv2, np, frame.copy()).any()
+    pytest.importorskip("PIL")
+    from ai_engine.choreography.media import font_path
+
+    if not font_path():
+        pytest.skip("No TTF font on this machine")
+    captions = Captions()
+    captions.add("¡LISTOS!", (200, 100), 40)
+    drawn = captions.render(cv2, np, frame.copy())
+    assert drawn.shape == frame.shape and drawn.any()
 
 
 def test_arm_presets_are_symmetric():

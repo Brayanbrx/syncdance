@@ -92,6 +92,11 @@ class TestPlayer extends VideoPlayerController {
   }
 
   @override
+  Future<void> setPlaybackSpeed(double speed) async {
+    value = value.copyWith(playbackSpeed: speed);
+  }
+
+  @override
   Future<void> dispose() async {
     disposed = true;
     await super.dispose();
@@ -135,6 +140,37 @@ void main() {
     );
     await tester.pump();
   }
+
+  testWidgets(
+    'learn mode slows the master and the practice keeps that speed',
+    (tester) async {
+      final player = TestPlayer();
+      final store = MemorySessionStore();
+      await open(tester, player, store: store);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('0,5×'));
+      await tester.tap(find.text('0,5×'));
+      await tester.pumpAndSettle();
+      expect(player.value.playbackSpeed, 0.5);
+      expect(find.textContaining('Modo aprender'), findsOneWidget);
+      await tester.ensureVisible(find.text('Practicar con cámara'));
+      await tester.tap(find.text('Practicar con cámara'));
+      await tester.pumpAndSettle();
+      // The speed cannot change during a practice.
+      await tester.ensureVisible(find.text('1×'));
+      await tester.tap(find.text('1×'));
+      await tester.pumpAndSettle();
+      expect(player.value.playbackSpeed, 0.5);
+      await tester.ensureVisible(find.text('Finalizar práctica'));
+      await tester.tap(find.text('Finalizar práctica'));
+      await tester.pumpAndSettle();
+      expect(store.records.values.single.summary.playbackSpeed, 0.5);
+      expect(find.textContaining('velocidad 0,5×'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.windows),
+  );
 
   for (final automatic in [false, true]) {
     testWidgets(
