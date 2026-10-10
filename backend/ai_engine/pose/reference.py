@@ -13,6 +13,7 @@ from ai_engine.features.body import JOINTS, extract_features
 MAX_SOURCE_BYTES = 200 * 1024 * 1024
 MAX_DURATION_SECONDS = 300
 ALGORITHM_VERSION = "reference-body-v1"
+GZIP_OS_BYTE = 9  # RFC 1952 header: ID1 ID2 CM FLG MTIME(4) XFL OS
 
 
 class ReferenceError(Exception):
@@ -62,6 +63,9 @@ def encode_reference(samples, *, sample_rate, engine, model_sha256, source_sha25
         json.dumps(artifact, sort_keys=True, separators=(",", ":"), allow_nan=False).encode(),
         mtime=0,
     )
+    # zlib stamps its own platform in the header OS byte (Windows 0x0a, Unix
+    # 0x03); pin Unix so the artifact and its checksum match on every machine.
+    payload = payload[:GZIP_OS_BYTE] + b"\x03" + payload[GZIP_OS_BYTE + 1 :]
     return payload, artifact
 
 
