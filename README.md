@@ -3,7 +3,7 @@
 Entrenador móvil de baile en tiempo real: seguir una referencia, analizar la
 pose en el teléfono y recibir feedback técnico inmediato.
 
-**Estado: Fase 6, paso 1 implementado; validación física de Fases 1–5 pendiente.**
+**Estado: Fase 6 implementada en código (pasos 1–3); validación física de Fases 1–6 pendiente.**
 Flutter incluye cámara frontal, pose ML Kit para Android, esqueleto sobre la
 preview, normalización corporal, evaluación inicial del encuadre, calibración
 de estabilidad y seis ángulos 2D suavizados. El benchmark físico, ajuste de
@@ -19,8 +19,12 @@ rodillas, altura de manos, separación de pies o inclinación del torso, despué
 de observar un error persistente. Aros amarillos señalan las articulaciones
 implicadas sobre el esqueleto cuando está visible.
 Al finalizar guarda similitud media, cobertura estimada, resultados por tramos
-y avisos frecuentes en un historial local separado por cuenta y servidor.
-La validación en teléfono se ha pospuesto; la Fase 1 todavía no está cerrada.
+y avisos frecuentes en un historial local separado por cuenta y servidor. Los
+resúmenes se sincronizan con Django mediante una cola offline idempotente, la
+sesión reabre la app sin red y el historial muestra mejor marca y tendencia por
+rutina con prácticas comparables.
+La validación en teléfono sigue pendiente; ninguna fase está cerrada. Seguir el
+[protocolo de validación física](mobile/VALIDACION_FISICA.md).
 
 ## Arquitectura
 
