@@ -19,7 +19,16 @@ import 'session_summary.dart';
 /// The owner reports whether the master video is running (playing, not
 /// buffering, completed or failed) and its position; anything else invalidates.
 class LivePractice extends ChangeNotifier {
-  LivePractice({required this._reference, this._session, this._nowMs});
+  LivePractice({
+    required this._reference,
+    this._session,
+    this._nowMs,
+    this.coaching = true,
+  });
+
+  /// False in the dance game: no textual cues are shown, so none are evaluated
+  /// or counted as shown in the summary.
+  final bool coaching;
 
   /// A score older than this is withdrawn together with its guidance.
   static const expiry = Duration(milliseconds: 250);
@@ -107,7 +116,7 @@ class LivePractice extends ChangeNotifier {
         : null;
     _match = match;
     if (videoMs != null) _session?.record(videoMs, match);
-    if (match != null) {
+    if (match != null && coaching) {
       final presentations = _feedback.presentations;
       _feedback.update(
         captureMs: pose.timestampMs,
@@ -117,13 +126,15 @@ class LivePractice extends ChangeNotifier {
       if (_feedback.presentations != presentations && videoMs != null) {
         _session?.recordFeedback(videoMs, _feedback.active!);
       }
+    } else {
+      _feedback.invalidate(_now);
+    }
+    if (match != null) {
       _expiry = Timer(expiry, () {
         _match = null;
         _feedback.invalidate(_now);
         if (!_disposed) notifyListeners();
       });
-    } else {
-      _feedback.invalidate(_now);
     }
     notifyListeners();
   }

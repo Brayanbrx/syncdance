@@ -21,6 +21,7 @@ class CameraTrainingScreen extends StatefulWidget {
     this.onMeasurements,
     this.onInvalidated,
     this.highlightedJoints = const {},
+    this.showDetails = true,
     super.key,
   });
 
@@ -32,6 +33,9 @@ class CameraTrainingScreen extends StatefulWidget {
   final void Function(PoseFrame, PoseMeasurements)? onMeasurements;
   final VoidCallback? onInvalidated;
   final Set<Joint> highlightedJoints;
+
+  /// Embedded hosts with their own guidance (the dance game) hide the side text.
+  final bool showDetails;
 
   @override
   State<CameraTrainingScreen> createState() => _CameraTrainingScreenState();
@@ -302,6 +306,7 @@ class _CameraTrainingScreenState extends State<CameraTrainingScreen>
                 ],
               ),
             );
+            if (!widget.showDetails) return preview;
             if (compact) {
               return Row(
                 children: [

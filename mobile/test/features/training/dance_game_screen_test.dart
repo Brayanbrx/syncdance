@@ -1,0 +1,224 @@
+import 'dart:io';
+
+import 'package:camera/camera.dart';
+import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:syncdance_mobile/features/routines/reference/motion_reference.dart';
+import 'package:syncdance_mobile/features/routines/reference/reference_cache.dart';
+import 'package:syncdance_mobile/features/training/camera/camera_frame.dart';
+import 'package:syncdance_mobile/features/training/comparison/follow_mode.dart';
+import 'package:syncdance_mobile/features/training/game/dance_game.dart';
+import 'package:syncdance_mobile/features/training/pose/body_features.dart';
+import 'package:syncdance_mobile/features/training/pose/pose_frame.dart';
+import 'package:syncdance_mobile/features/training/presentation/dance_game_screen.dart';
+
+import '../routines/reference_test_samples.dart';
+import 'camera_training_screen_test.dart' show PreviewEstimator;
+import 'fake_camera_platform.dart';
+import 'live_comparison_panel_test.dart' show PairedCapture;
+import 'master_playback_screen_test.dart' show MemorySessionStore, TestPlayer;
+import 'mlkit_pose_mapper_test.dart' show sampleFrame;
+import 'pose_test_samples.dart' as samples;
+
+/// Fake camera, estimator and player around a 3 s master of the fixture pose.
+class GameHarness {
+  GameHarness(this.tester);
+  final WidgetTester tester;
+  late final CameraPlatform original;
+  late final FakeCameraPlatform platform;
+  late final CameraController camera;
+  late final PairedCapture capture;
+  final estimator = PreviewEstimator();
+  final player = TestPlayer(duration: const Duration(seconds: 3));
+  final store = MemorySessionStore();
+  final pose = samples.fixture();
+  final frame = sampleFrame();
+  var now = 0;
+  var cameraMs = 0;
+  var synced = 0;
+
+  Future<void> mount() async {
+    original = CameraPlatform.instance;
+    platform = FakeCameraPlatform();
+    CameraPlatform.instance = platform;
+    camera = CameraController(
+      FakeCameraPlatform.front,
+      ResolutionPreset.medium,
+    );
+    camera.value = camera.value.copyWith(
+      isInitialized: true,
+      previewSize: const Size(640, 480),
+    );
+    capture = PairedCapture(camera);
+    addTearDown(() async {
+      await camera.dispose();
+      await platform.close();
+      CameraPlatform.instance = original;
+    });
+    final features = const BodyFeatureExtractor().extract(pose);
+    final normalized = features.pose!.points.map(
+      (joint, point) => MapEntry(joint, (x: point.x, y: point.y)),
+    );
+    final reference = MotionReference(
+      ReferenceMetadata.fromJson({...metadataJson(), 'duration_ms': 3000}),
+      [
+        for (var i = 0; i < 36; i++)
+          MotionSample(
+            (i * 1000 / 12).round(),
+            features.angles,
+            'SINGLE_PERSON',
+            normalized: normalized,
+          ),
+      ],
+      1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DanceGameScreen(
+          saved: SavedReference('Guerrero II', reference),
+          videoFile: File('master.mp4'),
+          storeScope: 'test',
+          followMode: FollowMode.sameSide,
+          sessionStore: store,
+          onSessionSaved: () async => synced++,
+          createController: (_) => player,
+          capture: capture,
+          createPoseEstimator: (_) => estimator,
+          nowMs: () => now,
+        ),
+      ),
+    );
+    await tester.pump();
+  }
+
+  /// One captured camera frame and its inference result.
+  Future<void> step({bool valid = true, int advanceMs = 0}) async {
+    now = cameraMs;
+    capture.inputs.add(
+      CameraFrame(
+        image: frame.image,
+        camera: frame.camera,
+        orientation: camera.value.deviceOrientation,
+        timestampMs: cameraMs,
+        generation: 0,
+      ),
+    );
+    estimator.output.add(
+      PoseFrame(
+        timestampMs: cameraMs,
+        imageAspectRatio: pose.imageAspectRatio,
+        landmarks: valid ? pose.landmarks : [],
+        poseConfidence: valid ? 1 : 0,
+      ),
+    );
+    cameraMs += 100;
+    await tester.pump(Duration(milliseconds: advanceMs));
+    await tester.pump();
+  }
+
+  Future<void> calibrate() async {
+    for (var i = 0; i <= 10; i++) {
+      await step();
+    }
+  }
+
+  /// Frames keep arriving during the countdown, as on a real phone.
+  Future<void> countdown() async {
+    for (var i = 0; i < 30 && !player.value.isPlaying; i++) {
+      await step(advanceMs: 100);
+    }
+  }
+
+  Future<void> playAt(int position, {bool valid = true}) async {
+    player.value = player.value.copyWith(
+      position: Duration(milliseconds: position),
+    );
+    await step(valid: valid);
+  }
+
+  Future<void> complete() async {
+    player.value = player.value.copyWith(
+      position: const Duration(seconds: 3),
+      isPlaying: false,
+      isCompleted: true,
+    );
+    await tester.pump();
+    await tester.pump();
+  }
+}
+
+void main() {
+  testWidgets(
+    'hands-free countdown, PERFECT moves, stars and a saved game summary',
+    (tester) async {
+      final game = GameHarness(tester);
+      await game.mount();
+      expect(find.textContaining('El baile empieza solo'), findsOneWidget);
+      await game.calibrate();
+      expect(find.text('3'), findsOneWidget);
+      await game.countdown();
+      expect(game.player.value.isPlaying, isTrue);
+
+      for (var position = 0; position <= 2900; position += 100) {
+        await game.playAt(position);
+        if (position == 1500) {
+          expect(find.text('PERFECT'), findsOneWidget);
+          expect(find.text('100'), findsOneWidget);
+        }
+      }
+      await game.complete();
+
+      expect(find.text('★★★★★'), findsOneWidget);
+      expect(find.text('300 pts'), findsOneWidget);
+      expect(find.text('PERFECT: 3'), findsOneWidget);
+      expect(find.textContaining('guardado en tu historial'), findsOneWidget);
+      final saved = game.store.records.values.single;
+      expect(saved.game!.points, 300);
+      expect(saved.game!.stars, 5);
+      expect(saved.game!.counts[MoveRating.perfect.name], 3);
+      expect(saved.summary.followMode, FollowMode.sameSide);
+      // The game shows no textual cues, so none are counted as shown.
+      expect(saved.summary.feedback, isEmpty);
+      expect(game.synced, 1);
+    },
+  );
+
+  testWidgets('leaving the frame is unmeasured, never a miss', (tester) async {
+    final game = GameHarness(tester);
+    await game.mount();
+    await game.calibrate();
+    await game.countdown();
+    for (var position = 0; position <= 2900; position += 100) {
+      final away = position >= 1000 && position < 2000;
+      await game.playAt(position, valid: !away);
+      if (position == 1500) {
+        expect(find.textContaining('Vuelve al encuadre'), findsOneWidget);
+      }
+    }
+    await game.complete();
+    final saved = game.store.records.values.single;
+    expect(saved.game!.counts['miss'], 0);
+    expect(saved.game!.counts['unrated'], greaterThanOrEqualTo(1));
+    expect(
+      find.textContaining('Sin medir (fuera de encuadre)'),
+      findsOneWidget,
+    );
+    // Unmeasured time is not evidence in the technical summary either.
+    expect(saved.summary.evaluatedMs, lessThan(3000));
+  });
+
+  testWidgets('walking away during the countdown cancels it', (tester) async {
+    final game = GameHarness(tester);
+    await game.mount();
+    await game.calibrate();
+    expect(find.text('3'), findsOneWidget);
+    await game.step(valid: false, advanceMs: 100);
+    expect(find.text('3'), findsNothing);
+    expect(find.textContaining('Colócate frente a la cámara'), findsOneWidget);
+    for (var i = 0; i < 40; i++) {
+      await game.step(valid: false, advanceMs: 100);
+    }
+    expect(game.player.value.isPlaying, isFalse);
+  });
+}

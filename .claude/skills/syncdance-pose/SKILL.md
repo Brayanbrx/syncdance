@@ -37,6 +37,7 @@ video maestro -> FFmpeg 12 fps -> MediaPipe -> features/body.py
 | Feedback | `training/feedback/feedback_rules.dart`, `live_feedback.dart` | — |
 | Resumen e historial | `training/comparison/session_summary.dart`, `training/history/` | `apps/training/` |
 | Sincronización y progreso | `training/history/session_sync.dart`, `routine_progress.dart` | `apps/training/` (contrato en su README) |
+| Modo juego | `training/game/dance_game.dart`, `presentation/dance_game_screen.dart` | — (bloque `game` solo local) |
 
 ## Invariantes (no negociables)
 
@@ -151,6 +152,7 @@ componente. Así los historiales guardados siguen siendo interpretables.
 | `local-session-v2` (lee v1), `session-sync-v1` | `SavedSession.toJson`, marcadores de `SessionStore` |
 | `follow_mode`: `mirror` / `same-side` | `FollowMode` en `comparison/follow_mode.dart`; resumen, subida y base del progreso |
 | `routine-progress-v1` | `RoutineProgressCalculator.version` (cobertura mínima provisional) |
+| `dance-game-v1` | `DanceGame.version`: movimientos de 1 s, umbrales PERFECT/GREAT/GOOD, estrellas (provisionales) |
 | `motion-features-v1`, `reference-body-v1`, `video-start-cfr-v1` | `ai_engine/pose/reference.py` **y** la validación de `motion_reference.dart` |
 
 Cambiar el formato de la referencia toca a la vez el generador Python, el
@@ -202,6 +204,8 @@ pytest
 - Buscar el mejor match saltando huecos de la referencia o fuera de la ventana.
 - Enviar frames o landmarks al backend, o usar WebSockets/Celery en el loop live.
 - Sincronizar o llamar a la red desde `LivePractice` o durante la práctica.
+- Meter lógica de juego (puntos, combo, estrellas) en el scorer: el juego solo
+  consume `SessionAccumulator`. Un movimiento sin evidencia es «sin medir», no MISS.
 - Cambiar un umbral sin subir la versión, o presentar un umbral como validado.
 - Modificar `body_features.dart` sin `features/body.py` (o al revés).
 - Errores públicos con rutas del sistema de archivos o logs nativos (`ReferenceError`).

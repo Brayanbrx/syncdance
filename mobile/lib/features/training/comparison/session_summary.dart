@@ -119,6 +119,12 @@ class SessionAccumulator {
   }
 
   int get evaluatedMs => _bins.keys.fold(0, (sum, bin) => sum + _width(bin));
+
+  /// Recorded comparisons whose 100 ms bin starts in [startMs, endMs).
+  /// Read-only view for layers built on the scorer (the dance game).
+  List<PoseMatch> matchesIn(int startMs, int endMs) => [
+    for (var bin = startMs ~/ binMs; bin * binMs < endMs; bin++) ?_bins[bin],
+  ];
   int _width(int bin) => (durationMs - bin * binMs).clamp(0, binMs);
 
   SessionSummary finish({required bool reachedVideoEnd}) =>

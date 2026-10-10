@@ -140,6 +140,19 @@ parpadeo ni contradicciones rápidas y con una acción concreta.
 **Criterio de salida (MVP):** login → rutina → entrenar → feedback → terminar →
 resumen → repetir → historial, en el teléfono.
 
+## Modo juego («Bailar»)
+
+Rutinas → maestro → **Bailar (modo juego)**, con «Seguir como espejo» activado.
+
+1. Colocarse sin tocar el teléfono: la cuenta 3-2-1 empieza sola. Salir del
+   encuadre durante la cuenta debe cancelarla.
+2. Bailar la rutina imitando al maestro como en un espejo: registrar estrellas,
+   puntos y calificaciones. Repetir con los brazos abajo: menos puntos y MISS.
+3. Salir del encuadre a mitad: aparece «Vuelve al encuadre» y esos movimientos
+   quedan «sin medir», no MISS.
+4. Registrar el retardo percibido entre el movimiento y su calificación, y si los
+   textos se leen bien a 2–3 m.
+
 ## Después de validar
 
 - Ajustar umbrales solo con los datos registrados: encuadre, calibración,

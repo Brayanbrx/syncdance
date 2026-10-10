@@ -3,6 +3,7 @@ import 'dart:math';
 import '../../routines/reference/motion_reference.dart';
 import '../comparison/follow_mode.dart';
 import '../comparison/session_summary.dart';
+import '../game/dance_game.dart';
 
 String newSessionId() {
   final random = Random.secure();
@@ -22,11 +23,15 @@ class SavedSession {
     required this.startedAt,
     required this.finishedAt,
     required this.summary,
+    this.game,
   });
   final String id, routineName;
   final ReferenceMetadata reference;
   final DateTime startedAt, finishedAt;
   final SessionSummary summary;
+
+  /// Present when the practice was played in dance (game) mode.
+  final GameSummary? game;
   static final validId = RegExp(
     r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$',
   );
@@ -71,6 +76,7 @@ class SavedSession {
           },
       ],
     },
+    if (game != null) 'game': game!.toJson(),
   };
 
   /// Payload for `POST training/sessions/` (backend/apps/training/README.md).
@@ -214,12 +220,19 @@ class SavedSession {
       final count = b.count.compareTo(a.count);
       return count != 0 ? count : a.code.compareTo(b.code);
     });
+    // v1 files never contain a game; a game needs evidence of the follow mode.
+    final game = data['game'] == null
+        ? null
+        : schema == 'local-session-v2'
+        ? GameSummary.fromJson(data['game'])
+        : throw const FormatException('Resumen local inválido.');
     return SavedSession(
       id: id,
       routineName: label(data['routine_name']),
       reference: reference,
       startedAt: startedAt,
       finishedAt: finishedAt,
+      game: game,
       summary: SessionSummary(
         durationMs: duration,
         evaluatedMs: evaluated,

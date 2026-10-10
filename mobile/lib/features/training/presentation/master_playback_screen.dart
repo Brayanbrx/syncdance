@@ -14,6 +14,7 @@ import '../comparison/session_summary.dart';
 import '../history/saved_session.dart';
 import '../history/session_store.dart';
 import 'body_features_panel.dart';
+import 'dance_game_screen.dart';
 import 'live_comparison_panel.dart';
 import 'session_summary_panel.dart';
 
@@ -266,6 +267,27 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
     if (mounted) setState(() {});
   }
 
+  /// Full-screen hands-free game on the same cached master and follow mode.
+  Future<void> _openGame() async {
+    final file = await widget.cache.read(_metadata);
+    if (file == null || !mounted) return;
+    await _command((c) => c.pause());
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => DanceGameScreen(
+          saved: widget.saved,
+          videoFile: file,
+          storeScope: '${widget.api.base}|${widget.account.id}',
+          followMode: _followMode,
+          sessionStore: widget.sessionStore,
+          onSessionSaved: widget.onSessionSaved,
+          createController: widget.createController,
+        ),
+      ),
+    );
+  }
+
   Future<void> _remove() async {
     _finishPractice();
     setState(() => _busy = true);
@@ -432,6 +454,12 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
                   ],
                 ),
                 if (value.isBuffering) const Text('Esperando al reproductor…'),
+                if (!_practice)
+                  FilledButton.icon(
+                    onPressed: _busy || _saving ? null : _openGame,
+                    icon: const Icon(Icons.music_note),
+                    label: const Text('Bailar (modo juego)'),
+                  ),
                 SwitchListTile(
                   title: const Text('Seguir como espejo'),
                   subtitle: Text(

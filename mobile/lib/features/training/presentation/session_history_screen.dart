@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/network/catalog_session.dart';
+import '../game/dance_game.dart';
 import '../history/routine_progress.dart';
 import '../history/saved_session.dart';
 import '../history/session_store.dart';
@@ -153,6 +154,8 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
 
   String _score(double value) => value.toStringAsFixed(0);
 
+  String _stars(GameSummary game) => '★' * game.stars + '☆' * (5 - game.stars);
+
   String _describeProgress(RoutineProgress progress) {
     final best = progress.best;
     final lines = <String>[
@@ -255,6 +258,7 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
                   title: Text(record.routineName),
                   subtitle: Text(
                     '${_date(record.startedAt)} · referencia v${record.reference.version}\n'
+                    '${record.game == null ? '' : '${_stars(record.game!)} · ${record.game!.points} pts · '}'
                     'Similitud: ${record.summary.score?.toStringAsFixed(0) ?? '—'} · '
                     'Cobertura: ${(record.summary.coverage * 100).toStringAsFixed(1)} %\n'
                     '${_status(_history!.syncOf(record.id))}',
@@ -274,6 +278,12 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(_date(record.startedAt)),
+                              if (record.game != null)
+                                Text(
+                                  'Modo juego: ${_stars(record.game!)} · '
+                                  '${record.game!.points} de ${record.game!.maxPoints} pts · '
+                                  'combo máximo ×${record.game!.maxCombo}',
+                                ),
                               if (_isBest(record))
                                 const Text(
                                   'Mejor marca personal en esta rutina',
