@@ -23,6 +23,9 @@ Idempotente por `catalog_key` (`estandar-<clave>`); `--only n1-marcha` genera
 una sola rutina. `--refresh` vuelve a renderizar las instaladas y publica una
 **versión nueva** de la referencia solo si el resultado cambió (el render es
 determinista: sin cambios no crea versiones); las anteriores siguen disponibles.
+Sin `--refresh`, las instaladas solo actualizan nombre, instrucciones, nivel y
+`curriculum_position` (el orden del camino de aprendizaje que recomienda el
+teléfono: pasos del Nivel 1, su coreografía, luego Nivel 2 y Nivel 3).
 
 Estas rutinas llevan `generator = syncdance-choreo-v1` y nunca pasan por la
 detección de pose: la API, el admin y `queue_reference` lo impiden.

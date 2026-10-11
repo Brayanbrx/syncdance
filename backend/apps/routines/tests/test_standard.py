@@ -115,3 +115,38 @@ def test_references_carry_the_beat_grid_and_refresh_publishes_it():
     assert standard.install([spec], renderer=renderer, refresh=True, log=lambda _: None) == 1
     newest = Routine.objects.get().references.first()
     assert newest.version == 2 and newest.scoring_profile["beat_grid"] == grid
+
+
+def test_routines_carry_their_teaching_path_position():
+    standard.install(STANDARD_V1, renderer=renderer, log=lambda _: None)
+    positions = dict(Routine.objects.values_list("catalog_key", "curriculum_position"))
+    assert positions["estandar-n1-marcha"] == 0
+    assert positions["estandar-n1-primer-baile"] == 5
+    assert positions["estandar-n3-urbano-basico"] == len(STANDARD_V1) - 1
+    # An installed routine gets its texts and position back without rendering.
+    routine = Routine.objects.get(catalog_key="estandar-n2-grapevine")
+    routine.curriculum_position = None
+    routine.description = "Texto viejo"
+    routine.save()
+    rendered = []
+    log = []
+    changed = standard.install(
+        renderer=lambda spec, directory: rendered.append(spec.key) or FAKE_VIDEO,
+        log=log.append,
+    )
+    assert (changed, rendered) == (1, [])
+    routine.refresh_from_db()
+    assert routine.curriculum_position == 6
+    assert routine.description.startswith("Paso al lado, cruza por detrás")
+    assert any("datos actualizados" in line for line in log)
+    assert routine.references.count() == 1
+
+
+def test_students_see_the_path_position_in_the_catalog():
+    standard.install(STANDARD_V1[:1], renderer=renderer, log=lambda _: None)
+    student = User.objects.create_user(username="s", email="s@example.com")
+    client = APIClient()
+    client.force_authenticate(student)
+    item = client.get("/api/routines/").data["results"][0]
+    assert item["curriculum_position"] == 0
+    assert item["description"]

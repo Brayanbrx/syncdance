@@ -24,6 +24,7 @@ class RoutineSerializer(serializers.ModelSerializer):
             "license_name",
             "credit",
             "generator",
+            "curriculum_position",
             "created_at",
             "updated_at",
         )
@@ -32,6 +33,7 @@ class RoutineSerializer(serializers.ModelSerializer):
             "instructor",
             "catalog_key",
             "generator",
+            "curriculum_position",
             "created_at",
             "updated_at",
         )

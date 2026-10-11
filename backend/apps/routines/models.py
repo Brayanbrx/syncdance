@@ -29,6 +29,9 @@ class Routine(models.Model):
     # Set for masters rendered from a choreography: their reference is exact and
     # comes from the step sheet, never from running pose detection on the video.
     generator = models.CharField(max_length=40, blank=True)
+    # Step of the teaching path (generated standard, beginner first); null for
+    # free-practice masters. The phone recommends the next step in this order.
+    curriculum_position = models.PositiveSmallIntegerField(null=True, blank=True)
     duration_ms = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

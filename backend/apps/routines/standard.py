@@ -40,6 +40,31 @@ def catalog_key(spec):
     return f"estandar-{spec.key}"
 
 
+# Teaching path order: the curriculum lists level 1 steps, its combo, then
+# level 2 and level 3 the same way.
+POSITIONS = {spec.key: index for index, spec in enumerate(STANDARD_V1)}
+
+
+def _sync_details(routine, spec, log, unchanged="ya instalada"):
+    """Texts, level and path position follow the curriculum without rendering."""
+    details = {
+        "name": spec.name,
+        "description": spec.description,
+        "difficulty": spec.difficulty,
+        "style": spec.style,
+        "curriculum_position": POSITIONS.get(spec.key),
+    }
+    changed = [field for field, value in details.items() if getattr(routine, field) != value]
+    if not changed:
+        log(f"= {routine.catalog_key}: {unchanged}")
+        return False
+    for field in changed:
+        setattr(routine, field, details[field])
+    routine.save(update_fields=[*changed, "updated_at"])
+    log(f"~ {routine.catalog_key}: datos actualizados ({', '.join(changed)})")
+    return True
+
+
 def _publish_reference(routine, version, payload, artifact, source_sha256, profile):
     reference = RoutineReference(
         routine=routine,
@@ -74,7 +99,7 @@ def install(specs=STANDARD_V1, *, renderer=render, only=None, refresh=False, log
             continue
         routine = Routine.objects.filter(catalog_key=key).first()
         if routine and not refresh:
-            log(f"= {key}: ya instalada")
+            changed += _sync_details(routine, spec, log)
             continue
         with TemporaryDirectory(prefix="syncdance-standard-") as directory:
             video = renderer(spec, directory)
@@ -87,6 +112,7 @@ def install(specs=STANDARD_V1, *, renderer=render, only=None, refresh=False, log
             "description": spec.description,
             "difficulty": spec.difficulty,
             "style": spec.style,
+            "curriculum_position": POSITIONS.get(spec.key),
             "generator": GENERATOR_VERSION,
             "license_name": LICENSE,
             "credit": f"SyncDance {CURRICULUM_VERSION}",
@@ -110,7 +136,7 @@ def install(specs=STANDARD_V1, *, renderer=render, only=None, refresh=False, log
                     and latest.checksum_sha256 == hashlib.sha256(payload).hexdigest()
                     and latest.scoring_profile == profile
                 ):
-                    log(f"= {key}: sin cambios")
+                    changed += _sync_details(routine, spec, log, unchanged="sin cambios")
                     continue
                 for field, value in details.items():
                     setattr(routine, field, value)
