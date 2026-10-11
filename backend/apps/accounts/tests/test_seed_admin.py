@@ -1,5 +1,6 @@
 import pytest
 from django.core.management import CommandError, call_command
+from django.test import Client
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
@@ -39,3 +40,14 @@ def test_seed_refuses_without_debug(settings):
     with pytest.raises(CommandError):
         call_command("seed_admin")
     assert not User.objects.filter(username="admin").exists()
+
+
+def test_instructor_finds_students_by_role(settings):
+    settings.DEBUG = True
+    call_command("seed_admin")
+    User.objects.create_user(username="nueva", email="n@example.com", password="baile-2026")
+    client = Client()
+    client.force_login(User.objects.get(username="admin"))
+    page = client.get("/admin/accounts/user/", {"role__exact": "STUDENT"}).content.decode()
+    assert "nueva" in page
+    assert "Estudiante" in page
