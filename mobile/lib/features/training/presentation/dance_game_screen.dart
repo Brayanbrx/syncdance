@@ -390,6 +390,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                   saveMessage: _saveMessage,
                   onAgain: _again,
                   onPractice: _drill,
+                  poses: _poses,
                   onExit: () => Navigator.of(context).maybePop(),
                 )
               : Column(
@@ -553,8 +554,12 @@ class _Results extends StatelessWidget {
     required this.onAgain,
     required this.onPractice,
     required this.onExit,
+    required this.poses,
   });
   final DanceGameResult result;
+
+  /// Pictogram pose per move index, as on the strip during the song.
+  final List<MotionSample?> poses;
   final double coverage;
   final String? saveMessage;
   final VoidCallback onAgain, onExit;
@@ -607,6 +612,11 @@ class _Results extends StatelessWidget {
             for (final move in practice)
               Row(
                 children: [
+                  if (poses.elementAtOrNull(move.move.index) case final pose?)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12, bottom: 6),
+                      child: MovePictogram(sample: pose, size: 56),
+                    ),
                   Expanded(
                     child: Text(
                       '${clockTime(move.move.startMs)}–${clockTime(move.move.endMs)} · '

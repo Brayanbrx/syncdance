@@ -148,6 +148,8 @@ void main() {
     await game.complete();
     expect(find.text('GOOD: 1'), findsOneWidget);
     expect(find.text('Movimientos para practicar'), findsOneWidget);
+    // The weak move shows its pose next to «Practicar».
+    expect(find.byType(MovePictogram), findsOneWidget);
     await tester.ensureVisible(find.text('Practicar'));
     await tester.tap(find.text('Practicar'));
     await tester.pumpAndSettle();
