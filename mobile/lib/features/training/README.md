@@ -59,16 +59,17 @@ de inferencia. La compilación iOS requiere macOS y todavía no está validada.
 
 ## Próximo paso
 
-Continuar Fase 6 con sincronización de resúmenes, cola offline y reintentos con
-Django. El paso 1 ya guarda resúmenes y avisos frecuentes y permite consultarlos
-en Inicio → Historial de prácticas; ver `history/README.md`. Mejor marca y
-tendencia por rutina también siguen pendientes.
+Fase 6 está en código: historial local, cola offline con Django, mejor marca y
+tendencia por rutina y recuperación del historial desde el servidor; ver
+`history/README.md`. El modo juego «Bailar» (ritmo, pictogramas, estrellas,
+sonidos y práctica por movimiento) está en `game/README.md`. Falta la
+validación física con baile real (`../../../VALIDACION_FISICA.md`).
 Fase 5, pasos 1–2 muestra avisos geométricos de extremidades/torso y resalta
 sus articulaciones, con persistencia y cooldown; ver `feedback/README.md`.
 El feedback de ritmo necesita una métrica temporal validada.
 La sesión conjunta, similitud de
 ángulos y posiciones y resumen con cobertura estimada en memoria (Fase 4, pasos 2–4) están
-implementados; ver `comparison/README.md`. La sincronización sigue pendiente.
+implementados; ver `comparison/README.md`.
 La reproducción y consulta por tiempo están en `playback/README.md`, y la caché
 en `../routines/reference/README.md`. El backend generador está documentado en
 `backend/apps/routines/README.md` desde la raíz. La Fase 2 incluye normalización,

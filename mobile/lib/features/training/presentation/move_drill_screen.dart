@@ -19,6 +19,7 @@ import '../pose/pose_estimator.dart';
 import '../pose/pose_frame.dart';
 import '../pose/pose_measurements.dart';
 import 'camera_training_screen.dart';
+import 'game_sounds.dart';
 import 'game_widgets.dart';
 import 'move_pictogram.dart';
 
@@ -38,6 +39,7 @@ class MoveDrillScreen extends StatefulWidget {
     this.capture,
     this.createPoseEstimator,
     this.nowMs,
+    this.sounds,
     super.key,
   });
 
@@ -50,6 +52,9 @@ class MoveDrillScreen extends StatefulWidget {
   final CameraCapture? capture;
   final PoseEstimator Function(CameraCapture)? createPoseEstimator;
   final int Function()? nowMs;
+
+  /// Countdown and per-pass cues; defaults to [GameSounds] (injectable).
+  final GameSounds? sounds;
 
   @override
   State<MoveDrillScreen> createState() => _MoveDrillScreenState();
@@ -66,6 +71,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
     widget.move,
   );
   late double _speed = widget.initialSpeed;
+  late final GameSounds _sounds = widget.sounds ?? GameSounds();
   VideoPlayerController? _player;
   String? _error;
   _Phase _phase = _Phase.positioning;
@@ -118,6 +124,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unawaited(_openVideo());
+    unawaited(_sounds.load());
   }
 
   Future<void> _openVideo() async {
@@ -182,14 +189,17 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
     if (_player?.value.isInitialized != true) return;
     _countdown = 3;
     _phase = _Phase.countdown;
+    _sounds.play(GameSound.tick);
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       if (_countdown <= 1) {
         timer.cancel();
+        _sounds.play(GameSound.go);
         setState(() => _phase = _Phase.playing);
         unawaited(_restartPass());
       } else {
         setState(() => _countdown--);
+        _sounds.play(GameSound.tick);
       }
     });
   }
@@ -238,6 +248,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
   }
 
   void _show(RatedMove pass) {
+    _sounds.play(soundFor(pass.rating));
     _ratingTimer?.cancel();
     setState(() {
       _passes.add(pass);
@@ -281,6 +292,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
     _practice
       ..removeListener(_redraw)
       ..dispose();
+    _sounds.dispose();
     super.dispose();
   }
 
@@ -307,6 +319,12 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
           'Practicar ${clockTime(widget.move.startMs)}–'
           '${clockTime(widget.move.endMs)}',
         ),
+        actions: [
+          SoundToggle(
+            onPressed: () =>
+                setState(() => GameSounds.enabled = !GameSounds.enabled),
+          ),
+        ],
       ),
       body: SafeArea(
         child: _error != null

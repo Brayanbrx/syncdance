@@ -12,10 +12,12 @@ import 'package:syncdance_mobile/features/training/game/dance_game.dart';
 import 'package:syncdance_mobile/features/training/pose/body_features.dart';
 import 'package:syncdance_mobile/features/training/pose/pose_frame.dart';
 import 'package:syncdance_mobile/features/training/presentation/dance_game_screen.dart';
+import 'package:syncdance_mobile/features/training/presentation/game_sounds.dart';
 import 'package:syncdance_mobile/features/training/presentation/move_drill_screen.dart';
 import 'package:syncdance_mobile/features/training/presentation/move_pictogram.dart';
 
 import '../routines/reference_test_samples.dart';
+import 'game_sounds_test.dart' show recordingSounds;
 import 'camera_training_screen_test.dart' show PreviewEstimator;
 import 'fake_camera_platform.dart';
 import 'live_comparison_panel_test.dart' show PairedCapture;
@@ -39,6 +41,10 @@ class GameHarness {
   var now = 0;
   var cameraMs = 0;
   var synced = 0;
+
+  /// Cue names played by the real [GameSounds] over recording players.
+  final cues = <String>[];
+  late final sounds = recordingSounds(cues);
 
   late final MotionReference reference = _reference();
 
@@ -75,6 +81,7 @@ class GameHarness {
       createPoseEstimator: (_) => estimator,
       nowMs: () => now,
       openDrill: openDrill,
+      sounds: sounds,
     ),
   );
 
@@ -88,6 +95,7 @@ class GameHarness {
       capture: capture,
       createPoseEstimator: (_) => estimator,
       nowMs: () => now,
+      sounds: sounds,
     ),
   );
 
@@ -175,6 +183,8 @@ class GameHarness {
 }
 
 void main() {
+  tearDown(() => GameSounds.enabled = true);
+
   testWidgets(
     'hands-free countdown, PERFECT moves, stars and a saved game summary',
     (tester) async {
@@ -188,6 +198,8 @@ void main() {
       expect(find.text('3'), findsOneWidget);
       await game.countdown();
       expect(game.player.value.isPlaying, isTrue);
+      // Heard from 2-3 m: a tick per number and a brighter cue to start.
+      expect(game.cues, ['tick', 'tick', 'tick', 'go']);
 
       for (var position = 0; position <= 2900; position += 100) {
         await game.playAt(position);
@@ -200,6 +212,8 @@ void main() {
         }
       }
       await game.complete();
+      // The last move is rated when the song ends, on the results screen.
+      expect(game.cues.skip(4), ['perfect', 'perfect']);
 
       expect(find.text('★★★★★'), findsOneWidget);
       expect(find.text('300 pts'), findsOneWidget);
@@ -215,6 +229,18 @@ void main() {
       expect(game.synced, 1);
     },
   );
+
+  testWidgets('the sound button mutes the cues', (tester) async {
+    final game = GameHarness(tester);
+    await game.mount();
+    await tester.tap(find.byTooltip('Silenciar sonidos'));
+    await tester.pump();
+    expect(find.byTooltip('Activar sonidos'), findsOneWidget);
+    await game.calibrate();
+    await game.countdown();
+    expect(game.player.value.isPlaying, isTrue);
+    expect(game.cues, isEmpty);
+  });
 
   testWidgets('leaving the frame is unmeasured, never a miss', (tester) async {
     final game = GameHarness(tester);

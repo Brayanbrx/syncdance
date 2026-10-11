@@ -60,6 +60,7 @@ void main() {
     await game.playAt(2400);
     expect(find.text('PERFECT'), findsOneWidget);
     expect(find.text('Pasadas: 1 · mejor: PERFECT'), findsOneWidget);
+    expect(game.cues, ['tick', 'tick', 'tick', 'go', 'perfect']);
     // Back to the run-up, one move before, and still playing.
     expect(game.player.value.position, Duration.zero);
     expect(game.player.value.isPlaying, isTrue);
@@ -78,6 +79,8 @@ void main() {
     }
     expect(find.text('SIN MEDIR'), findsOneWidget);
     expect(find.text('Pasadas: 3 · mejor: PERFECT'), findsOneWidget);
+    // Not being seen is not a mistake: no MISS cue for an unmeasured pass.
+    expect(game.cues.skip(4), ['perfect', 'good']);
   });
 
   testWidgets('a stalled camera stops the countdown of the drill', (

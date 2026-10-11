@@ -154,10 +154,27 @@ Rutinas → maestro → **Bailar (modo juego)**, con «Seguir como espejo» acti
    textos se leen bien a 2–3 m.
 5. Pictogramas: a 2–3 m, ¿se distingue la pose del siguiente movimiento antes
    de que llegue? Anotar si hace falta más tamaño o más anticipación.
-6. En los resultados, **Practicar** un movimiento débil: el maestro repite ese
+6. Sonidos: la cuenta 3-2-1 y las calificaciones se oyen a 2–3 m **sin pausar
+   ni cortar** la música del maestro; anotar si el volumen tapa la música.
+7. En los resultados, **Practicar** un movimiento débil: el maestro repite ese
    tramo a 0,5× con carrerilla. Hacer varias pasadas (bien, mal, fuera de
    encuadre) y anotar si las calificaciones por pasada coinciden con lo bailado
    y si la carrerilla alcanza para entrar a tiempo.
+
+## Cuentas, descargas e historial
+
+1. **Crear cuenta de estudiante** desde el login: una contraseña débil
+   (`12345678`) muestra el motivo bajo el campo; una válida entra sola a Inicio.
+2. **Bailar** una rutina de Mixkit sin video guardado: se ve el porcentaje de
+   descarga hasta 100 %.
+3. Sin red: cerrar y reabrir la app; en Rutinas aparecen «Rutinas guardadas en
+   este teléfono» con **Bailar**. Jugar una partida, volver a tener red,
+   reabrir la app y comprobar en el Admin que la partida llegó (sin abrir el
+   historial).
+4. Reinstalar la app (o usar otro teléfono), entrar con la misma cuenta y usar
+   **Traer prácticas del servidor**: vuelven las prácticas con sus estrellas.
+5. En `http://<PC>:8000/admin/` con `admin` / `admin`: Sesiones de baile
+   (filtro «Juego») y **Progreso por alumno** muestran las partidas.
 
 ## Después de validar
 

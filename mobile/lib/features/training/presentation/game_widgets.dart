@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../game/dance_game.dart';
 import '../pose/pose_measurements.dart';
+import 'game_sounds.dart';
 
 /// Hands-free positioning text shared by the game and the move drill.
 String positioningGuidance(PoseMeasurements? measurements, String? poseError) {
@@ -74,4 +75,18 @@ class RatingLabel extends StatelessWidget {
 String clockTime(int ms) {
   final seconds = ms ~/ 1000;
   return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+}
+
+/// Turns the countdown and rating cues on or off (shared by game and drill).
+class SoundToggle extends StatelessWidget {
+  const SoundToggle({required this.onPressed, super.key});
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: GameSounds.enabled ? 'Silenciar sonidos' : 'Activar sonidos',
+    color: Colors.white,
+    onPressed: onPressed,
+    icon: Icon(GameSounds.enabled ? Icons.volume_up : Icons.volume_off),
+  );
 }

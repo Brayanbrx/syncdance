@@ -51,6 +51,20 @@ se comparan las poses.
 Todos los umbrales son provisionales: se ajustan con el set controlado de
 `mobile/VALIDACION_FISICA.md` y cada ajuste sube `DanceGame.version`.
 
+## Sonidos (`game_sounds.dart`)
+
+Para quien baila a 2–3 m: un «tic» por número de la cuenta 3-2-1, un tono más
+brillante al empezar y un sonido por calificación (arpegio para PERFECT, tono
+grave para MISS). Un movimiento sin medir no suena: no verse no es un error. El
+ensayo de un movimiento suena igual por pasada. El botón de altavoz (HUD del
+juego y barra del ensayo) los silencia mientras la app esté abierta.
+
+- Tonos originales sintetizados por `tool/generate_sfx.py` (biblioteca estándar
+  de Python, deterministas) en `assets/sfx/`; sin licencias de terceros.
+- Se reproducen con `video_player` en modo mezcla: no piden el foco de audio,
+  así que el maestro sigue sonando. Sin dependencias nuevas.
+- Mejor esfuerzo: un sonido que no carga se omite; el juego nunca lo espera.
+
 ## Pictogramas
 
 Figuras de palitos dibujadas desde los puntos normalizados de la referencia

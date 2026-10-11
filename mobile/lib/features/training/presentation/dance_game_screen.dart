@@ -20,6 +20,7 @@ import '../pose/pose_estimator.dart';
 import '../pose/pose_frame.dart';
 import '../pose/pose_measurements.dart';
 import 'camera_training_screen.dart';
+import 'game_sounds.dart';
 import 'game_widgets.dart';
 import 'move_drill_screen.dart';
 import 'move_pictogram.dart';
@@ -42,6 +43,7 @@ class DanceGameScreen extends StatefulWidget {
     this.createPoseEstimator,
     this.nowMs,
     this.openDrill,
+    this.sounds,
     super.key,
   });
 
@@ -62,6 +64,9 @@ class DanceGameScreen extends StatefulWidget {
   /// camera does not survive the game screen.
   final Widget Function(DanceMove move)? openDrill;
 
+  /// Countdown and rating cues; defaults to [GameSounds] (injectable).
+  final GameSounds? sounds;
+
   static const countdownSeconds = 3;
 
   @override
@@ -75,6 +80,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     widget.followMode,
   );
   VideoPlayerController? _player;
+  late final GameSounds _sounds = widget.sounds ?? GameSounds();
   String? _error;
   _Phase _phase = _Phase.positioning;
   PoseMeasurements? _measurements;
@@ -118,6 +124,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     WidgetsBinding.instance.addObserver(this);
     _newRound();
     unawaited(_openVideo());
+    unawaited(_sounds.load());
   }
 
   Future<void> _openVideo() async {
@@ -199,13 +206,16 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     if (_player?.value.isInitialized != true) return;
     _countdown = DanceGameScreen.countdownSeconds;
     _phase = _Phase.countdown;
+    _sounds.play(GameSound.tick);
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       if (_countdown <= 1) {
         timer.cancel();
+        _sounds.play(GameSound.go);
         unawaited(_play());
       } else {
         setState(() => _countdown--);
+        _sounds.play(GameSound.tick);
       }
     });
   }
@@ -243,6 +253,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   }
 
   void _show(RatedMove move) {
+    _sounds.play(soundFor(move.rating));
     _ratingTimer?.cancel();
     setState(() => _lastRated = move);
     _ratingTimer = Timer(const Duration(milliseconds: 900), () {
@@ -345,6 +356,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     unawaited(_player?.dispose());
     _practice?.removeListener(_redraw);
     _practice?.dispose();
+    _sounds.dispose();
     super.dispose();
   }
 
@@ -381,6 +393,9 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                     _Hud(
                       points: _game!.points,
                       combo: _game!.combo,
+                      onToggleSound: () => setState(
+                        () => GameSounds.enabled = !GameSounds.enabled,
+                      ),
                       progress:
                           ready && player.value.duration.inMilliseconds > 0
                           ? _position / player.value.duration.inMilliseconds
@@ -472,9 +487,11 @@ class _Hud extends StatelessWidget {
     required this.points,
     required this.combo,
     required this.progress,
+    required this.onToggleSound,
   });
   final int points, combo;
   final double progress;
+  final VoidCallback onToggleSound;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -502,6 +519,7 @@ class _Hud extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+            SoundToggle(onPressed: onToggleSound),
           ],
         ),
         const SizedBox(height: 6),

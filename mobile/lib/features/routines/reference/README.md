@@ -73,4 +73,5 @@ cambiar de cuenta para verificar separación y eliminar una versión.
 
 La continuación de este paso ya incorpora video maestro reproducible y consulta
 del timeline por posición del reproductor. Ver `../../training/playback/README.md`.
-La comparación y puntuación de Fase 4 siguen pendientes.
+La comparación y puntuación (Fase 4) ya están implementadas; ver
+`../../training/comparison/README.md`.
