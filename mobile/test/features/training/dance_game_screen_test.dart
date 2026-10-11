@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncdance_mobile/features/routines/reference/motion_reference.dart';
 import 'package:syncdance_mobile/features/routines/reference/reference_cache.dart';
@@ -243,6 +244,34 @@ void main() {
     await game.calibrate();
     await game.countdown();
     expect(find.textContaining('Cómo se hace'), findsNothing);
+  });
+
+  testWidgets('the game keeps the phone vertical and releases it on exit', (
+    tester,
+  ) async {
+    final orientations = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'SystemChrome.setPreferredOrientations') {
+          orientations.add(call.arguments);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final game = GameHarness(tester);
+    await game.mount();
+    expect(orientations, [
+      ['DeviceOrientation.portraitUp'],
+    ]);
+    await tester.pumpWidget(const SizedBox());
+    expect(orientations.last, isEmpty);
   });
 
   testWidgets('the sound button mutes the cues', (tester) async {

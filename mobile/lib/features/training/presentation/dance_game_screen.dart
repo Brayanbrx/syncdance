@@ -126,6 +126,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(lockPortrait());
     _newRound();
     unawaited(_openVideo());
     unawaited(_sounds.load());
@@ -328,6 +329,8 @@ class _DanceGameScreenState extends State<DanceGameScreen>
             ),
       ),
     );
+    // The drill released the lock on its way out.
+    if (mounted) unawaited(lockPortrait());
   }
 
   Future<void> _again() async {
@@ -361,6 +364,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     _practice?.removeListener(_redraw);
     _practice?.dispose();
     _sounds.dispose();
+    unawaited(unlockOrientation());
     super.dispose();
   }
 

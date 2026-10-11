@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../game/dance_game.dart';
 import '../pose/pose_measurements.dart';
 import 'game_sounds.dart';
+
+/// Hands-free screens stay vertical: an auto-rotation on a stand would
+/// recalibrate the camera mid-song and reflow the layout.
+Future<void> lockPortrait() =>
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+/// Back to the orientations the app allows elsewhere.
+Future<void> unlockOrientation() =>
+    SystemChrome.setPreferredOrientations(const []);
 
 /// Hands-free positioning text shared by the game and the move drill.
 String positioningGuidance(PoseMeasurements? measurements, String? poseError) {

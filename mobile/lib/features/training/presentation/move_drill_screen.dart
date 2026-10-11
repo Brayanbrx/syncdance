@@ -123,6 +123,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(lockPortrait());
     unawaited(_openVideo());
     unawaited(_sounds.load());
   }
@@ -293,6 +294,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
       ..removeListener(_redraw)
       ..dispose();
     _sounds.dispose();
+    unawaited(unlockOrientation());
     super.dispose();
   }
 
