@@ -73,7 +73,9 @@ Con un usuario staff (en desarrollo, la semilla `admin` / `admin`):
   y rutina, prácticas, partidas, mejor similitud (velocidad normal y cobertura
   ≥ 50 %, el mismo corte provisional del teléfono), mejores estrellas y última
   práctica (`get_student_progress` en `selectors.py`). «—» es sin evidencia,
-  nunca cero.
+  nunca cero. **Descargar CSV (Excel)** exporta la misma tabla (`;`, UTF-8 con
+  BOM, hora local); un nombre que empieza con `= + - @` se exporta como texto
+  para que la hoja de cálculo no lo ejecute como fórmula.
 
 ## Reintentos
 

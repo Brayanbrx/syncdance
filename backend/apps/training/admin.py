@@ -1,7 +1,11 @@
+import csv
+
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 from django.template.response import TemplateResponse
 from django.urls import path
+from django.utils import timezone
 
 from .models import (
     DanceSession,
@@ -103,6 +107,12 @@ def _game(session):
     return getattr(session, "game", None)
 
 
+def _cell(text):
+    """Names may start with + - @ (Django usernames allow them) or =: a
+    spreadsheet would run them as formulas, so they are kept as text."""
+    return f"'{text}" if text[:1] in ("=", "+", "-", "@") else text
+
+
 def _stars(count):
     return "★" * count + "☆" * (5 - count)
 
@@ -168,6 +178,11 @@ class DanceSessionAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.progress_view),
                 name="training_dancesession_progress",
             ),
+            path(
+                "progreso/csv/",
+                self.admin_site.admin_view(self.progress_csv),
+                name="training_dancesession_progress_csv",
+            ),
             *super().get_urls(),
         ]
 
@@ -187,3 +202,37 @@ class DanceSessionAdmin(admin.ModelAdmin):
             "min_coverage": f"{MIN_PROGRESS_COVERAGE:.0%}",
         }
         return TemplateResponse(request, "admin/training/dancesession/progress.html", context)
+
+    def progress_csv(self, request):
+        """The same summary for a spreadsheet: `;` and a BOM so Excel in
+        Spanish opens it in columns with accents intact."""
+        if not self.has_view_permission(request):
+            raise PermissionDenied
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="progreso-alumnos.csv"'
+        response.write("﻿")
+        writer = csv.writer(response, delimiter=";")
+        writer.writerow(
+            [
+                "Alumno",
+                "Rutina",
+                "Prácticas",
+                "Partidas",
+                "Mejor similitud",
+                "Mejores estrellas",
+                "Última práctica",
+            ]
+        )
+        for row in get_student_progress():
+            writer.writerow(
+                [
+                    _cell(row["student__username"]),
+                    _cell(row["routine__name"]),
+                    row["practices"],
+                    row["games"],
+                    "" if row["best_score"] is None else round(row["best_score"]),
+                    "" if row["best_stars"] is None else row["best_stars"],
+                    timezone.localtime(row["last_practice"]).strftime("%d/%m/%Y %H:%M"),
+                ]
+            )
+        return response

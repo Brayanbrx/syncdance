@@ -85,3 +85,23 @@ def test_progress_page_requires_staff(sessions):
     client.force_login(sessions)  # a student
     response = client.get(reverse("admin:training_dancesession_progress"))
     assert response.status_code == 302
+
+
+def test_progress_downloads_as_a_spreadsheet(sessions):
+    admin_user = User.objects.create_superuser(
+        username="admin", email="ad@example.com", password="x"
+    )
+    # A name a spreadsheet would run as a formula stays plain text.
+    sessions.username = "+ana"
+    sessions.save()
+    client = Client()
+    client.force_login(admin_user)
+    response = client.get(reverse("admin:training_dancesession_progress_csv"))
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/csv")
+    body = response.content.decode("utf-8")
+    assert body.startswith("﻿Alumno;Rutina;Prácticas;Partidas;")
+    row = body.splitlines()[1].split(";")
+    assert row[:6] == ["'+ana", "Primer baile", "4", "1", "80", "4"]
+    progress = client.get(reverse("admin:training_dancesession_progress"))
+    assert "Descargar CSV" in progress.content.decode()
