@@ -48,9 +48,17 @@ class RoutineItem {
     this.difficulty = '',
     this.durationMs = 0,
     this.credit = '',
+    this.description = '',
+    this.curriculumPosition,
   });
   final int id;
   final String name, style, difficulty, credit;
+
+  /// How the step is done, for the learner (may be empty).
+  final String description;
+
+  /// Step of the teaching path (generated standard); null for free practice.
+  final int? curriculumPosition;
 
   /// Zero until the master reference has been processed.
   final int durationMs;
@@ -66,9 +74,15 @@ class RoutineItem {
         ? json['duration_ms'] as int
         : 0,
     credit: _text(json['credit']),
+    description: _text(json['description']),
+    curriculumPosition:
+        json['curriculum_position'] is int &&
+            (json['curriculum_position'] as int) >= 0
+        ? json['curriculum_position'] as int
+        : null,
   );
 
-  /// Catalog order: beginner first, unknown levels last.
+  /// Beginner first, unknown levels last.
   int get difficultyRank => switch (difficulty) {
     'BEGINNER' => 0,
     'INTERMEDIATE' => 1,
@@ -76,9 +90,16 @@ class RoutineItem {
     _ => 3,
   };
 
+  /// Catalog order: by level; inside a level the teaching path in its own
+  /// order first, then free practice by name.
   static int byLevel(RoutineItem a, RoutineItem b) {
     final level = a.difficultyRank.compareTo(b.difficultyRank);
-    return level != 0 ? level : a.name.compareTo(b.name);
+    if (level != 0) return level;
+    final pa = a.curriculumPosition, pb = b.curriculumPosition;
+    if (pa != null && pb != null) return pa.compareTo(pb);
+    if (pa != null) return -1;
+    if (pb != null) return 1;
+    return a.name.compareTo(b.name);
   }
 
   String get difficultyLabel => switch (difficulty) {

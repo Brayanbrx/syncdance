@@ -44,6 +44,7 @@ class DanceGameScreen extends StatefulWidget {
     this.nowMs,
     this.openDrill,
     this.sounds,
+    this.instructions = '',
     super.key,
   });
 
@@ -66,6 +67,9 @@ class DanceGameScreen extends StatefulWidget {
 
   /// Countdown and rating cues; defaults to [GameSounds] (injectable).
   final GameSounds? sounds;
+
+  /// How the routine's step is done, read while getting into position.
+  final String instructions;
 
   static const countdownSeconds = 3;
 
@@ -421,10 +425,22 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                           else
                             const CircularProgressIndicator(),
                           if (_phase == _Phase.positioning)
-                            GameBanner(
-                              text: positioningGuidance(
-                                _measurements,
-                                _poseError,
+                            SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  GameBanner(
+                                    text: positioningGuidance(
+                                      _measurements,
+                                      _poseError,
+                                    ),
+                                  ),
+                                  if (widget.instructions.isNotEmpty)
+                                    GameBanner(
+                                      text:
+                                          'Cómo se hace: ${widget.instructions}',
+                                    ),
+                                ],
                               ),
                             ),
                           if (_phase == _Phase.countdown)

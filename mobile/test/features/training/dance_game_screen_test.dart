@@ -68,8 +68,12 @@ class GameHarness {
     );
   }
 
-  Future<void> mount({Widget Function(DanceMove move)? openDrill}) => _pump(
+  Future<void> mount({
+    Widget Function(DanceMove move)? openDrill,
+    String instructions = '',
+  }) => _pump(
     () => DanceGameScreen(
+      instructions: instructions,
       saved: SavedReference('Guerrero II', reference),
       videoFile: File('master.mp4'),
       storeScope: 'test',
@@ -229,6 +233,17 @@ void main() {
       expect(game.synced, 1);
     },
   );
+
+  testWidgets('the step instructions are read while getting into position', (
+    tester,
+  ) async {
+    final game = GameHarness(tester);
+    await game.mount(instructions: 'Paso a un lado y junta.');
+    expect(find.text('Cómo se hace: Paso a un lado y junta.'), findsOneWidget);
+    await game.calibrate();
+    await game.countdown();
+    expect(find.textContaining('Cómo se hace'), findsNothing);
+  });
 
   testWidgets('the sound button mutes the cues', (tester) async {
     final game = GameHarness(tester);

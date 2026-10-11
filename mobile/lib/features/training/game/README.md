@@ -1,5 +1,13 @@
 # Modo juego («Bailar»)
 
+**Camino de aprendizaje** (`routines/learning_path.dart`): el catálogo ordena
+cada nivel por el currículo del estándar (`curriculum_position` del servidor) y
+deja la práctica libre (videos de stock) después. Arriba muestra **Tu siguiente
+paso**: el primer paso del camino con menos de 3 estrellas, sus instrucciones,
+el avance por nivel y **Bailar** a un toque. Con todo superado recomienda
+repasar el de menos estrellas. Durante la colocación, el juego muestra
+«Cómo se hace» con las instrucciones de la rutina.
+
 Experiencia tipo Just Dance sobre el mismo motor de comparación. Acceso:
 Rutinas → referencia guardada → Abrir maestro (con video descargado) →
 **Bailar (modo juego)**. Usa el modo espejo elegido en esa pantalla.

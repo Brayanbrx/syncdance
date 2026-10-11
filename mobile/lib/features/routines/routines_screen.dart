@@ -12,6 +12,7 @@ import '../training/history/session_store.dart';
 import '../training/history/session_sync.dart';
 import '../training/presentation/dance_game_screen.dart';
 import '../training/presentation/master_playback_screen.dart';
+import 'learning_path.dart';
 import 'reference/catalog_api.dart';
 import 'reference/master_video_cache.dart';
 import 'reference/motion_reference.dart';
@@ -279,6 +280,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
           builder: (_) =>
               widget.openGame?.call(chosen, file) ??
               DanceGameScreen(
+                instructions: routine.description,
                 saved: chosen,
                 videoFile: file,
                 storeScope: _session.cacheScope,
@@ -379,6 +381,69 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     );
   }
 
+  /// The teaching path: the next step to dance and how far each level goes.
+  Widget? _nextStepCard(BuildContext context) {
+    final path = LearningPath(_routines, {
+      for (final entry in _bestGames.entries) entry.key: entry.value.stars,
+    });
+    if (path.steps.isEmpty) return null;
+    final next = path.next;
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              next == null
+                  ? '¡Camino completo con 5 estrellas!'
+                  : path.completed
+                  ? 'Repaso recomendado'
+                  : 'Tu siguiente paso',
+              style: theme.textTheme.labelLarge,
+            ),
+            if (next != null) ...[
+              const SizedBox(height: 4),
+              Text(next.name, style: theme.textTheme.titleMedium),
+              if (next.description.isNotEmpty) Text(next.description),
+              const SizedBox(height: 4),
+              Text(
+                path.completed
+                    ? 'Sube sus estrellas hasta 5.'
+                    : 'Se supera con $passStars estrellas o más en el juego.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final level in path.levels)
+                  Chip(
+                    visualDensity: VisualDensity.compact,
+                    label: Text(
+                      '${level.label}: ${level.passed}/${level.total}',
+                    ),
+                  ),
+              ],
+            ),
+            if (next != null) ...[
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                onPressed: _busy || _cache == null ? null : () => _dance(next),
+                icon: const Icon(Icons.play_arrow),
+                label: Text('Bailar «${next.name}»'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget? _subtitle(RoutineItem routine) {
     final game = _bestGames[routine.id];
     final lines = [
@@ -441,7 +506,20 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                         ? 'No hay rutinas en el servidor.'
                         : 'No hay rutinas cargadas del servidor.',
                   ),
-                for (final routine in routines)
+                if (_catalogLoaded) ?_nextStepCard(context),
+                for (final (index, routine) in routines.indexed) ...[
+                  if (_catalogLoaded &&
+                      routine.difficultyLabel.isNotEmpty &&
+                      (index == 0 ||
+                          routines[index - 1].difficultyLabel !=
+                              routine.difficultyLabel))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12, bottom: 4),
+                      child: Text(
+                        routine.difficultyLabel,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
                   ListTile(
                     title: Text(routine.name),
                     subtitle: _subtitle(routine),
@@ -466,6 +544,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                       ],
                     ),
                   ),
+                ],
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Text('Referencias guardadas'),

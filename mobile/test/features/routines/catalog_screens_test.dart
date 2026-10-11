@@ -203,6 +203,106 @@ void main() {
     expect(videos.saved.keys, [2]);
   });
 
+  testWidgets('the next step of the path is one tap away', (tester) async {
+    final bytes = referenceBytes();
+    final api = CatalogApi(
+      'http://localhost:8000/api',
+      client: MockClient((request) async {
+        final path = request.url.path;
+        if (path.endsWith('reference/')) {
+          // /api/routines/<id>/reference/: the metadata of that routine.
+          final id = int.parse(request.url.pathSegments.reversed.elementAt(2));
+          return http.Response(
+            jsonEncode(metadataJson(bytes: bytes)..['routine'] = id),
+            200,
+          );
+        }
+        if (path.endsWith('download/')) return http.Response.bytes(bytes, 200);
+        if (path.endsWith('video/')) return http.Response.bytes([1], 200);
+        return http.Response(
+          jsonEncode({
+            'results': [
+              {
+                'id': 9,
+                'name': 'Video libre',
+                'difficulty': 'BEGINNER',
+                'style': 'Libre',
+              },
+              {
+                'id': 8,
+                'name': 'Rodilla arriba',
+                'difficulty': 'BEGINNER',
+                'style': 'Estándar',
+                'curriculum_position': 1,
+              },
+              {
+                'id': 7,
+                'name': 'Marcha',
+                'difficulty': 'BEGINNER',
+                'style': 'Estándar',
+                'curriculum_position': 0,
+                'description': 'Marcha en el sitio.',
+              },
+              {
+                'id': 6,
+                'name': 'Grapevine',
+                'difficulty': 'INTERMEDIATE',
+                'style': 'Estándar',
+                'curriculum_position': 2,
+              },
+            ],
+            'next': null,
+          }),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        );
+      }),
+    );
+    addTearDown(api.close);
+    final sessions = MemorySessionStore();
+    // Routine 7 («Marcha») already passed with four stars.
+    await sessions.save(practice(80, routine: 7, perfectMoves: 3));
+    final opened = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RoutinesScreen(
+          session: CatalogSession(api)..account = account,
+          cache: MemoryCache(),
+          videos: MemoryVideos(),
+          sessions: sessions,
+          openGame: (saved, _) {
+            opened.add(saved.name);
+            return const Scaffold(body: Text('Juego abierto'));
+          },
+        ),
+      ),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Tu siguiente paso'), findsOneWidget);
+    expect(find.text('Bailar «Rodilla arriba»'), findsOneWidget);
+    expect(find.text('Principiante: 1/2'), findsOneWidget);
+    expect(find.text('Intermedio: 0/1'), findsOneWidget);
+    // Level headings, and the path before free practice inside a level.
+    expect(find.text('Principiante'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Video libre'), 100);
+    expect(
+      tester.getTopLeft(find.text('Rodilla arriba').last).dy,
+      lessThan(tester.getTopLeft(find.text('Video libre')).dy),
+    );
+    await tester.scrollUntilVisible(find.text('Intermedio'), 100);
+    expect(find.text('Intermedio'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Bailar «Rodilla arriba»'), -100);
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Bailar «Rodilla arriba»'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    await tester.pumpAndSettle();
+    expect(opened, ['Rodilla arriba']);
+  });
+
   testWidgets('reopened offline, saved routines are still one-tap Bailar', (
     tester,
   ) async {
