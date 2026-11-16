@@ -7,8 +7,26 @@ nginx también es la entrada única a Django: reenvía `/api`, `/admin` y
 | Ruta | Para quién | Qué hace |
 | --- | --- | --- |
 | `/` | Alumnos e instructores | Landing: cómo funciona, privacidad y descarga del APK publicado |
+| `/ingresar` | Instructores y administración | Un solo ingreso: lleva al panel o al estudio según el rol |
 | `/panel` | Superusuarios y rol Administrador | Resumen, usuarios, rutinas, cursos y versiones de la app |
+| `/estudio` | Instructores | Subir rutinas, ver el informe de calidad y publicarlas en sus cursos |
 | `/admin/` | Instructores (y administración avanzada) | Django Admin: cursos, tareas, progreso y observaciones |
+| `/privacidad`, `/terminos` | Todos | Textos legales (responsable y contacto desde `/api/auth/legal/`) |
+| `/cuenta/recuperar`, `/cuenta/restablecer`, `/cuenta/borrar` | Alumnos e instructores | Recuperar la contraseña y borrar la cuenta |
+
+## Estudio del instructor
+
+- **Mis rutinas:** cada una con su estado (borrador, procesando, con error,
+  lista para publicar o publicada en N cursos).
+- **Subir rutina:** datos y video (MP4, MOV, WEBM o MKV, de 5 s a 5 min, hasta
+  200 MB); el servidor lo revisa al subirlo.
+- **Detalle:**
+  - el procesamiento se actualiza solo
+  - informe de calidad con los tramos donde no se ve a una sola persona
+  - publicar en sus cursos declarando los derechos de la música
+  - retirar, editar, reemplazar el video o borrar
+
+  API en `backend/apps/studio/README.md`.
 
 ## Panel de administración
 
