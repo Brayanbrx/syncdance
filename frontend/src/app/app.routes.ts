@@ -22,6 +22,12 @@ export const routes: Routes = [
       import('./features/account/reset-password.page').then((m) => m.ResetPasswordPage),
   },
   {
+    path: 'cuenta/borrar',
+    title: 'Borrar tu cuenta | SyncDance',
+    loadComponent: () =>
+      import('./features/account/delete-account.page').then((m) => m.DeleteAccountPage),
+  },
+  {
     path: 'panel/ingresar',
     title: 'Ingresar al panel | SyncDance',
     loadComponent: () => import('./features/panel/panel-login.page').then((m) => m.PanelLoginPage),
