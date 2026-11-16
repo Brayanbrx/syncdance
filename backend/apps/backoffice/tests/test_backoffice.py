@@ -213,8 +213,13 @@ def test_routines_can_be_hidden_from_the_catalog(people):
     listing = admin.get("/api/panel/routines/").data["results"]
     assert listing[0]["reference_status"] is None
     assert listing[0]["sessions"] == 0
-    hidden = admin.patch(f"/api/panel/routines/{routine.pk}/", {"is_active": False, "name": "X"})
+    assert listing[0]["visibility"] == "CATALOG"
+    assert listing[0]["published_at"] is not None
+    assert listing[0]["catalog_review"] == ""
+    hidden = admin.patch(
+        f"/api/panel/routines/{routine.pk}/", {"is_active": False, "visibility": "COURSES"}
+    )
     assert hidden.status_code == 200
     routine.refresh_from_db()
     assert routine.is_active is False
-    assert routine.name == "Paso"  # everything else is read-only here
+    assert routine.visibility == "CATALOG"  # everything else is read-only here
