@@ -75,10 +75,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on RegistrationException catch (error) {
       if (mounted) {
         setState(() {
-          _fields = {
-            ...error.fields,
-            'terms': ?error.fields['accept_terms'],
-          };
+          _fields = {...error.fields, 'terms': ?error.fields['accept_terms']};
           // Messages without a field of their own go above the button.
           final known = {'username', 'email', 'password', 'accept_terms'};
           _error = error.fields.keys.any(known.contains) ? null : error.message;
