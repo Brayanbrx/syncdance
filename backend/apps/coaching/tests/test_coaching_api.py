@@ -121,3 +121,31 @@ def test_coaching_requires_an_account():
     client = APIClient()
     assert client.get(COURSES).status_code == 401
     assert client.get("/api/coaching/notes/").status_code == 401
+
+
+@pytest.mark.django_db
+def test_a_course_lists_the_routines_its_instructor_published(world):
+    from apps.routines.models import Routine
+
+    def own(name, **fields):
+        return Routine.objects.create(
+            name=name,
+            instructor=world["teacher"],
+            difficulty="BEGINNER",
+            visibility=Routine.Visibility.COURSES,
+            **fields,
+        )
+
+    world["course"].published_routines.add(
+        own("Publicada", style="Urbano"),
+        own("Borrador", published_at=None),
+        own("Inactiva", is_active=False),
+    )
+    world["routine"].published_at = None  # the assigned routine went back to draft
+    world["routine"].save()
+
+    course = client_for(world["ana"]).get("/api/coaching/courses/").json()["results"][0]
+
+    assert [r["name"] for r in course["routines"]] == ["Publicada"]
+    assert course["routines"][0]["style"] == "Urbano"
+    assert course["assignments"][0]["routine_available"] is False

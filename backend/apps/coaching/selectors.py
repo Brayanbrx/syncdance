@@ -31,12 +31,28 @@ def courses_managed_by(*, user):
     return courses.none()
 
 
+def _visible_routines():
+    from apps.routines.models import Routine
+
+    return Routine.objects.filter(is_active=True, published_at__isnull=False).order_by("name", "pk")
+
+
+def visible_course_routines(course):
+    """Routines published in the course that its students can dance now."""
+    return list(_visible_routines().filter(published_in_courses=course))
+
+
 def courses_for_student(*, user):
     return (
         Course.objects.filter(enrollments__student=user)
         .select_related("instructor")
         .prefetch_related(
-            Prefetch("assignments", queryset=Assignment.objects.select_related("routine"))
+            Prefetch("assignments", queryset=Assignment.objects.select_related("routine")),
+            Prefetch(
+                "published_routines",
+                queryset=_visible_routines(),
+                to_attr="visible_routines",
+            ),
         )
         .annotate(joined_at=Max("enrollments__joined_at", filter=Q(enrollments__student=user)))
         .order_by("name", "pk")
