@@ -11,5 +11,8 @@ class UserAdmin(DjangoUserAdmin):
     list_display = ("username", "email", "role", "is_active", "last_login", "date_joined")
     list_filter = ("role", "is_active", "is_staff")
     ordering = ("-date_joined",)
-    fieldsets = DjangoUserAdmin.fieldsets + (("SyncDance", {"fields": ("role",)}),)
+    fieldsets = DjangoUserAdmin.fieldsets + (
+        ("SyncDance", {"fields": ("role", "terms_version", "terms_accepted_at")}),
+    )
+    readonly_fields = ("terms_version", "terms_accepted_at")
     add_fieldsets = DjangoUserAdmin.add_fieldsets + (("SyncDance", {"fields": ("email", "role")}),)

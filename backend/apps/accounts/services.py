@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.db import transaction
+from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
@@ -27,7 +28,13 @@ class AccountProtected(Exception):
 
 
 def register_user(**validated_data) -> User:
-    return User.objects.create_user(role=User.Role.STUDENT, **validated_data)
+    """A student who accepted the current terms and privacy policy."""
+    return User.objects.create_user(
+        role=User.Role.STUDENT,
+        terms_version=settings.LEGAL_TERMS_VERSION,
+        terms_accepted_at=timezone.now(),
+        **validated_data,
+    )
 
 
 def request_password_reset(*, email: str) -> None:

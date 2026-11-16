@@ -18,23 +18,39 @@ class UserSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
+    # The sign-up form shows the terms and privacy policy with a checkbox.
+    accept_terms = serializers.BooleanField(write_only=True)
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "password", "first_name", "last_name")
+        fields = ("id", "username", "email", "password", "first_name", "last_name", "accept_terms")
         read_only_fields = ("id",)
+
+    def validate_accept_terms(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                "Para crear la cuenta acepta los términos y la política de privacidad."
+            )
+        return value
 
     def validate(self, attrs):
         # Same rules as the admin: not common, not only digits, not like the name.
-        candidate = User(**{k: v for k, v in attrs.items() if k != "password"})
+        profile = {k: v for k, v in attrs.items() if k not in ("password", "accept_terms")}
         try:
-            validate_password(attrs["password"], user=candidate)
+            validate_password(attrs["password"], user=User(**profile))
         except DjangoValidationError as exc:
             raise serializers.ValidationError({"password": list(exc.messages)}) from exc
         return attrs
 
     def create(self, validated_data):
+        validated_data.pop("accept_terms")
         return register_user(**validated_data)
+
+
+class LegalSerializer(serializers.Serializer):
+    controller = serializers.CharField()
+    contact_email = serializers.CharField(allow_blank=True)
+    terms_version = serializers.CharField()
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):

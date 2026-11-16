@@ -10,6 +10,11 @@ class User(AbstractUser):
 
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=16, choices=Role.choices, default=Role.STUDENT)
+    # Which version of the terms and privacy policy the person accepted at
+    # sign-up, and when (settings.LEGAL_TERMS_VERSION). Blank: created before
+    # acceptance existed, or by an administrator.
+    terms_version = models.CharField("versión de términos aceptada", max_length=20, blank=True)
+    terms_accepted_at = models.DateTimeField("términos aceptados el", null=True, blank=True)
 
     def __str__(self):
         return self.username

@@ -123,6 +123,14 @@ REST_FRAMEWORK = {
 PUBLIC_WEB_URL = os.getenv("PUBLIC_WEB_URL", "http://localhost:8085").rstrip("/")
 PASSWORD_RESET_TIMEOUT = 2 * 60 * 60
 
+# Privacy policy and terms (web pages /privacidad and /terminos). Who is
+# responsible for the data and whom to write to come from the environment.
+# Changing those texts in frontend/src/app/features/legal means a new version
+# here: sign-up stores the version each person accepted.
+LEGAL_CONTROLLER = os.getenv("LEGAL_CONTROLLER", "el equipo de SyncDance")
+LEGAL_CONTACT_EMAIL = os.getenv("LEGAL_CONTACT_EMAIL", "")
+LEGAL_TERMS_VERSION = "2026-11-16"
+
 # Development prints mail in the backend log; production sends it by SMTP.
 EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")

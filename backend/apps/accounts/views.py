@@ -1,5 +1,6 @@
 import hashlib
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
@@ -12,6 +13,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import (
     DeleteAccountSerializer,
     DetailSerializer,
+    LegalSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RegisterSerializer,
@@ -143,3 +145,21 @@ class DeleteAccountView(APIView):
         except AccountProtected as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class LegalView(APIView):
+    """Who is responsible for the data and the version of the terms: the web's
+    privacy and terms pages and the app's sign-up show it."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(responses=LegalSerializer)
+    def get(self, request):
+        return Response(
+            {
+                "controller": settings.LEGAL_CONTROLLER,
+                "contact_email": settings.LEGAL_CONTACT_EMAIL,
+                "terms_version": settings.LEGAL_TERMS_VERSION,
+            }
+        )

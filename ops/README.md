@@ -49,6 +49,15 @@ docker compose -f docker-compose.prod.yml logs -f backend celery
 Una línea JSON por evento, con identificadores como `reference_id`,
 `task_id` o `session_id`.
 
+## Privacidad y términos
+
+`/privacidad` y `/terminos` muestran el responsable (`LEGAL_CONTROLLER`) y el
+correo de contacto (`LEGAL_CONTACT_EMAIL`) definidos en `.env.prod`;
+`check --deploy` avisa si falta el correo. El registro guarda qué versión de
+los textos aceptó cada persona (`LEGAL_TERMS_VERSION` en
+`backend/config/settings/base.py`): al cambiar los textos, subir esa versión.
+Los textos son un borrador a revisar con asesoría legal antes del lanzamiento.
+
 ## Correo
 
 La recuperación de contraseña envía un enlace por SMTP. Variables en

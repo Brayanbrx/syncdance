@@ -27,6 +27,7 @@ def test_production_settings_pass_the_deployment_checklist():
         DJANGO_SECRET_KEY=secrets.token_urlsafe(50),
         DJANGO_ALLOWED_HOSTS="syncdance.example.com",
         DJANGO_CSRF_TRUSTED_ORIGINS="https://syncdance.example.com",
+        LEGAL_CONTACT_EMAIL="privacidad@syncdance.example.com",
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
