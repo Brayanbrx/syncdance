@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/network/catalog_session.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -12,12 +11,9 @@ class HomeScreen extends StatelessWidget {
         title: const Text('Inicio'),
         actions: [
           IconButton(
-            tooltip: 'Cambiar cuenta',
+            tooltip: 'Mi cuenta',
             icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () async {
-              await catalogSession.signOut();
-              if (context.mounted) context.go('/login');
-            },
+            onPressed: () => context.push('/account'),
           ),
         ],
       ),

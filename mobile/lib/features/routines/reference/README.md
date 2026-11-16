@@ -11,7 +11,7 @@ pendientes; no se declara cerrado el entrenamiento offline completo.
    referencia READY de una rutina accesible.
 3. Consultar duración, muestras y cobertura en **Referencias guardadas**, incluso
    sin red durante la sesión. Se pueden eliminar versiones individualmente.
-4. **Inicio → Cambiar cuenta** cierra la sesión. **Continuar sin cuenta** permite
+4. **Inicio → Mi cuenta** cierra la sesión o borra la cuenta. **Continuar sin cuenta** permite
    usar la cámara y la detección local sin solicitar datos protegidos.
 
 La contraseña y el access token nunca se guardan en disco. Desde Fase 6, paso 2,
@@ -21,7 +21,7 @@ red con la cuenta anterior y renueva el access token en el primer uso. Un 401
 renueva una vez y reintenta; llamadas simultáneas comparten una sola renovación,
 porque el servidor rota y revoca cada refresh usado (30 días de vida). Si el
 refresh es rechazado se conserva la identidad para datos locales y la red pide
-ingresar de nuevo. **Cambiar cuenta** borra la entrada y revoca el refresh.
+ingresar de nuevo. **Cerrar sesión** borra la entrada y revoca el refresh.
 Android desactiva el backup automático para no restaurar claves inválidas.
 No hay registro móvil. HTTP local está permitido en Android debug; para release
 se requiere HTTPS.

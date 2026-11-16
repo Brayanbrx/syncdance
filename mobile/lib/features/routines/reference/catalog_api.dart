@@ -345,6 +345,24 @@ class CatalogApi {
     await _request('auth/logout/', body: {'refresh': refreshToken});
   }
 
+  /// Deletes the signed-in account on the server after it types its password
+  /// again; its refresh tokens stop working at once.
+  Future<void> deleteAccount(Account account, String password) async {
+    await _request(
+      'auth/me/delete/',
+      account: account,
+      body: {'password': password},
+      accept: const {204},
+      errors: const {
+        400: 'La contraseña no es correcta.',
+        409:
+            'Esta cuenta tiene cursos, rutinas u observaciones a cargo. Pide '
+            'a un administrador que los transfiera antes de borrarla.',
+        429: 'Demasiados intentos. Espera un momento y vuelve a intentar.',
+      },
+    );
+  }
+
   /// Emails a link to the web page that sets a new password. The answer is
   /// the same whether or not an account uses [email].
   Future<String> requestPasswordReset(String email) async {
