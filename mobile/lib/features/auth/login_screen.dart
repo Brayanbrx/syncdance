@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/network/catalog_session.dart';
+import '../routines/reference/catalog_api.dart';
 import '../routines/reference/motion_reference.dart';
 import '../training/history/session_sync.dart';
 
@@ -94,6 +95,15 @@ class _LoginScreenState extends State<LoginScreen> {
             if (_error != null)
               Padding(padding: const EdgeInsets.all(12), child: Text(_error!)),
             TextButton(
+              onPressed: _busy
+                  ? null
+                  : () => showDialog<void>(
+                      context: context,
+                      builder: (_) => ForgotPasswordDialog(api: _session.api),
+                    ),
+              child: const Text('¿Olvidaste tu contraseña?'),
+            ),
+            TextButton(
               onPressed: _busy ? null : () => context.push('/register'),
               child: const Text('Crear cuenta de estudiante'),
             ),
@@ -109,6 +119,100 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Asks for the account's email; the link arrives by mail and opens the web
+/// page that sets the new password. Then the student signs in here again.
+class ForgotPasswordDialog extends StatefulWidget {
+  const ForgotPasswordDialog({required this.api, super.key});
+  final CatalogApi api;
+  @override
+  State<ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
+  final _email = TextEditingController();
+  bool _busy = false;
+  String? _error;
+  String? _sent;
+
+  Future<void> _send() async {
+    final email = _email.text.trim();
+    if (!RegExp(r'^\S+@\S+\.\S+$').hasMatch(email)) {
+      setState(() => _error = 'Escribe un correo válido.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final detail = await widget.api.requestPasswordReset(email);
+      if (mounted) setState(() => _sent = detail);
+    } on ReferenceException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sent = _sent;
+    return AlertDialog(
+      title: const Text('Recuperar contraseña'),
+      content: sent != null
+          ? Text(
+              '$sent\n\nAbre el enlace en este teléfono, elige la contraseña '
+              'nueva y vuelve a ingresar aquí. El correo también te recuerda '
+              'tu usuario.',
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Te enviaremos un enlace para elegir una contraseña nueva.',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _email,
+                  enabled: !_busy,
+                  autofocus: true,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Correo de tu cuenta',
+                    errorText: _error,
+                  ),
+                  onSubmitted: (_) => _send(),
+                ),
+              ],
+            ),
+      actions: sent != null
+          ? [
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Entendido'),
+              ),
+            ]
+          : [
+              TextButton(
+                onPressed: _busy ? null : () => Navigator.of(context).pop(),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: _busy ? null : _send,
+                child: Text(_busy ? 'Enviando…' : 'Enviar enlace'),
+              ),
+            ],
     );
   }
 }

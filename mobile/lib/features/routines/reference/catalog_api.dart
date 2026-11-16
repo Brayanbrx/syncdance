@@ -345,6 +345,24 @@ class CatalogApi {
     await _request('auth/logout/', body: {'refresh': refreshToken});
   }
 
+  /// Emails a link to the web page that sets a new password. The answer is
+  /// the same whether or not an account uses [email].
+  Future<String> requestPasswordReset(String email) async {
+    final data = await _json(
+      'auth/password-reset/',
+      body: {'email': email},
+      accept: const {202},
+      errors: const {
+        400: 'Escribe un correo válido.',
+        429: 'Ya se pidieron varios enlaces para este correo. Espera una hora.',
+      },
+    );
+    final detail = data['detail'];
+    return detail is String && detail.isNotEmpty
+        ? detail
+        : 'Revisa tu correo para cambiar la contraseña.';
+  }
+
   Future<List<RoutineItem>> routines(Account account) async {
     String? next = 'routines/';
     final visited = <String>{};
