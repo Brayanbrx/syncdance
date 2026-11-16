@@ -18,6 +18,7 @@ import '../pose/adapters/mlkit_pose_estimator.dart';
 import '../pose/pose_estimator.dart';
 import '../pose/pose_frame.dart';
 import '../pose/pose_measurements.dart';
+import 'beat_count.dart';
 import 'camera_training_screen.dart';
 import 'game_sounds.dart';
 import 'game_widgets.dart';
@@ -33,6 +34,7 @@ class MoveDrillScreen extends StatefulWidget {
     required this.saved,
     required this.videoFile,
     required this.move,
+    this.step,
     this.followMode = FollowMode.mirror,
     this.initialSpeed = 0.5,
     this.createController,
@@ -46,6 +48,9 @@ class MoveDrillScreen extends StatefulWidget {
   final SavedReference saved;
   final File videoFile;
   final DanceMove move;
+
+  /// The instructor's step being drilled: its name, tip and counts show.
+  final RoutineStep? step;
   final FollowMode followMode;
   final double initialSpeed;
   final VideoPlayerController Function(File)? createController;
@@ -92,6 +97,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
   bool _looping = false;
 
   int get _durationMs => widget.saved.reference.metadata.durationMs;
+  BeatGrid? get _grid => widget.saved.reference.metadata.beatGrid;
   int get _moveMs => widget.move.endMs - widget.move.startMs;
   int get _loopStart => math.max(0, widget.move.startMs - _moveMs);
 
@@ -318,8 +324,9 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         title: Text(
-          'Practicar ${clockTime(widget.move.startMs)}–'
-          '${clockTime(widget.move.endMs)}',
+          widget.step?.name ??
+              'Practicar ${clockTime(widget.move.startMs)}–'
+                  '${clockTime(widget.move.endMs)}',
         ),
         actions: [
           SoundToggle(
@@ -360,6 +367,11 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
                                   fontSize: 16,
                                 ),
                               ),
+                              if (widget.step?.tip.isNotEmpty == true)
+                                Text(
+                                  widget.step!.tip,
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
                               const SizedBox(height: 6),
                               Wrap(
                                 spacing: 4,
@@ -435,6 +447,19 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
                           Align(
                             alignment: const Alignment(0, -0.6),
                             child: RatingLabel(move: _lastPass!),
+                          ),
+                        if (ready && _phase == _Phase.playing && _grid != null)
+                          Align(
+                            alignment: Alignment.topRight,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: BeatCount(
+                                grid: _grid!,
+                                positionMs: _position,
+                                color: Colors.white,
+                                size: 44,
+                              ),
+                            ),
                           ),
                       ],
                     ),

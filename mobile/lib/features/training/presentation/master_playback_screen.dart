@@ -12,10 +12,15 @@ import '../playback/reference_timeline.dart';
 import '../comparison/follow_mode.dart';
 import '../comparison/session_summary.dart';
 import '../history/saved_session.dart';
+import '../game/dance_game.dart';
 import '../history/session_store.dart';
+import 'beat_count.dart';
 import 'body_features_panel.dart';
 import 'dance_game_screen.dart';
+import 'game_widgets.dart';
 import 'live_comparison_panel.dart';
+import 'move_drill_screen.dart';
+import 'move_pictogram.dart';
 import 'session_summary_panel.dart';
 
 class MasterPlaybackScreen extends StatefulWidget {
@@ -28,6 +33,7 @@ class MasterPlaybackScreen extends StatefulWidget {
     this.createController,
     this.sessionStore,
     this.onSessionSaved,
+    this.openStepDrill,
     super.key,
   });
   final SavedReference saved;
@@ -42,6 +48,9 @@ class MasterPlaybackScreen extends StatefulWidget {
 
   /// Background follow-up after a durable save (the sync queue); errors ignored.
   final Future<void> Function()? onSessionSaved;
+
+  /// Replaces the step drill (tests).
+  final Widget Function(RoutineStep step)? openStepDrill;
 
   @override
   State<MasterPlaybackScreen> createState() => _MasterPlaybackScreenState();
@@ -309,6 +318,62 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
     );
   }
 
+  /// Learn one of the instructor's steps: looped, slower, rated every pass.
+  /// It starts at 0,5× unless the learner already picked a slower speed.
+  Future<void> _drillStep(RoutineStep step) async {
+    final file = await widget.cache.read(_metadata);
+    if (file == null || !mounted) return;
+    await _command((c) => c.pause());
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            widget.openStepDrill?.call(step) ??
+            MoveDrillScreen(
+              saved: widget.saved,
+              videoFile: file,
+              move: DanceMove(step.index, step.startMs, step.endMs),
+              step: step,
+              followMode: _followMode,
+              initialSpeed: _speed < 1 ? _speed : 0.5,
+              createController: widget.createController,
+            ),
+      ),
+    );
+  }
+
+  Widget _stepTile(RoutineStep step) {
+    final pose = keySample(
+      widget.saved.reference,
+      DanceMove(step.index, step.startMs, step.endMs),
+    );
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: pose == null
+          ? CircleAvatar(child: Text('${step.index + 1}'))
+          : MovePictogram(sample: pose, size: 48),
+      title: Text('${step.index + 1}. ${step.name}'),
+      subtitle: Text(
+        [
+          '${step.counts} tiempos · desde ${clockTime(step.startMs)}',
+          if (step.tip.isNotEmpty) step.tip,
+        ].join('\n'),
+      ),
+      isThreeLine: step.tip.isNotEmpty,
+      // Tapping the step shows where it starts in the master.
+      onTap: _busy
+          ? null
+          : () => _command((c) async {
+              await c.pause();
+              await c.seekTo(Duration(milliseconds: step.startMs));
+            }),
+      trailing: TextButton(
+        onPressed: _busy || _saving ? null : () => _drillStep(step),
+        child: const Text('Practicar'),
+      ),
+    );
+  }
+
   /// Deleting the master is never a side effect of a stray tap: it is off
   /// during a practice and always asks first.
   Future<void> _confirmRemove() async {
@@ -452,6 +517,12 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
                   '${(value.position.inMilliseconds / 1000).toStringAsFixed(1)} / '
                   '${(value.duration.inMilliseconds / 1000).toStringAsFixed(1)} s',
                 ),
+                if (_metadata.beatGrid != null)
+                  BeatCount(
+                    grid: _metadata.beatGrid!,
+                    positionMs: value.position.inMilliseconds,
+                    size: 32,
+                  ),
                 Slider(
                   value:
                       (_dragPosition ??
@@ -558,6 +629,18 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
                               : FollowMode.sameSide,
                         ),
                 ),
+                if (!_practice && _metadata.steps.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Pasos de la rutina',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const Text(
+                    'Toca un paso para ver dónde empieza. Practícalo en bucle, '
+                    'más lento, con la cámara y las cuentas en pantalla.',
+                  ),
+                  for (final step in _metadata.steps) _stepTile(step),
+                ],
                 TextButton.icon(
                   onPressed:
                       _busy ||

@@ -71,6 +71,13 @@ class BeatGrid {
     );
   }
 
+  /// The counted beat being danced at [positionMs] (0 = the first "1");
+  /// null before it.
+  int? beatAt(int positionMs) {
+    final beat = ((positionMs - firstBeatMs) / beatMs + 1e-6).floor();
+    return beat < 0 ? null : beat;
+  }
+
   Map<String, dynamic> toJson() => {
     'beat_grid': {
       'version': version,
@@ -78,6 +85,88 @@ class BeatGrid {
       'first_beat_ms': firstBeatMs,
       'beats_per_move': beatsPerMove,
     },
+  };
+}
+
+/// A step the instructor marked (`scoring_profile.steps`, `routine-steps-v1`):
+/// a stretch of the master to learn on its own, looped and slower. Written by
+/// `apps/studio/choreography.py`; the shared fixture is
+/// `test/fixtures/references/scoring_profile_v1.json`.
+class RoutineStep {
+  const RoutineStep({
+    required this.index,
+    required this.name,
+    required this.startMs,
+    required this.endMs,
+    required this.counts,
+    this.tip = '',
+  });
+  static const version = 'routine-steps-v1';
+  static const maxSteps = 40, maxCounts = 32, maxName = 60, maxTip = 140;
+
+  /// Position in the routine, from 0.
+  final int index;
+  final String name, tip;
+  final int startMs, endMs;
+
+  /// Length in counted beats.
+  final int counts;
+
+  /// All the steps, or none: a malformed list never blocks the download, it
+  /// only hides the step list (the same rule as the beat grid).
+  static List<RoutineStep> parseAll(Object? profile, int durationMs) {
+    if (profile is! Map<String, dynamic>) return const [];
+    final block = profile['steps'];
+    if (block is! Map<String, dynamic> || block['version'] != version) {
+      return const [];
+    }
+    final items = block['items'];
+    if (items is! List || items.isEmpty || items.length > maxSteps) {
+      return const [];
+    }
+    final steps = <RoutineStep>[];
+    var previousEnd = 0;
+    for (final item in items) {
+      if (item is! Map<String, dynamic>) return const [];
+      final name = item['name'];
+      final tip = item['tip'] ?? '';
+      final start = item['start_ms'];
+      final end = item['end_ms'];
+      final counts = item['counts'];
+      if (name is! String || name.trim().isEmpty || name.length > maxName) {
+        return const [];
+      }
+      if (tip is! String || tip.length > maxTip) return const [];
+      // In order, not overlapping, inside the video.
+      if (start is! int ||
+          end is! int ||
+          start < previousEnd ||
+          end <= start ||
+          end > durationMs) {
+        return const [];
+      }
+      if (counts is! int || counts < 1 || counts > maxCounts) return const [];
+      steps.add(
+        RoutineStep(
+          index: steps.length,
+          name: name.trim(),
+          startMs: start,
+          endMs: end,
+          counts: counts,
+          tip: tip.trim(),
+        ),
+      );
+      previousEnd = end;
+    }
+    return List.unmodifiable(steps);
+  }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'start_ms': startMs,
+    'end_ms': endMs,
+    'counts': counts,
+    'tip': tip,
   };
 }
 
@@ -91,6 +180,10 @@ class ReferenceMetadata {
       engine = json['engine_name'] as String,
       downloadUrl = json['download_url'] as String,
       beatGrid = BeatGrid.tryParse(
+        json['scoring_profile'],
+        positiveInt(json['duration_ms']),
+      ),
+      steps = RoutineStep.parseAll(
         json['scoring_profile'],
         positiveInt(json['duration_ms']),
       ) {
@@ -109,8 +202,12 @@ class ReferenceMetadata {
   final int routineId, version, durationMs;
   final String checksum, sourceHash, engine, downloadUrl;
 
-  /// Present for generated choreographies; stock videos have no known tempo.
+  /// Present for generated choreographies and when the instructor marked the
+  /// tempo; stock videos have no known tempo.
   final BeatGrid? beatGrid;
+
+  /// The instructor's steps, in order; empty when none were marked.
+  final List<RoutineStep> steps;
   Map<String, dynamic> toJson() => {
     'routine': routineId,
     'version': version,
@@ -124,7 +221,15 @@ class ReferenceMetadata {
     'feature_schema': 'motion-features-v1',
     'algorithm_version': 'reference-body-v1',
     'sample_rate_hz': 12,
-    if (beatGrid != null) 'scoring_profile': beatGrid!.toJson(),
+    if (beatGrid != null || steps.isNotEmpty)
+      'scoring_profile': {
+        ...?beatGrid?.toJson(),
+        if (steps.isNotEmpty)
+          'steps': {
+            'version': RoutineStep.version,
+            'items': [for (final step in steps) step.toJson()],
+          },
+      },
   };
 }
 

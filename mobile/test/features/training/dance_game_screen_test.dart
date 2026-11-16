@@ -47,6 +47,8 @@ class GameHarness {
   final cues = <String>[];
   late final sounds = recordingSounds(cues);
 
+  /// Set before mounting: the reference reads it once.
+  Map<String, dynamic>? scoringProfile;
   late final MotionReference reference = _reference();
 
   MotionReference _reference() {
@@ -55,7 +57,11 @@ class GameHarness {
       (joint, point) => MapEntry(joint, (x: point.x, y: point.y)),
     );
     return MotionReference(
-      ReferenceMetadata.fromJson({...metadataJson(), 'duration_ms': 3000}),
+      ReferenceMetadata.fromJson({
+        ...metadataJson(),
+        'duration_ms': 3000,
+        'scoring_profile': ?scoringProfile,
+      }),
       [
         for (var i = 0; i < 36; i++)
           MotionSample(
@@ -90,11 +96,12 @@ class GameHarness {
     ),
   );
 
-  Future<void> mountDrill(DanceMove move) => _pump(
+  Future<void> mountDrill(DanceMove move, {RoutineStep? step}) => _pump(
     () => MoveDrillScreen(
       saved: SavedReference('Guerrero II', reference),
       videoFile: File('master.mp4'),
       move: move,
+      step: step,
       followMode: FollowMode.sameSide,
       createController: (_) => player,
       capture: capture,

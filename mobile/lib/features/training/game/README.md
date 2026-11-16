@@ -30,13 +30,34 @@ Rutinas → referencia guardada → Abrir maestro (con video descargado) →
 Volver atrás durante la canción o salir de la app termina la partida y la
 guarda; no hay forma manos libres de reanudar.
 
+## Pasos del instructor (`routine-steps-v1`)
+
+Implementado el 2026-11-16. Si la referencia trae `scoring_profile.steps`
+(los pasos que el instructor marcó y publicó desde el estudio web), el
+reproductor del maestro muestra «Pasos de la rutina»: nombre, duración en
+tiempos, consejo y el pictograma de la pose clave de cada paso. Tocar un paso
+lleva el video a donde empieza; «Practicar» abre `MoveDrillScreen` con ese
+tramo en bucle, a 0,5× salvo que el alumno ya haya elegido 0,75×, con el nombre
+y el consejo del paso. Con rejilla de tiempos, el maestro y la práctica en
+bucle muestran la cuenta que se baila («5», «ocho 2»).
+
+`RoutineStep.parseAll` acepta todos los pasos o ninguno: en orden, sin
+solaparse, dentro del video, con 1–32 tiempos, nombre de hasta 60 caracteres y
+consejo de hasta 140. Una lista mal formada se ignora y no impide la descarga,
+igual que la rejilla. La fixture compartida con Python es
+`test/fixtures/references/scoring_profile_v1.json`.
+
+Pendiente en un teléfono físico: que un alumno practique el paso 3 de una
+rutina real en bucle a 0,5× y que la cuenta en pantalla coincida con la música.
+
 ## Calificación (`dance-game-v2`, provisional)
 
 `DanceGame` consume la salida del scorer (`SessionAccumulator`); no cambia cómo
 se comparan las poses.
 
 - **Movimientos al ritmo (v2):** si la referencia trae `scoring_profile.beat_grid`
-  (las coreografías generadas del estándar), cada movimiento dura
+  (las coreografías generadas del estándar y las rutinas a las que el
+  instructor les marcó el tempo en el estudio), cada movimiento dura
   `beats_per_move` tiempos desde el primer «1», así que las calificaciones caen
   sobre la música y la entrada «5, 6, 7, 8» nunca se califica. Sin rejilla
   (videos de stock, tempo desconocido) se usan ventanas de 1 s desde el inicio.

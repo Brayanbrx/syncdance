@@ -141,6 +141,79 @@ void main() {
     await tester.pump();
   }
 
+  testWidgets('the instructor steps are listed and each opens its drill', (
+    tester,
+  ) async {
+    saved = SavedReference(
+      'Maestro demo',
+      decodeReference(
+        referenceBytes(),
+        ReferenceMetadata.fromJson({
+          ...metadataJson(),
+          'scoring_profile': {
+            'beat_grid': {
+              'version': 'beat-grid-v1',
+              'bpm': 120,
+              'first_beat_ms': 0,
+              'beats_per_move': 2,
+            },
+            'steps': {
+              'version': 'routine-steps-v1',
+              'items': [
+                {
+                  'name': 'Entrada',
+                  'start_ms': 0,
+                  'end_ms': 125,
+                  'counts': 1,
+                  'tip': '',
+                },
+                {
+                  'name': 'Brazos',
+                  'start_ms': 125,
+                  'end_ms': 250,
+                  'counts': 1,
+                  'tip': 'Arriba en el 8.',
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    );
+    final opened = <String>[];
+    final player = TestPlayer();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MasterPlaybackScreen(
+          saved: saved,
+          api: api,
+          account: const Account(1, 'demo', 'token'),
+          cache: LocalVideo(),
+          createController: (_) => player,
+          sessionStore: MemorySessionStore(),
+          openStepDrill: (step) {
+            opened.add(step.name);
+            return Text('Practicando ${step.name}');
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // The counts of the beat grid follow the master.
+    expect(find.text('ocho 1'), findsOneWidget);
+    await tester.ensureVisible(find.text('Pasos de la rutina'));
+    expect(find.text('1. Entrada'), findsOneWidget);
+    expect(find.textContaining('Arriba en el 8.'), findsOneWidget);
+    // Tapping a step shows where it starts.
+    await tester.tap(find.text('2. Brazos'));
+    await tester.pumpAndSettle();
+    expect(player.value.position, const Duration(milliseconds: 125));
+    await tester.tap(find.text('Practicar').last);
+    await tester.pumpAndSettle();
+    expect(opened, ['Brazos']);
+    expect(find.text('Practicando Brazos'), findsOneWidget);
+  });
+
   testWidgets(
     'learn mode slows the master and the practice keeps that speed',
     (tester) async {

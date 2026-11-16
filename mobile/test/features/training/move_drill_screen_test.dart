@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:syncdance_mobile/features/routines/reference/motion_reference.dart';
 import 'package:syncdance_mobile/features/training/game/dance_game.dart';
 import 'package:syncdance_mobile/features/training/pose/pose_frame.dart';
 import 'package:syncdance_mobile/features/training/presentation/move_pictogram.dart';
@@ -81,6 +82,37 @@ void main() {
     expect(find.text('Pasadas: 3 · mejor: PERFECT'), findsOneWidget);
     // Not being seen is not a mistake: no MISS cue for an unmeasured pass.
     expect(game.cues.skip(4), ['perfect', 'good']);
+  });
+
+  testWidgets('an instructor step shows its name, tip and the counts', (
+    tester,
+  ) async {
+    final game = GameHarness(tester)
+      ..scoringProfile = {
+        'beat_grid': {
+          'version': 'beat-grid-v1',
+          'bpm': 120,
+          'first_beat_ms': 1000,
+          'beats_per_move': 2,
+        },
+      };
+    const step = RoutineStep(
+      index: 1,
+      name: 'Giro',
+      startMs: 1000,
+      endMs: 2000,
+      counts: 2,
+      tip: 'Mira al frente al terminar.',
+    );
+    await game.mountDrill(const DanceMove(1, 1000, 2000), step: step);
+    expect(find.text('Giro'), findsOneWidget);
+    expect(find.text('Mira al frente al terminar.'), findsOneWidget);
+    await game.calibrate();
+    await game.countdown();
+    // 120 BPM from 1000 ms: 1600 ms is the second beat of the first eight.
+    await game.playAt(1600);
+    expect(find.text('2'), findsOneWidget);
+    expect(find.text('ocho 1'), findsOneWidget);
   });
 
   testWidgets('a stalled camera stops the countdown of the drill', (
