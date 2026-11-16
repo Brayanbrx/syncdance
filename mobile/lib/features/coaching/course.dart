@@ -63,19 +63,41 @@ class CourseAssignment {
       );
 }
 
+/// A routine the instructor published for the course, besides its tasks.
+class CourseRoutine {
+  const CourseRoutine({required this.id, required this.name, this.style = ''});
+
+  final int id;
+  final String name, style;
+
+  factory CourseRoutine.fromJson(Map<String, dynamic> json) => CourseRoutine(
+    id: positiveInt(json['id']),
+    name: _text(json['name']),
+    style: _text(json['style']),
+  );
+}
+
 class Course {
   const Course({
     required this.id,
     required this.name,
     required this.instructor,
     this.assignments = const [],
+    this.routines = const [],
   });
 
   final int id;
   final String name, instructor;
   final List<CourseAssignment> assignments;
+  final List<CourseRoutine> routines;
 
   int get pending => assignments.where((a) => !a.completed).length;
+
+  /// Published routines that are not already a task (shown once, as the task).
+  List<CourseRoutine> get freeRoutines => [
+    for (final routine in routines)
+      if (!assignments.any((a) => a.routineId == routine.id)) routine,
+  ];
 
   factory Course.fromJson(Map<String, dynamic> json) => Course(
     id: positiveInt(json['id']),
@@ -87,6 +109,11 @@ class Course {
               ? json['assignments'] as List
               : const [])
         CourseAssignment.fromJson(object(raw)),
+    ],
+    routines: [
+      for (final raw
+          in json['routines'] is List ? json['routines'] as List : const [])
+        CourseRoutine.fromJson(object(raw)),
     ],
   );
 }

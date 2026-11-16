@@ -148,11 +148,23 @@ class _CoursesScreenState extends State<CoursesScreen> {
     }
   }
 
-  Future<void> _dance(CourseAssignment assignment) async {
+  Future<void> _dance(int routineId) async {
     // The catalog's one-tap Bailar: reference, video and game.
-    await context.push('/routines?start=${assignment.routineId}');
+    await context.push('/routines?start=$routineId');
     if (mounted) await _load(sync: true);
   }
+
+  Widget _routineTile(CourseRoutine routine) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    leading: const Icon(Icons.music_note_outlined),
+    title: Text(routine.name),
+    subtitle: routine.style.isEmpty ? null : Text(routine.style),
+    trailing: IconButton(
+      tooltip: 'Bailar «${routine.name}»',
+      icon: const Icon(Icons.play_circle_fill),
+      onPressed: _busy ? null : () => _dance(routine.id),
+    ),
+  );
 
   Widget _assignmentTile(CourseAssignment assignment) {
     final theme = Theme.of(context);
@@ -196,7 +208,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
         icon: const Icon(Icons.play_circle_fill),
         onPressed: _busy || !assignment.available
             ? null
-            : () => _dance(assignment),
+            : () => _dance(assignment.routineId),
       ),
     );
   }
@@ -241,6 +253,16 @@ class _CoursesScreenState extends State<CoursesScreen> {
             ),
             for (final assignment in course.assignments)
               _assignmentTile(assignment),
+            if (course.freeRoutines.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Rutinas del curso',
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+              for (final routine in course.freeRoutines) _routineTile(routine),
+            ],
           ],
         ),
       ),

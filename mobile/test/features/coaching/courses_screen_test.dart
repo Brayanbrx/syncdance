@@ -60,6 +60,7 @@ Future<void> tapAndWait(WidgetTester tester, Finder finder) async {
 
 void main() {
   const account = Account(1, 'ana', 'token');
+  courseRoutinesTests();
 
   test('assignments parse leniently: no evidence stays null', () {
     final course = Course.fromJson(
@@ -251,5 +252,59 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+}
+
+void courseRoutinesTests() {
+  testWidgets('the course lists its routines once and dances them', (
+    tester,
+  ) async {
+    final json = courseJson()
+      ..['routines'] = [
+        {'id': 7, 'name': 'Paso básico', 'style': ''}, // already a task
+        {'id': 12, 'name': 'Urbano del curso', 'style': 'Urbano'},
+      ];
+    final api = CatalogApi(
+      'http://localhost:8000/api',
+      client: MockClient((request) async {
+        final path = request.url.path;
+        if (path.endsWith('coaching/courses/')) return reply(page([json]));
+        if (path.endsWith('coaching/notes/')) return reply(page([]));
+        return reply('', 404);
+      }),
+    );
+    addTearDown(api.close);
+    final router = GoRouter(
+      initialLocation: '/courses',
+      routes: [
+        GoRoute(
+          path: '/courses',
+          builder: (_, _) => CoursesScreen(
+            session: CatalogSession(api)
+              ..account = const Account(1, 'ana', 'token'),
+            syncPractices: () async {},
+          ),
+        ),
+        GoRoute(
+          path: '/routines',
+          builder: (_, state) => Scaffold(
+            body: Text('Bailar ${state.uri.queryParameters['start']}'),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rutinas del curso'), findsOneWidget);
+    expect(find.text('Urbano del curso'), findsOneWidget);
+    expect(find.text('Paso básico'), findsOneWidget); // only as the task
+    await tester.tap(find.byTooltip('Bailar «Urbano del curso»'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bailar 12'), findsOneWidget);
   });
 }
