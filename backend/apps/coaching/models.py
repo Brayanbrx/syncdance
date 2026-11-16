@@ -38,6 +38,14 @@ class Course(models.Model):
         default=True,
         help_text="Desmarcar para cerrar las inscripciones con el código.",
     )
+    # Routines the instructor published for this course: its students see
+    # them even when they are not in the SyncDance catalog.
+    published_routines = models.ManyToManyField(
+        "routines.Routine",
+        blank=True,
+        related_name="published_in_courses",
+        verbose_name="rutinas publicadas",
+    )
     created_at = models.DateTimeField("creado", auto_now_add=True)
 
     class Meta:

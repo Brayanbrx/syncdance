@@ -6,8 +6,16 @@ from .reference_services import queue_reference
 
 @admin.register(Routine)
 class RoutineAdmin(admin.ModelAdmin):
-    list_display = ("name", "instructor", "difficulty", "duration_ms", "is_active")
-    list_filter = ("difficulty", "is_active")
+    list_display = (
+        "name",
+        "instructor",
+        "difficulty",
+        "visibility",
+        "published_at",
+        "duration_ms",
+        "is_active",
+    )
+    list_filter = ("visibility", "difficulty", "is_active")
     search_fields = ("name",)
     actions = ("generate_references",)
 

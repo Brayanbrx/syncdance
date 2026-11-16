@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
@@ -46,9 +46,19 @@ class AssignmentInline(CourseInlineAccess, admin.TabularInline):
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "routine":
-            # Students only see active routines in the app.
-            kwargs["queryset"] = Routine.objects.filter(is_active=True).order_by("name")
+            kwargs["queryset"] = assignable_routines(request.user)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+def assignable_routines(user):
+    """Active routines an instructor may give their course: the published
+    SyncDance catalog and their own (never another instructor's private ones).
+    An assignment also shows the routine to the course's students."""
+    routines = Routine.objects.filter(is_active=True).order_by("name")
+    if user.manages_all_courses:
+        return routines
+    catalog = Q(visibility=Routine.Visibility.CATALOG, published_at__isnull=False)
+    return routines.filter(catalog | Q(instructor=user))
 
 
 class EnrollmentInline(CourseInlineAccess, admin.TabularInline):
@@ -77,6 +87,14 @@ class CourseAdmin(admin.ModelAdmin):
     list_filter = ("accepts_students",)
     search_fields = ("name", "join_code")
     readonly_fields = ("join_code", "created_at")
+    filter_horizontal = ("published_routines",)
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "published_routines":
+            # Published here, a routine is seen by this course's students.
+            kwargs["queryset"] = assignable_routines(request.user)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
     inlines = (AssignmentInline, EnrollmentInline)
     actions = ("new_codes",)
 
@@ -106,7 +124,7 @@ class CourseAdmin(admin.ModelAdmin):
         return can_coach(request.user) and self._owns(request, obj)
 
     def get_fields(self, request, obj=None):
-        fields = ["name", "accepts_students", "join_code", "created_at"]
+        fields = ["name", "accepts_students", "join_code", "created_at", "published_routines"]
         if request.user.manages_all_courses:
             fields.insert(1, "instructor")
         return fields

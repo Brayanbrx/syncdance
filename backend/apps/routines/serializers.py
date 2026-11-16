@@ -19,6 +19,8 @@ class RoutineSerializer(serializers.ModelSerializer):
             "master_video",
             "duration_ms",
             "is_active",
+            "visibility",
+            "published_at",
             "catalog_key",
             "source_url",
             "license_name",
@@ -31,6 +33,8 @@ class RoutineSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "id",
             "instructor",
+            "visibility",
+            "published_at",
             "catalog_key",
             "generator",
             "curriculum_position",

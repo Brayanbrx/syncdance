@@ -6,6 +6,10 @@ from .reference_services import queue_reference
 
 @transaction.atomic
 def create_routine(*, instructor, **validated_data) -> Routine:
+    """An instructor's routine starts as a draft for their own courses; an
+    administrator's goes straight to the SyncDance catalog, as before."""
+    if not instructor.manages_all_courses:
+        validated_data.update(visibility=Routine.Visibility.COURSES, published_at=None)
     routine = Routine.objects.create(instructor=instructor, **validated_data)
     if routine.master_video:
         queue_reference(routine_id=routine.pk)

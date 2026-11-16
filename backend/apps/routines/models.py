@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
+from django.utils import timezone
 
 
 class Routine(models.Model):
@@ -9,6 +10,15 @@ class Routine(models.Model):
         BEGINNER = "BEGINNER", "Principiante"
         INTERMEDIATE = "INTERMEDIATE", "Intermedio"
         ADVANCED = "ADVANCED", "Avanzado"
+
+    class Visibility(models.TextChoices):
+        CATALOG = "CATALOG", "Catálogo SyncDance"
+        COURSES = "COURSES", "Solo en cursos"
+
+    class MusicRights(models.TextChoices):
+        OWN = "OWN", "Música propia"
+        LICENSED = "LICENSED", "Con licencia o permiso"
+        FREE = "FREE", "Libre de derechos"
 
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
@@ -34,6 +44,20 @@ class Routine(models.Model):
     curriculum_position = models.PositiveSmallIntegerField(null=True, blank=True)
     duration_ms = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    # Who may see the routine once published. The SyncDance catalog is set by
+    # platform administrators (that is the review); an instructor publishes
+    # in their own courses (coaching.Course.published_routines).
+    visibility = models.CharField(
+        "visibilidad", max_length=12, choices=Visibility.choices, default=Visibility.CATALOG
+    )
+    # Null: a draft only its instructor sees. Administrators' routines and the
+    # generated catalog are published on creation; the studio starts drafts.
+    published_at = models.DateTimeField("publicada el", null=True, blank=True, default=timezone.now)
+    # The instructor states the right to use the music before publishing.
+    music_rights = models.CharField(
+        "derechos de la música", max_length=12, choices=MusicRights.choices, blank=True
+    )
+    rights_declared_at = models.DateTimeField("derechos declarados el", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -42,6 +66,10 @@ class Routine(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_published(self):
+        return self.published_at is not None
 
 
 class RoutineReference(models.Model):
