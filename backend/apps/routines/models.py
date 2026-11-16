@@ -80,6 +80,10 @@ class Routine(models.Model):
         verbose_name="revisada por",
     )
     catalog_review_note = models.TextField("motivo", blank=True)
+    # The instructor's draft of tempo and steps, counted in beats, with the
+    # master video it was marked on (`apps.studio.choreography`). Publishing
+    # freezes it into the reference's scoring_profile.
+    choreography = models.JSONField("compás y pasos (borrador)", default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

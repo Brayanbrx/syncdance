@@ -11,6 +11,7 @@ administradores (`IsInstructorOrAdmin`), y cada uno ve únicamente sus rutinas.
 | `POST /api/studio/routines/{id}/publish/` | Publicar en sus cursos: `{"courses": [...], "music_rights": "OWN"}` |
 | `POST /api/studio/routines/{id}/unpublish/` | Volver a borrador (también sale del catálogo) |
 | `POST/DELETE /api/studio/routines/{id}/catalog/` | Proponer al catálogo SyncDance / retirar la propuesta o salir del catálogo |
+| `PUT /api/studio/routines/{id}/choreography/` | Guardar tempo y pasos: `{"bpm", "first_beat_ms", "steps": [{"name", "start_beat", "counts", "tip"}]}`; `bpm: null` los borra |
 | `GET /api/studio/routines/{id}/quality/` | Informe de calidad de la referencia (404 si no está lista) |
 | `GET /api/studio/courses/` | Sus cursos, con el número de alumnos |
 
@@ -43,6 +44,22 @@ administradores (`IsInstructorOrAdmin`), y cada uno ve únicamente sus rutinas.
   de 1 s o más sin una sola persona medible. El 80 % y el segundo son
   **provisionales** hasta la validación física (E2). Sin muestras, los
   porcentajes son `null`, nunca 0.
+- **Compás y pasos** (`choreography.py`): el instructor marca el tempo
+  (60–180 BPM) y dónde cae el primer «1», y divide la rutina en pasos con
+  nombre, inicio en tiempos desde ese «1», duración en tiempos (1–32) y un
+  consejo breve. Los pasos no se solapan y terminan dentro del video. Se
+  guardan como **borrador** en `Routine.choreography`, junto con el video en el
+  que se marcaron, y se pueden editar cuando quiera.
+- **Publicar congela** el borrador en el `scoring_profile` de la referencia, en
+  milisegundos: `beat_grid` (`beat-grid-v1`) y `steps` (`routine-steps-v1`).
+  Una versión READY nunca se edita: si cambiaron, se crea otra versión que
+  reutiliza los mismos archivos (análisis, video ligero y miniatura), sin
+  volver a procesar. `choreography.unpublished_changes` avisa cuando lo
+  publicado no coincide con el borrador.
+- **Un video nuevo** conserva los pasos (están contados en tiempos) pero pide
+  revisar el primer «1»: `choreography.stale` y publicar responde 409 hasta
+  guardar de nuevo. La fixture `mobile/test/fixtures/references/scoring_profile_v1.json`
+  fija el formato que leen Python y Dart.
 - **Video para los alumnos:** el worker prepara una versión de 720p y una
   miniatura (ver `apps/routines/README.md`). `processing.light_video` y
   `processing.poster` dicen si la versión actual las tiene; la web muestra la

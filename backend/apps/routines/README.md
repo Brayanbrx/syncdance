@@ -86,6 +86,12 @@ Todas las rutas llevan `/api/routines/{id}/` y autenticación JWT:
 | GET `references/{version}/video/` | Video que reproduce el teléfono (`ETag` = `source_sha256`) |
 | GET `references/{version}/poster/` | Miniatura JPEG; 404 si esa versión no tiene |
 
+`scoring_profile` puede traer `beat_grid` (`beat-grid-v1`: tempo, primer tiempo y
+tiempos por movimiento del juego) y `steps` (`routine-steps-v1`: los pasos que marcó
+el instructor, con `name`, `start_ms`, `end_ms`, `counts` y `tip`). Las coreografías
+generadas traen el compás; las rutinas del estudio, lo que el instructor publicó
+(ver `apps/studio/README.md`).
+
 `reference_asset` se conserva por compatibilidad. El cliente nuevo debe usar
 `download_url`. En desarrollo `/media/` continúa siendo servido por Django;
 autenticar esta ruta de descarga no convierte el storage público en privado.

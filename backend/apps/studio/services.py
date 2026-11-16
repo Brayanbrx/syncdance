@@ -3,13 +3,15 @@ import tempfile
 from pathlib import Path
 
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 
 from ai_engine.pose.reference import MAX_DURATION_SECONDS, MAX_SOURCE_BYTES
 from apps.coaching.models import Course
-from apps.routines.models import Routine
+from apps.routines.models import Routine, RoutineReference
 from apps.routines.services import create_routine, update_routine
 
+from . import choreography
 from .quality import quality_report
 
 logger = logging.getLogger(__name__)
@@ -140,6 +142,7 @@ def publish(*, routine, user, course_ids, music_rights=None) -> Routine:
         raise StudioError("Elige al menos un curso.", field="courses")
     if chosen - set(own.values_list("pk", flat=True)):
         raise StudioError("Solo puedes publicar en tus cursos.", field="courses")
+    freeze_choreography(routine=routine, reference=reference)
     if rights != routine.music_rights or routine.rights_declared_at is None:
         routine.music_rights = rights
         routine.rights_declared_at = timezone.now()
@@ -152,6 +155,77 @@ def publish(*, routine, user, course_ids, music_rights=None) -> Routine:
             course.published_routines.remove(routine)
     logger.info("routine published", extra={"routine_id": routine.pk, "courses": sorted(chosen)})
     return routine
+
+
+def choreography_is_stale(routine) -> bool:
+    """The tempo was marked on a video that has since been replaced."""
+    draft = routine.choreography or {}
+    return bool(draft) and draft.get("video") != routine.master_video.name
+
+
+def save_choreography(*, routine, draft) -> Routine:
+    """Keep the instructor's tempo and steps; students get them on publish."""
+    reference = current_reference(routine)
+    if reference is None or reference.status != "READY":
+        raise StudioError(
+            "Espera a que termine el procesamiento del video para marcar el compás.",
+            conflict=True,
+        )
+    try:
+        cleaned = choreography.clean(draft, duration_ms=reference.duration_ms)
+    except choreography.ChoreographyError as error:
+        raise StudioError(str(error), field=error.field) from error
+    routine.choreography = {**cleaned, "video": routine.master_video.name} if cleaned else {}
+    routine.save(update_fields=["choreography"])
+    return routine
+
+
+def frozen_profile(routine, reference) -> dict:
+    """The scoring_profile the draft would publish for this reference."""
+    return choreography.profile(routine.choreography, duration_ms=reference.duration_ms)
+
+
+def freeze_choreography(*, routine, reference) -> RoutineReference:
+    """Publishing carries the tempo and steps to the phone. A READY version is
+    never edited: when they changed, a new version reuses the same files (the
+    analysis, the light video and the poster), with no reprocessing."""
+    if choreography_is_stale(routine):
+        raise StudioError(
+            "Cambiaste el video: revisa el primer tiempo en «Compás y pasos» y guarda, o bórralos.",
+            conflict=True,
+        )
+    wanted = frozen_profile(routine, reference)
+    if wanted == reference.scoring_profile:
+        return reference
+    # Serialize version numbers for this routine, as queue_reference does.
+    Routine.objects.select_for_update().get(pk=routine.pk)
+    version = (routine.references.aggregate(value=Max("version"))["value"] or 0) + 1
+    frozen = RoutineReference.objects.create(
+        routine=routine,
+        version=version,
+        status=RoutineReference.Status.READY,
+        engine_name=reference.engine_name,
+        pose_schema_version=reference.pose_schema_version,
+        feature_schema=reference.feature_schema,
+        algorithm_version=reference.algorithm_version,
+        sample_rate_hz=reference.sample_rate_hz,
+        duration_ms=reference.duration_ms,
+        reference_asset=reference.reference_asset.name,
+        checksum_sha256=reference.checksum_sha256,
+        source_video=reference.source_video.name,
+        source_sha256=reference.source_sha256,
+        playback_video=reference.playback_video.name,
+        playback_profile=reference.playback_profile,
+        poster=reference.poster.name,
+        scoring_profile=wanted,
+        processing_started_at=reference.processing_started_at,
+        processing_finished_at=reference.processing_finished_at,
+    )
+    logger.info(
+        "choreography frozen",
+        extra={"routine_id": routine.pk, "version": version, "from_version": reference.version},
+    )
+    return frozen
 
 
 def unpublish(*, routine) -> Routine:

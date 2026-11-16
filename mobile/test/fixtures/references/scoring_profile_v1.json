@@ -1,0 +1,62 @@
+{
+  "_comment": "routine-steps-v1 contract: Python (apps/studio/choreography.py) writes this profile from the draft; Dart (motion_reference.dart) reads it.",
+  "duration_ms": 15000,
+  "draft": {
+    "bpm": 112.0,
+    "first_beat_ms": 1250,
+    "steps": [
+      {
+        "name": "Paso cruzado",
+        "start_beat": 0,
+        "counts": 8,
+        "tip": "Cruza el pie derecho por delante del izquierdo."
+      },
+      {
+        "name": "Giro",
+        "start_beat": 8,
+        "counts": 4,
+        "tip": ""
+      },
+      {
+        "name": "Cierre con brazos",
+        "start_beat": 16,
+        "counts": 8,
+        "tip": "Los brazos terminan arriba en el 8."
+      }
+    ]
+  },
+  "profile": {
+    "beat_grid": {
+      "version": "beat-grid-v1",
+      "bpm": 112.0,
+      "first_beat_ms": 1250,
+      "beats_per_move": 2
+    },
+    "steps": {
+      "version": "routine-steps-v1",
+      "items": [
+        {
+          "name": "Paso cruzado",
+          "start_ms": 1250,
+          "end_ms": 5536,
+          "counts": 8,
+          "tip": "Cruza el pie derecho por delante del izquierdo."
+        },
+        {
+          "name": "Giro",
+          "start_ms": 5536,
+          "end_ms": 7679,
+          "counts": 4,
+          "tip": ""
+        },
+        {
+          "name": "Cierre con brazos",
+          "start_ms": 9821,
+          "end_ms": 14107,
+          "counts": 8,
+          "tip": "Los brazos terminan arriba en el 8."
+        }
+      ]
+    }
+  }
+}

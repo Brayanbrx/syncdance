@@ -12,6 +12,7 @@ from common.permissions import IsInstructorOrAdmin
 
 from .quality import quality_report
 from .serializers import (
+    ChoreographySerializer,
     PublishSerializer,
     QualityReportSerializer,
     StudioCourseSerializer,
@@ -25,6 +26,7 @@ from .services import (
     delete_routine,
     propose_for_catalog,
     publish,
+    save_choreography,
     unpublish,
     update_studio_routine,
     withdraw_from_catalog,
@@ -140,6 +142,22 @@ class StudioRoutineViewSet(
         action = propose_for_catalog if request.method == "POST" else withdraw_from_catalog
         try:
             routine = action(routine=self.get_object())
+        except StudioError as error:
+            return refused(error)
+        return self._answer(routine)
+
+    @extend_schema(
+        request=ChoreographySerializer,
+        responses={200: StudioRoutineSerializer, 409: DetailSerializer},
+        description="Save the tempo and steps; students get them when it is published.",
+    )
+    @action(detail=True, methods=["put"])
+    def choreography(self, request, pk=None):
+        routine = self.get_object()
+        data = ChoreographySerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        try:
+            save_choreography(routine=routine, draft=data.validated_data)
         except StudioError as error:
             return refused(error)
         return self._answer(routine)

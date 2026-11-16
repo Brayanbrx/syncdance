@@ -4,7 +4,8 @@ from rest_framework import serializers
 from apps.coaching.models import Course
 from apps.routines.models import Routine
 
-from .services import current_reference
+from . import choreography
+from .services import choreography_is_stale, current_reference, frozen_profile
 
 
 class ProcessingSerializer(serializers.Serializer):
@@ -18,8 +19,39 @@ class ProcessingSerializer(serializers.Serializer):
     poster = serializers.BooleanField()
 
 
+class ChoreographyStepSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=choreography.NAME_LENGTH)
+    start_beat = serializers.IntegerField(
+        min_value=0, help_text="Beats from the first beat (0 = the first 1)."
+    )
+    counts = serializers.IntegerField(min_value=1, max_value=choreography.MAX_COUNTS)
+    tip = serializers.CharField(
+        max_length=choreography.TIP_LENGTH, allow_blank=True, required=False, default=""
+    )
+
+
+class ChoreographySerializer(serializers.Serializer):
+    """Tempo and steps as the editor marks them; bpm null clears them."""
+
+    bpm = serializers.FloatField(
+        allow_null=True, min_value=choreography.MIN_BPM, max_value=choreography.MAX_BPM
+    )
+    first_beat_ms = serializers.IntegerField(allow_null=True, min_value=0)
+    steps = ChoreographyStepSerializer(
+        many=True, required=False, max_length=choreography.MAX_STEPS, default=list
+    )
+
+
+class ChoreographyStateSerializer(ChoreographySerializer):
+    stale = serializers.BooleanField(help_text="Marked on a video since replaced.")
+    unpublished_changes = serializers.BooleanField(
+        help_text="Published, but students still have other tempo or steps."
+    )
+
+
 class StudioRoutineSerializer(serializers.ModelSerializer):
     processing = serializers.SerializerMethodField()
+    choreography = serializers.SerializerMethodField()
     courses = serializers.SerializerMethodField()
     is_published = serializers.BooleanField(read_only=True)
 
@@ -43,6 +75,7 @@ class StudioRoutineSerializer(serializers.ModelSerializer):
             "duration_ms",
             "is_active",
             "processing",
+            "choreography",
             "courses",
             "created_at",
             "updated_at",
@@ -61,6 +94,26 @@ class StudioRoutineSerializer(serializers.ModelSerializer):
             "finished_at": reference.processing_finished_at,
             "light_video": bool(reference.playback_video),
             "poster": bool(reference.poster),
+        }
+
+    @extend_schema_field(ChoreographyStateSerializer)
+    def get_choreography(self, obj):
+        draft = obj.choreography or {}
+        stale = choreography_is_stale(obj)
+        reference = current_reference(obj)
+        changed = (
+            obj.is_published
+            and not stale
+            and reference is not None
+            and reference.status == "READY"
+            and frozen_profile(obj, reference) != reference.scoring_profile
+        )
+        return {
+            "bpm": draft.get("bpm"),
+            "first_beat_ms": draft.get("first_beat_ms"),
+            "steps": draft.get("steps", []),
+            "stale": stale,
+            "unpublished_changes": changed,
         }
 
     @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
