@@ -23,9 +23,11 @@ from .services import (
     create_studio_routine,
     current_reference,
     delete_routine,
+    propose_for_catalog,
     publish,
     unpublish,
     update_studio_routine,
+    withdraw_from_catalog,
 )
 
 
@@ -120,6 +122,27 @@ class StudioRoutineViewSet(
     @action(detail=True, methods=["post"])
     def unpublish(self, request, pk=None):
         return self._answer(unpublish(routine=self.get_object()))
+
+    @extend_schema(
+        methods=["POST"],
+        request=None,
+        responses={200: StudioRoutineSerializer, 409: DetailSerializer},
+        description="Propose the published routine for the SyncDance catalog.",
+    )
+    @extend_schema(
+        methods=["DELETE"],
+        request=None,
+        responses={200: StudioRoutineSerializer, 409: DetailSerializer},
+        description="Withdraw the proposal, or take the routine out of the catalog.",
+    )
+    @action(detail=True, methods=["post", "delete"])
+    def catalog(self, request, pk=None):
+        action = propose_for_catalog if request.method == "POST" else withdraw_from_catalog
+        try:
+            routine = action(routine=self.get_object())
+        except StudioError as error:
+            return refused(error)
+        return self._answer(routine)
 
     @extend_schema(responses={200: QualityReportSerializer, 404: DetailSerializer})
     @action(detail=True, methods=["get"])

@@ -19,6 +19,9 @@ API del panel web de administración y de la descarga pública de la app.
 | `POST /api/panel/users/{id}/set-password/` | Nueva contraseña (validadores de Django) |
 | `GET/PATCH /api/panel/routines/` | Catálogo con estado de referencia; solo cambia `is_active` |
 | `GET /api/panel/courses/` | Todos los cursos con su código |
+| `GET /api/panel/proposals/` | Rutinas propuestas para el catálogo, la más antigua primero |
+| `POST /api/panel/proposals/{id}/approve/` | Aprobar: la rutina pasa al catálogo SyncDance (204) |
+| `POST /api/panel/proposals/{id}/reject/` | Rechazar con `{"note": "..."}` obligatorio, que lee el instructor (204) |
 | `GET/POST/PATCH/DELETE /api/panel/releases/` | Versiones del APK (multipart al subir) |
 
 Reglas:
@@ -26,6 +29,9 @@ Reglas:
 - Un APK debe terminar en `.apk`, empezar como un zip (`PK\x03\x04`) y pesar
   hasta 250 MB; se guarda su SHA-256 y su tamaño. El código de versión es único.
 - Una versión publicada no se borra: primero se retira de la landing.
+- Una propuesta se responde una sola vez: si otro administrador ya la
+  respondió o el instructor la retiró, aprobar o rechazar devuelve 404 o 409.
+  No se aprueba una rutina oculta (`is_active`) ni retirada de sus cursos.
 - Nadie cambia su propio rol ni se desactiva; solo un superusuario modifica a
   otro superusuario. Pasar a Estudiante quita `is_staff`.
 - Un superusuario siempre tiene el rol Administrador (también los creados con

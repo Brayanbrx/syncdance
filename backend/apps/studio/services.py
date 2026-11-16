@@ -112,6 +112,7 @@ def update_studio_routine(*, routine, **fields) -> Routine:
     if video is not None:
         check_master_video(video)
         fields["published_at"] = None
+        routine.leave_catalog_review()
     return update_routine(routine=routine, **fields)
 
 
@@ -154,8 +155,51 @@ def publish(*, routine, user, course_ids, music_rights=None) -> Routine:
 
 
 def unpublish(*, routine) -> Routine:
+    """Back to draft, out of the courses and out of the catalog."""
     routine.published_at = None
-    routine.save(update_fields=["published_at"])
+    routine.save(update_fields=["published_at", *routine.leave_catalog_review()])
+    return routine
+
+
+def propose_for_catalog(*, routine) -> Routine:
+    """Ask a platform administrator to add the routine to the free catalog.
+    Only a published routine: its rights, quality and courses are settled."""
+    if not routine.is_published:
+        raise StudioError(
+            "Publícala primero en tus cursos: al catálogo llegan rutinas ya probadas.",
+            conflict=True,
+        )
+    if routine.visibility == Routine.Visibility.CATALOG:
+        raise StudioError("Ya está en el catálogo de SyncDance.", conflict=True)
+    if routine.catalog_review == Routine.CatalogReview.PENDING:
+        raise StudioError("Ya está en revisión.", conflict=True)
+    routine.catalog_review = Routine.CatalogReview.PENDING
+    routine.catalog_requested_at = timezone.now()
+    routine.catalog_reviewed_at = None
+    routine.catalog_reviewed_by = None
+    routine.catalog_review_note = ""
+    routine.save(
+        update_fields=[
+            "catalog_review",
+            "catalog_requested_at",
+            "catalog_reviewed_at",
+            "catalog_reviewed_by",
+            "catalog_review_note",
+        ]
+    )
+    logger.info("routine proposed for the catalog", extra={"routine_id": routine.pk})
+    return routine
+
+
+def withdraw_from_catalog(*, routine) -> Routine:
+    """Cancel a proposal, or take an approved routine out of the catalog; it
+    stays published in the instructor's courses."""
+    if routine.catalog_review not in (
+        Routine.CatalogReview.PENDING,
+        Routine.CatalogReview.APPROVED,
+    ):
+        raise StudioError("No está en el catálogo ni en revisión.", conflict=True)
+    routine.save(update_fields=routine.leave_catalog_review())
     return routine
 
 

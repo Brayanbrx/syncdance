@@ -5,6 +5,9 @@ from rest_framework import serializers
 
 from apps.coaching.models import Course
 from apps.routines.models import Routine
+from apps.studio.quality import quality_report
+from apps.studio.serializers import ProcessingSerializer
+from apps.studio.services import current_reference
 
 from .models import AppRelease
 
@@ -164,6 +167,7 @@ class _CatalogSummary(serializers.Serializer):
     references_ready = serializers.IntegerField()
     references_processing = serializers.IntegerField()
     references_failed = serializers.IntegerField()
+    proposals_pending = serializers.IntegerField()
 
 
 class _CoursesSummary(serializers.Serializer):
@@ -178,3 +182,59 @@ class PlatformSummarySerializer(serializers.Serializer):
     catalog = _CatalogSummary()
     courses = _CoursesSummary()
     latest_release = PublicReleaseSerializer(allow_null=True)
+
+
+class CatalogProposalSerializer(serializers.ModelSerializer):
+    """What a reviewer needs to decide: the routine, its video and its quality."""
+
+    instructor = serializers.SlugRelatedField(slug_field="username", read_only=True)
+    courses = serializers.SerializerMethodField()
+    processing = serializers.SerializerMethodField()
+    single_person = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Routine
+        fields = (
+            "id",
+            "name",
+            "description",
+            "style",
+            "difficulty",
+            "instructor",
+            "duration_ms",
+            "music_rights",
+            "rights_declared_at",
+            "catalog_requested_at",
+            "courses",
+            "processing",
+            "single_person",
+        )
+        read_only_fields = fields
+
+    def get_courses(self, obj) -> int:
+        """In how many of its instructor's courses it is published."""
+        return len(obj.published_in_courses.all())
+
+    @extend_schema_field(ProcessingSerializer(allow_null=True))
+    def get_processing(self, obj):
+        reference = current_reference(obj)
+        if reference is None:
+            return None
+        return {
+            "status": reference.status,
+            "version": reference.version,
+            "error": "",
+            "finished_at": reference.processing_finished_at,
+            "light_video": bool(reference.playback_video),
+            "poster": bool(reference.poster),
+        }
+
+    @extend_schema_field(serializers.FloatField(allow_null=True))
+    def get_single_person(self, obj):
+        """Share of samples with one measurable dancer (null: unknown)."""
+        report = quality_report(current_reference(obj))
+        return report["single_person"] if report else None
+
+
+class ReviewNoteSerializer(serializers.Serializer):
+    note = serializers.CharField(allow_blank=True, required=False, max_length=1000)

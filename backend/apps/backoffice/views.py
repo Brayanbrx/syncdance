@@ -11,8 +11,16 @@ from rest_framework.views import APIView
 from common.permissions import IsPlatformAdmin
 
 from .models import AppRelease
-from .selectors import latest_release, panel_courses, panel_routines, panel_users, platform_summary
+from .selectors import (
+    catalog_proposals,
+    latest_release,
+    panel_courses,
+    panel_routines,
+    panel_users,
+    platform_summary,
+)
 from .serializers import (
+    CatalogProposalSerializer,
     PanelCourseSerializer,
     PanelReleaseSerializer,
     PanelReleaseUpdateSerializer,
@@ -22,11 +30,14 @@ from .serializers import (
     PasswordSerializer,
     PlatformSummarySerializer,
     PublicReleaseSerializer,
+    ReviewNoteSerializer,
 )
 from .services import (
+    approve_for_catalog,
     create_release,
     create_user,
     delete_release,
+    reject_for_catalog,
     set_password,
     update_release,
     update_user,
@@ -154,6 +165,39 @@ class PanelRoutineViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, viewse
 
     def get_queryset(self):
         return panel_routines()
+
+
+class PanelCatalogProposalViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """Routines instructors proposed for the free catalog: approve or reject."""
+
+    permission_classes = [IsPlatformAdmin]
+    serializer_class = CatalogProposalSerializer
+    pagination_class = None  # a review queue: short by nature
+
+    def get_queryset(self):
+        return catalog_proposals()
+
+    @extend_schema(
+        request=None,
+        responses={204: None, 409: OpenApiResponse(description="Ya no está pendiente")},
+    )
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        approve_for_catalog(actor=request.user, routine=self.get_object())
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(
+        request=ReviewNoteSerializer,
+        responses={204: None, 409: OpenApiResponse(description="Ya no está pendiente")},
+    )
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        data = ReviewNoteSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        reject_for_catalog(
+            actor=request.user, routine=self.get_object(), note=data.validated_data.get("note")
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PanelCourseViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

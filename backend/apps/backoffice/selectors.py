@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
 from django.utils import timezone
 
 from apps.coaching.models import Assignment, Course, Enrollment
@@ -42,6 +42,19 @@ def panel_routines():
             reference_version=Subquery(latest.values("version")[:1]),
         )
         .order_by("curriculum_position", "name")
+    )
+
+
+def catalog_proposals():
+    """Routines instructors proposed for the catalog, oldest first."""
+    return (
+        Routine.objects.filter(catalog_review=Routine.CatalogReview.PENDING)
+        .select_related("instructor")
+        .prefetch_related(
+            Prefetch("references", queryset=RoutineReference.objects.order_by("-version")),
+            "published_in_courses",
+        )
+        .order_by("catalog_requested_at", "pk")
     )
 
 
@@ -87,6 +100,9 @@ def platform_summary():
             "references_processing": references.get(RoutineReference.Status.PENDING, 0)
             + references.get(RoutineReference.Status.PROCESSING, 0),
             "references_failed": references.get(RoutineReference.Status.FAILED, 0),
+            "proposals_pending": Routine.objects.filter(
+                catalog_review=Routine.CatalogReview.PENDING
+            ).count(),
         },
         "courses": {
             "courses": Course.objects.count(),

@@ -9,14 +9,21 @@ administradores (`IsInstructorOrAdmin`), y cada uno ve únicamente sus rutinas.
 | `GET/POST /api/studio/routines/` | Listar y subir (multipart, `master_video` obligatorio) |
 | `GET/PATCH/DELETE /api/studio/routines/{id}/` | Ver, editar (un video nuevo vuelve a borrador) y borrar |
 | `POST /api/studio/routines/{id}/publish/` | Publicar en sus cursos: `{"courses": [...], "music_rights": "OWN"}` |
-| `POST /api/studio/routines/{id}/unpublish/` | Volver a borrador |
+| `POST /api/studio/routines/{id}/unpublish/` | Volver a borrador (también sale del catálogo) |
+| `POST/DELETE /api/studio/routines/{id}/catalog/` | Proponer al catálogo SyncDance / retirar la propuesta o salir del catálogo |
 | `GET /api/studio/routines/{id}/quality/` | Informe de calidad de la referencia (404 si no está lista) |
 | `GET /api/studio/courses/` | Sus cursos, con el número de alumnos |
 
 ## Reglas
 
-- **Toda subida es un borrador** con visibilidad «solo en cursos». Solo un
-  administrador la lleva al catálogo SyncDance; esa es la revisión.
+- **Toda subida es un borrador** con visibilidad «solo en cursos».
+- **Catálogo SyncDance:** el instructor propone una rutina ya publicada en sus
+  cursos (`catalog_review`: `PENDING`). Un administrador la aprueba desde el
+  panel (pasa a `CATALOG` y la ven todos los alumnos) o la rechaza con un
+  motivo (`REJECTED`, `catalog_review_note`), y el instructor puede proponerla
+  de nuevo. Un video nuevo o retirarla de los cursos la saca del catálogo: para
+  volver hay que revisarla otra vez. Las rutinas del catálogo que nunca pasaron
+  por revisión (las de administradores) no cambian.
 - **El video se revisa al subirlo**, no minutos después en el worker:
   - formato: MP4, MOV, M4V, WEBM o MKV
   - tamaño: hasta 200 MB

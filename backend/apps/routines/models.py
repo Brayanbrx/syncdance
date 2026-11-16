@@ -20,6 +20,11 @@ class Routine(models.Model):
         LICENSED = "LICENSED", "Con licencia o permiso"
         FREE = "FREE", "Libre de derechos"
 
+    class CatalogReview(models.TextChoices):
+        PENDING = "PENDING", "En revisión"
+        APPROVED = "APPROVED", "Aprobada"
+        REJECTED = "REJECTED", "Rechazada"
+
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True)
     instructor = models.ForeignKey(
@@ -58,6 +63,23 @@ class Routine(models.Model):
         "derechos de la música", max_length=12, choices=MusicRights.choices, blank=True
     )
     rights_declared_at = models.DateTimeField("derechos declarados el", null=True, blank=True)
+    # An instructor proposes a published routine for the free catalog; a
+    # platform administrator approves it (visibility becomes CATALOG) or
+    # rejects it with a reason the instructor reads in the studio.
+    catalog_review = models.CharField(
+        "revisión para el catálogo", max_length=12, choices=CatalogReview.choices, blank=True
+    )
+    catalog_requested_at = models.DateTimeField("propuesta el", null=True, blank=True)
+    catalog_reviewed_at = models.DateTimeField("revisada el", null=True, blank=True)
+    catalog_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="revisada por",
+    )
+    catalog_review_note = models.TextField("motivo", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -70,6 +92,18 @@ class Routine(models.Model):
     @property
     def is_published(self):
         return self.published_at is not None
+
+    def leave_catalog_review(self) -> list[str]:
+        """A new video or a retired routine has to be reviewed again: drop a
+        pending proposal, or take an approved routine out of the catalog.
+        Catalog routines that never went through review are left alone.
+        Returns the changed fields."""
+        if not self.catalog_review:
+            return []
+        if self.catalog_review == self.CatalogReview.APPROVED:
+            self.visibility = self.Visibility.COURSES
+        self.catalog_review = ""
+        return ["visibility", "catalog_review"]
 
 
 class RoutineReference(models.Model):

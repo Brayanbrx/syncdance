@@ -6,11 +6,20 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework import status
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
+
+from apps.routines.models import Routine
 
 from .models import AppRelease
 
 logger = logging.getLogger(__name__)
+
+
+class Conflict(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_code = "conflict"
+
 
 MAX_APK_BYTES = 250 * 1024 * 1024
 ZIP_MAGIC = b"PK\x03\x04"  # an APK is a zip archive
@@ -134,3 +143,57 @@ def set_password(*, actor, user, password):
     user.set_password(password)
     user.save(update_fields=["password"])
     logger.info("password reset from panel", extra={"user_id": user.pk, "actor_id": actor.pk})
+
+
+def _pending_proposal(routine):
+    """Lock the routine and check it still waits for review: two admins may
+    answer at once, or the instructor may have withdrawn it meanwhile."""
+    routine = Routine.objects.select_for_update().get(pk=routine.pk)
+    if routine.catalog_review != Routine.CatalogReview.PENDING:
+        raise Conflict("Esta propuesta ya no está pendiente.")
+    return routine
+
+
+@transaction.atomic
+def approve_for_catalog(*, actor, routine):
+    routine = _pending_proposal(routine)
+    if not routine.is_published or not routine.is_active:
+        raise Conflict("La rutina ya no está publicada: su instructor la retiró.")
+    routine.visibility = Routine.Visibility.CATALOG
+    routine.catalog_review = Routine.CatalogReview.APPROVED
+    routine.catalog_reviewed_at = timezone.now()
+    routine.catalog_reviewed_by = actor
+    routine.catalog_review_note = ""
+    routine.save(
+        update_fields=[
+            "visibility",
+            "catalog_review",
+            "catalog_reviewed_at",
+            "catalog_reviewed_by",
+            "catalog_review_note",
+        ]
+    )
+    logger.info("catalog proposal approved", extra={"routine_id": routine.pk, "user_id": actor.pk})
+    return routine
+
+
+@transaction.atomic
+def reject_for_catalog(*, actor, routine, note):
+    note = (note or "").strip()
+    if not note:
+        raise ValidationError({"note": ["Explica al instructor por qué no se acepta."]})
+    routine = _pending_proposal(routine)
+    routine.catalog_review = Routine.CatalogReview.REJECTED
+    routine.catalog_reviewed_at = timezone.now()
+    routine.catalog_reviewed_by = actor
+    routine.catalog_review_note = note
+    routine.save(
+        update_fields=[
+            "catalog_review",
+            "catalog_reviewed_at",
+            "catalog_reviewed_by",
+            "catalog_review_note",
+        ]
+    )
+    logger.info("catalog proposal rejected", extra={"routine_id": routine.pk, "user_id": actor.pk})
+    return routine

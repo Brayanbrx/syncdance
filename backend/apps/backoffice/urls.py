@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     DownloadLatestView,
     LatestReleaseView,
+    PanelCatalogProposalViewSet,
     PanelCourseViewSet,
     PanelReleaseViewSet,
     PanelRoutineViewSet,
@@ -16,6 +17,7 @@ panel.include_root_view = False
 panel.register("users", PanelUserViewSet, basename="panel-user")
 panel.register("routines", PanelRoutineViewSet, basename="panel-routine")
 panel.register("courses", PanelCourseViewSet, basename="panel-course")
+panel.register("proposals", PanelCatalogProposalViewSet, basename="panel-proposal")
 panel.register("releases", PanelReleaseViewSet, basename="panel-release")
 
 app_urlpatterns = [

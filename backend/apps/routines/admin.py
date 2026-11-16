@@ -11,12 +11,15 @@ class RoutineAdmin(admin.ModelAdmin):
         "instructor",
         "difficulty",
         "visibility",
+        "catalog_review",
         "published_at",
         "duration_ms",
         "is_active",
     )
-    list_filter = ("visibility", "difficulty", "is_active")
+    list_filter = ("visibility", "catalog_review", "difficulty", "is_active")
     search_fields = ("name",)
+    # The review is answered from the panel, which checks its rules.
+    readonly_fields = ("catalog_requested_at", "catalog_reviewed_at", "catalog_reviewed_by")
     actions = ("generate_references",)
 
     def save_model(self, request, obj, form, change):
