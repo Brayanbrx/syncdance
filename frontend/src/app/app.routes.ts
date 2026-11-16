@@ -10,6 +10,18 @@ export const routes: Routes = [
     loadComponent: () => import('./features/landing/landing.page').then((m) => m.LandingPage),
   },
   {
+    path: 'cuenta/recuperar',
+    title: 'Recuperar contraseña | SyncDance',
+    loadComponent: () =>
+      import('./features/account/forgot-password.page').then((m) => m.ForgotPasswordPage),
+  },
+  {
+    path: 'cuenta/restablecer',
+    title: 'Contraseña nueva | SyncDance',
+    loadComponent: () =>
+      import('./features/account/reset-password.page').then((m) => m.ResetPasswordPage),
+  },
+  {
     path: 'panel/ingresar',
     title: 'Ingresar al panel | SyncDance',
     loadComponent: () => import('./features/panel/panel-login.page').then((m) => m.PanelLoginPage),

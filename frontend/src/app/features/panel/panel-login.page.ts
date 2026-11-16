@@ -55,6 +55,7 @@ import { AuthService } from '../../core/auth/auth.service';
           {{ busy() ? 'Ingresando…' : 'Ingresar' }}
         </button>
       </form>
+      <p class="forgot"><a routerLink="/cuenta/recuperar">¿Olvidaste tu contraseña?</a></p>
     </main>
   `,
   styles: `
@@ -90,6 +91,9 @@ import { AuthService } from '../../core/auth/auth.service';
     }
     .dev p {
       margin: 0 0 0.6rem;
+    }
+    .forgot {
+      margin-top: 1.25rem;
     }
   `,
 })
