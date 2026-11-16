@@ -118,11 +118,14 @@ La configuración predeterminada proviene de `.env.example`, incluida como asset
 no hace falta crear un archivo `.env` para compilar. Para teléfono físico:
 
 ```powershell
-flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api
+flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api `
+  --dart-define=WEB_BASE_URL=http://192.168.1.10:8085
 ```
 
 Reemplazar la IP por la del equipo con Django y permitir ese host en
-`DJANGO_ALLOWED_HOSTS`. Android Emulator usa `10.0.2.2`. La URL del cliente es
+`DJANGO_ALLOWED_HOSTS`. Android Emulator usa `10.0.2.2`. `WEB_BASE_URL` es la
+web (privacidad y términos, que el registro abre en el navegador); en
+producción se omite y se usa el mismo dominio de la API. La URL del cliente es
 pública y nunca debe contener secretos. Para repartir un APK firmado con una
 clave propia, ver [mobile/android/README.md](mobile/android/README.md).
 

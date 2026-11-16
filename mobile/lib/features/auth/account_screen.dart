@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/web_links.dart';
 import '../../core/network/catalog_session.dart';
 import '../routines/reference/catalog_api.dart';
 import '../routines/reference/motion_reference.dart';
@@ -9,8 +10,16 @@ import 'account_data.dart';
 /// "Mi cuenta": sign out, or delete the account on the server and its files
 /// on this phone (Google Play requires deletion inside the app).
 class AccountScreen extends StatelessWidget {
-  const AccountScreen({this.session, this.eraseLocal, super.key});
+  const AccountScreen({
+    this.session,
+    this.eraseLocal,
+    this.openPage,
+    super.key,
+  });
   final CatalogSession? session;
+
+  /// Opens a web page (privacy, terms) in the browser; defaults to [openWebPage].
+  final Future<bool> Function(String path)? openPage;
 
   /// Erases the account's practices and references here; defaults to [AccountData].
   final Future<void> Function(String scope)? eraseLocal;
@@ -23,6 +32,26 @@ class AccountScreen extends StatelessWidget {
     final current = session ?? catalogSession;
     final account = current.account;
     final danger = Theme.of(context).colorScheme.error;
+    final legal = [
+      const Divider(height: 32),
+      for (final (label, path) in [
+        ('Política de privacidad', '/privacidad'),
+        ('Términos de uso', '/terminos'),
+      ])
+        ListTile(
+          leading: const Icon(Icons.description_outlined),
+          title: Text(label),
+          trailing: const Icon(Icons.open_in_new),
+          onTap: () async {
+            final opened = await (openPage ?? openWebPage)(path);
+            if (!opened && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No se pudo abrir el navegador.')),
+              );
+            }
+          },
+        ),
+    ];
     return Scaffold(
       appBar: AppBar(title: const Text('Mi cuenta')),
       body: ListView(
@@ -38,6 +67,7 @@ class AccountScreen extends StatelessWidget {
                   onPressed: () => context.go('/login'),
                   child: const Text('Ingresar o crear cuenta'),
                 ),
+                ...legal,
               ]
             : [
                 ListTile(
@@ -83,6 +113,7 @@ class AccountScreen extends StatelessWidget {
                     context.go('/login');
                   },
                 ),
+                ...legal,
               ],
       ),
     );

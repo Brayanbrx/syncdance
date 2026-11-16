@@ -250,7 +250,14 @@ class CatalogApi {
       value is String && value.isNotEmpty ? value : null;
 
   /// Creates a student account; the server always assigns the student role.
-  Future<void> register(String username, String email, String password) async {
+  /// [acceptTerms]: the person ticked the terms and privacy policy box; the
+  /// server refuses the account otherwise.
+  Future<void> register(
+    String username,
+    String email,
+    String password, {
+    required bool acceptTerms,
+  }) async {
     final abort = Completer<void>();
     final timeout = Timer(const Duration(seconds: 30), () => abort.complete());
     try {
@@ -265,6 +272,7 @@ class CatalogApi {
         'username': username,
         'email': email,
         'password': password,
+        'accept_terms': acceptTerms,
       });
       final response = await _client.send(request);
       if (response.statusCode == 201) {

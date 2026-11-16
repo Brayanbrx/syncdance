@@ -12,6 +12,7 @@ import 'package:syncdance_mobile/features/routines/reference/catalog_api.dart';
 void main() {
   late List<String> calls;
   late List<Map<String, dynamic>> bodies;
+  late List<String> opened;
 
   Future<CatalogSession> mount(
     WidgetTester tester,
@@ -19,6 +20,7 @@ void main() {
   ) async {
     calls = [];
     bodies = [];
+    opened = [];
     final api = CatalogApi(
       'http://localhost:8000/api',
       client: MockClient((request) {
@@ -34,7 +36,13 @@ void main() {
       routes: [
         GoRoute(
           path: '/register',
-          builder: (_, _) => RegisterScreen(session: session),
+          builder: (_, _) => RegisterScreen(
+            session: session,
+            openPage: (path) async {
+              opened.add(path);
+              return true;
+            },
+          ),
         ),
         GoRoute(
           path: '/home',
@@ -51,15 +59,27 @@ void main() {
     WidgetTester tester, {
     String password = 'baile-2026',
     String? repeat,
+    bool accept = true,
   }) async {
     final fields = find.byType(TextField);
     await tester.enterText(fields.at(0), 'nueva');
     await tester.enterText(fields.at(1), 'nueva@example.com');
     await tester.enterText(fields.at(2), password);
     await tester.enterText(fields.at(3), repeat ?? password);
+    final box = find.byType(CheckboxListTile);
+    if (tester.widget<CheckboxListTile>(box).value != accept) {
+      await tester.ensureVisible(box);
+      await tester.pumpAndSettle();
+      await tester.tap(box);
+      await tester.pumpAndSettle();
+    }
   }
 
   Future<void> submit(WidgetTester tester) async {
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Crear cuenta'),
+    );
+    await tester.pumpAndSettle();
     // MockClient response streams complete on the real event loop.
     await tester.runAsync(() async {
       await tester.tap(find.widgetWithText(FilledButton, 'Crear cuenta'));
@@ -77,6 +97,25 @@ void main() {
     await submit(tester);
     expect(find.text('Usa al menos 8 caracteres.'), findsOneWidget);
     expect(calls, isEmpty);
+  });
+
+  testWidgets('the terms must be accepted, and can be read first', (
+    tester,
+  ) async {
+    await mount(tester, (_) async => http.Response('{}', 500));
+    await fill(tester, accept: false);
+    await submit(tester);
+    expect(
+      find.text(
+        'Para crear la cuenta acepta los términos y la política de privacidad.',
+      ),
+      findsOneWidget,
+    );
+    expect(calls, isEmpty);
+
+    await tester.tap(find.text('Leer los términos'));
+    await tester.tap(find.text('Leer la política de privacidad'));
+    expect(opened, ['/terminos', '/privacidad']);
   });
 
   testWidgets('server messages appear under each field', (tester) async {
@@ -118,6 +157,7 @@ void main() {
       'username': 'nueva',
       'email': 'nueva@example.com',
       'password': 'baile-2026',
+      'accept_terms': true,
     });
   });
 }
