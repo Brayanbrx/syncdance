@@ -8,25 +8,36 @@ nginx también es la entrada única a Django: reenvía `/api`, `/admin` y
 | --- | --- | --- |
 | `/` | Alumnos e instructores | Landing: cómo funciona, privacidad y descarga del APK publicado |
 | `/ingresar` | Instructores y administración | Un solo ingreso: lleva al panel o al estudio según el rol |
-| `/panel` | Superusuarios y rol Administrador | Resumen, usuarios, rutinas, cursos y versiones de la app |
-| `/estudio` | Instructores | Subir rutinas, ver el informe de calidad y publicarlas en sus cursos |
+| `/panel` | Superusuarios y rol Administrador | Resumen, usuarios, rutinas, revisión del catálogo, cursos y versiones de la app |
+| `/estudio` | Instructores | Subir rutinas, ver el informe de calidad, publicarlas en sus cursos y proponerlas al catálogo |
 | `/admin/` | Instructores (y administración avanzada) | Django Admin: cursos, tareas, progreso y observaciones |
 | `/privacidad`, `/terminos` | Todos | Textos legales (responsable y contacto desde `/api/auth/legal/`) |
 | `/cuenta/recuperar`, `/cuenta/restablecer`, `/cuenta/borrar` | Alumnos e instructores | Recuperar la contraseña y borrar la cuenta |
 
 ## Estudio del instructor
 
-- **Mis rutinas:** cada una con su estado (borrador, procesando, con error,
-  lista para publicar o publicada en N cursos).
+- **Mis rutinas:** cada una con su miniatura y su estado (borrador,
+  procesando, con error, lista para publicar, publicada en N cursos o en el
+  catálogo).
 - **Subir rutina:** datos y video (MP4, MOV, WEBM o MKV, de 5 s a 5 min, hasta
   200 MB); el servidor lo revisa al subirlo.
 - **Detalle:**
   - el procesamiento se actualiza solo
+  - vista previa: el mismo video de 720p que descargan los alumnos
   - informe de calidad con los tramos donde no se ve a una sola persona
   - publicar en sus cursos declarando los derechos de la música
+  - proponerla al catálogo SyncDance y ver el resultado de la revisión
   - retirar, editar, reemplazar el video o borrar
 
   API en `backend/apps/studio/README.md`.
+
+## Revisión del catálogo (`/panel/revision`)
+
+Las rutinas que los instructores proponen, la más antigua primero, con su
+miniatura, el video, el porcentaje con una sola persona visible, los derechos
+de la música y en cuántos cursos está publicada. Aprobar la suma al catálogo;
+rechazar pide un motivo, que el instructor lee en su estudio. El resumen del
+panel muestra cuántas esperan.
 
 ## Panel de administración
 

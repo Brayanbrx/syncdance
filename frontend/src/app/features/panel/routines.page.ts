@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { PanelRoutine, ReferenceStatus, apiError } from '../../core/api.models';
 import { PanelService } from '../../core/panel.service';
@@ -15,15 +16,17 @@ const REFERENCE: Record<ReferenceStatus, { label: string; tone: string }> = {
 
 @Component({
   selector: 'sd-routines',
-  imports: [PagerComponent],
+  imports: [PagerComponent, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page-head">
       <div>
         <h1>Rutinas</h1>
         <p>
-          Una rutina oculta deja de aparecer en el catálogo de la app; las prácticas guardadas se
-          conservan. Videos y referencias se editan en la administración avanzada.
+          Una rutina oculta deja de aparecer en la app, en el catálogo y en los cursos; las
+          prácticas guardadas se conservan. Las que proponen los instructores se aprueban en
+          <a routerLink="/panel/revision">Revisión del catálogo</a>. Videos y referencias se editan
+          en la administración avanzada.
         </p>
       </div>
       <a class="button button--quiet" href="/admin/routines/routine/add/">Nueva rutina</a>
@@ -42,7 +45,8 @@ const REFERENCE: Record<ReferenceStatus, { label: string; tone: string }> = {
             <th>Instructor</th>
             <th>Referencia</th>
             <th class="num">Prácticas</th>
-            <th>En el catálogo</th>
+            <th>Dónde</th>
+            <th>Activa</th>
             <th><span class="visually-hidden">Editar</span></th>
           </tr>
         </thead>
@@ -73,13 +77,14 @@ const REFERENCE: Record<ReferenceStatus, { label: string; tone: string }> = {
                 }
               </td>
               <td class="num">{{ routine.sessions }}</td>
+              <td>{{ where(routine) }}</td>
               <td>
                 <label class="toggle">
                   <input
                     type="checkbox"
                     [checked]="routine.is_active"
                     (change)="toggle(routine)"
-                    [attr.aria-label]="'Mostrar ' + routine.name + ' en el catálogo'"
+                    [attr.aria-label]="'Mostrar ' + routine.name + ' en la app'"
                   />
                   {{ routine.is_active ? 'Visible' : 'Oculta' }}
                 </label>
@@ -90,7 +95,7 @@ const REFERENCE: Record<ReferenceStatus, { label: string; tone: string }> = {
             </tr>
           } @empty {
             <tr>
-              <td colspan="7">
+              <td colspan="8">
                 No hay rutinas. Instala el catálogo por defecto con
                 <code>load_default_catalog</code> y <code>generate_standard_catalog</code>.
               </td>
@@ -135,6 +140,13 @@ export class RoutinesPage implements OnInit {
       },
       error: (error: unknown) => this.error.set(apiError(error, 'No se pudieron cargar.')),
     });
+  }
+
+  /** Who can see it: everyone (catalog), the instructor's courses, or nobody yet. */
+  where(routine: PanelRoutine): string {
+    if (!routine.published_at) return 'Borrador';
+    if (routine.visibility === 'CATALOG') return 'Catálogo';
+    return routine.catalog_review === 'PENDING' ? 'Cursos (en revisión)' : 'Cursos';
   }
 
   toggle(routine: PanelRoutine): void {

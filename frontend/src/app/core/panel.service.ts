@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 import {
+  CatalogProposal,
   NewUser,
   Page,
   PanelCourse,
@@ -63,6 +64,19 @@ export class PanelService {
 
   setRoutineActive(id: number, isActive: boolean): Observable<PanelRoutine> {
     return this.http.patch<PanelRoutine>(`${api}/panel/routines/${id}/`, { is_active: isActive });
+  }
+
+  /** Routines instructors proposed for the catalog, oldest first. */
+  proposals(): Observable<CatalogProposal[]> {
+    return this.http.get<CatalogProposal[]>(`${api}/panel/proposals/`);
+  }
+
+  approveProposal(id: number): Observable<void> {
+    return this.http.post<void>(`${api}/panel/proposals/${id}/approve/`, {});
+  }
+
+  rejectProposal(id: number, note: string): Observable<void> {
+    return this.http.post<void>(`${api}/panel/proposals/${id}/reject/`, { note });
   }
 
   courses(page: number): Observable<Page<PanelCourse>> {

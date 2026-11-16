@@ -10,7 +10,7 @@ import {
   routineState,
 } from '../../core/api.models';
 import { StudioService } from '../../core/studio.service';
-import { RoutinePosterComponent } from './routine-poster.component';
+import { RoutinePosterComponent } from '../../shared/routine-poster.component';
 
 @Component({
   selector: 'sd-studio-routines',

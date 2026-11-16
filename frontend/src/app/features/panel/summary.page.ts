@@ -76,8 +76,12 @@ import { PanelService } from '../../core/panel.service';
           <h2>Catálogo</h2>
           <dl>
             <div>
-              <dt>Rutinas publicadas</dt>
+              <dt>Rutinas activas</dt>
               <dd>{{ s.catalog.active_routines }} de {{ s.catalog.routines }}</dd>
+            </div>
+            <div>
+              <dt>Propuestas por revisar</dt>
+              <dd>{{ s.catalog.proposals_pending }}</dd>
             </div>
             <div>
               <dt>Referencias listas</dt>
@@ -95,6 +99,9 @@ import { PanelService } from '../../core/panel.service';
             </div>
           </dl>
           <a routerLink="/panel/rutinas">Ver rutinas</a>
+          @if (s.catalog.proposals_pending) {
+            <a routerLink="/panel/revision">Revisar propuestas</a>
+          }
         </section>
 
         <section>
@@ -172,6 +179,9 @@ import { PanelService } from '../../core/panel.service';
     }
     a:not(.button) {
       font-size: var(--step--1);
+    }
+    a:not(.button) + a:not(.button) {
+      margin-left: 1rem;
     }
     .release {
       margin-top: 1.5rem;

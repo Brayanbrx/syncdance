@@ -19,27 +19,12 @@
     <h2>Video</h2>
     @switch (r.processing?.status) {
       @case ('READY') {
-        <div class="preview">
-          @if (preview(); as src) {
-            <video [src]="src" controls autoplay playsinline></video>
-          } @else {
-            @if (r.processing!.poster) {
-              <sd-routine-poster fit="natural" [routine]="r.id" [version]="r.processing!.version" />
-            }
-            <button
-              class="button play"
-              type="button"
-              [disabled]="loadingPreview() !== null"
-              (click)="watch(r.id, r.processing!.version)"
-            >
-              @if (loadingPreview() === null) {
-                Ver video
-              } @else {
-                Cargando {{ loadingPreview() }} %
-              }
-            </button>
-          }
-        </div>
+        <sd-routine-preview
+          class="preview"
+          [routine]="r.id"
+          [version]="r.processing!.version"
+          [poster]="r.processing!.poster"
+        />
         <p>
           Procesado (versión {{ r.processing!.version }}, {{ clock(r.duration_ms) }}).
           @if (r.processing!.finished_at) {
@@ -190,8 +175,70 @@
           </button>
         }
       </div>
+      @if (r.catalog_review === 'APPROVED') {
+        <p class="field-hint">Retirarla de los cursos también la quita del catálogo.</p>
+      }
       @if (!ready()) {
         <p class="field-hint">Podrás publicar cuando termine el procesamiento.</p>
+      }
+    }
+  </section>
+
+  <section class="card">
+    <h2>Catálogo de SyncDance</h2>
+    @switch (r.catalog_review) {
+      @case ('PENDING') {
+        <p>
+          En revisión desde el {{ r.catalog_requested_at | date: 'd MMM y' }}. Un administrador la
+          revisa y el resultado aparecerá aquí.
+        </p>
+        <button
+          class="button button--quiet"
+          type="button"
+          [disabled]="busy()"
+          (click)="leaveCatalog()"
+        >
+          Retirar la propuesta
+        </button>
+      }
+      @case ('APPROVED') {
+        <p>
+          En el catálogo desde el {{ r.catalog_reviewed_at | date: 'd MMM y' }}: la ven todos los
+          alumnos de la app, con tu nombre.
+        </p>
+        <button
+          class="button button--quiet"
+          type="button"
+          [disabled]="busy()"
+          (click)="leaveCatalog()"
+        >
+          Quitar del catálogo
+        </button>
+        <span class="field-hint">Sigue publicada en tus cursos.</span>
+      }
+      @default {
+        @if (r.visibility === 'CATALOG') {
+          <p>Está en el catálogo de SyncDance.</p>
+        } @else {
+          @if (r.catalog_review === 'REJECTED') {
+            <p class="alert">No se aceptó para el catálogo: {{ r.catalog_review_note }}</p>
+          }
+          <p>
+            El catálogo es la colección gratuita que ven todos los alumnos de SyncDance, con tu
+            nombre. Un administrador revisa cada rutina antes de sumarla.
+          </p>
+          <button
+            class="button"
+            type="button"
+            [disabled]="!r.is_published || busy()"
+            (click)="proposeForCatalog()"
+          >
+            {{ r.catalog_review === 'REJECTED' ? 'Proponer de nuevo' : 'Proponer al catálogo' }}
+          </button>
+          @if (!r.is_published) {
+            <span class="field-hint">Primero publícala en tus cursos.</span>
+          }
+        }
       }
     }
   </section>

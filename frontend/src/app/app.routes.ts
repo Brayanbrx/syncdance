@@ -93,6 +93,11 @@ export const routes: Routes = [
         loadComponent: () => import('./features/panel/routines.page').then((m) => m.RoutinesPage),
       },
       {
+        path: 'revision',
+        title: 'Revisión del catálogo | Panel SyncDance',
+        loadComponent: () => import('./features/panel/proposals.page').then((m) => m.ProposalsPage),
+      },
+      {
         path: 'cursos',
         title: 'Cursos | Panel SyncDance',
         loadComponent: () => import('./features/panel/courses.page').then((m) => m.CoursesPage),

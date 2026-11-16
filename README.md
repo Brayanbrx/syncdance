@@ -85,8 +85,10 @@ existentes.
 - Ingreso único: http://localhost:8085/ingresar (lleva al panel o al estudio según el rol;
   en desarrollo, la semilla `admin` / `admin`)
 - Panel de administración (superusuarios y rol Administrador): http://localhost:8085/panel
-- Estudio del instructor (subir, revisar y publicar rutinas en sus cursos):
-  http://localhost:8085/estudio
+- Estudio del instructor (subir, revisar y publicar rutinas en sus cursos, y
+  proponerlas al catálogo): http://localhost:8085/estudio
+- Revisión de las rutinas propuestas para el catálogo:
+  http://localhost:8085/panel/revision
 - Cursos, tareas y progreso (Django Admin): http://localhost:8085/admin/
 - API: http://localhost:8085/api/ (también directa en el puerto 8000)
 - Swagger: http://localhost:8000/api/docs/

@@ -17,7 +17,6 @@ export interface RoutineFields {
 export class StudioService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiBaseUrl}/studio`;
-  private readonly routinesBase = `${environment.apiBaseUrl}/routines`;
 
   routines(): Observable<StudioRoutine[]> {
     return this.http.get<StudioRoutine[]>(`${this.base}/routines/`);
@@ -70,20 +69,14 @@ export class StudioService {
     return this.http.get<QualityReport>(`${this.base}/routines/${id}/quality/`);
   }
 
-  /** Thumbnail of a processed version (authenticated, so fetched as a blob). */
-  poster(id: number, version: number): Observable<Blob> {
-    return this.http.get(`${this.routinesBase}/${id}/references/${version}/poster/`, {
-      responseType: 'blob',
-    });
+  /** Ask an administrator to add the published routine to the catalog. */
+  proposeForCatalog(id: number): Observable<StudioRoutine> {
+    return this.http.post<StudioRoutine>(`${this.base}/routines/${id}/catalog/`, {});
   }
 
-  /** The video students play for a version, with download progress. */
-  video(id: number, version: number): Observable<HttpEvent<Blob>> {
-    return this.http.get(`${this.routinesBase}/${id}/references/${version}/video/`, {
-      responseType: 'blob',
-      reportProgress: true,
-      observe: 'events',
-    });
+  /** Withdraw the proposal, or take the routine out of the catalog. */
+  leaveCatalog(id: number): Observable<StudioRoutine> {
+    return this.http.delete<StudioRoutine>(`${this.base}/routines/${id}/catalog/`);
   }
 
   courses(): Observable<StudioCourse[]> {

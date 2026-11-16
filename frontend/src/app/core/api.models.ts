@@ -82,6 +82,9 @@ export interface PanelRoutine {
   instructor: string;
   duration_ms: number;
   is_active: boolean;
+  visibility: 'CATALOG' | 'COURSES';
+  published_at: string | null;
+  catalog_review: CatalogReview;
   sessions: number;
   reference_status: ReferenceStatus | null;
   reference_version: number | null;
@@ -118,6 +121,7 @@ export interface PlatformSummary {
     references_ready: number;
     references_processing: number;
     references_failed: number;
+    proposals_pending: number;
   };
   courses: { courses: number; enrollments: number; assignments: number };
   latest_release: PublicRelease | null;
@@ -160,6 +164,39 @@ export const MUSIC_RIGHTS_LABELS: Record<MusicRights, string> = {
   FREE: 'Es música libre de derechos',
 };
 
+/** The SyncDance catalog review of an instructor's routine ('' = never proposed). */
+export type CatalogReview = '' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/** The reference of the current master video. */
+export interface RoutineProcessing {
+  status: ReferenceStatus;
+  version: number;
+  error: string;
+  finished_at: string | null;
+  /** Students download the 720p version made for the app. */
+  light_video: boolean;
+  poster: boolean;
+}
+
+/** A routine an instructor proposed for the catalog, as the panel reviews it. */
+export interface CatalogProposal {
+  id: number;
+  name: string;
+  description: string;
+  style: string;
+  difficulty: Difficulty;
+  instructor: string;
+  duration_ms: number;
+  music_rights: MusicRights | '';
+  rights_declared_at: string | null;
+  catalog_requested_at: string | null;
+  /** In how many of its instructor's courses it is published. */
+  courses: number;
+  processing: RoutineProcessing | null;
+  /** Share of samples with one measurable dancer; null when unknown. */
+  single_person: number | null;
+}
+
 export interface StudioRoutine {
   id: number;
   name: string;
@@ -171,17 +208,14 @@ export interface StudioRoutine {
   published_at: string | null;
   music_rights: MusicRights | '';
   rights_declared_at: string | null;
+  catalog_review: CatalogReview;
+  catalog_requested_at: string | null;
+  catalog_reviewed_at: string | null;
+  /** Why an administrator did not accept it for the catalog. */
+  catalog_review_note: string;
   duration_ms: number;
   is_active: boolean;
-  processing: {
-    status: ReferenceStatus;
-    version: number;
-    error: string;
-    finished_at: string | null;
-    /** Students download the 720p version made for the app. */
-    light_video: boolean;
-    poster: boolean;
-  } | null;
+  processing: RoutineProcessing | null;
   courses: number[];
   created_at: string;
   updated_at: string;
@@ -211,6 +245,9 @@ export type RoutineTone = 'ok' | 'warn' | 'danger' | 'neutral';
 
 /** One label for where a routine stands, from draft to published. */
 export function routineState(routine: StudioRoutine): { label: string; tone: RoutineTone } {
+  if (routine.is_published && routine.visibility === 'CATALOG') {
+    return { label: 'En el catálogo', tone: 'ok' };
+  }
   if (routine.is_published) {
     const n = routine.courses.length;
     return { label: `Publicada en ${n} ${n === 1 ? 'curso' : 'cursos'}`, tone: 'ok' };

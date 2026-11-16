@@ -28,7 +28,7 @@ import {
   routineState,
 } from '../../core/api.models';
 import { StudioService } from '../../core/studio.service';
-import { RoutinePosterComponent } from './routine-poster.component';
+import { RoutinePreviewComponent } from '../../shared/routine-preview.component';
 
 const PROBLEM_LABELS: Record<string, string> = {
   NO_USABLE_POSE: 'no se ve el cuerpo completo',
@@ -37,7 +37,7 @@ const PROBLEM_LABELS: Record<string, string> = {
 
 @Component({
   selector: 'sd-studio-routine',
-  imports: [DatePipe, ReactiveFormsModule, RouterLink, RoutinePosterComponent],
+  imports: [DatePipe, ReactiveFormsModule, RouterLink, RoutinePreviewComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './studio-routine.page.html',
   styleUrl: './studio-routine.page.scss',
@@ -63,10 +63,6 @@ export class StudioRoutinePage implements OnInit {
   readonly progress = signal<number | null>(null);
   readonly message = signal('');
   readonly error = signal('');
-  /** Object URL of the video students play, once the instructor asks for it. */
-  readonly preview = signal<string | null>(null);
-  readonly loadingPreview = signal<number | null>(null);
-  private previewVersion: number | null = null;
 
   readonly state = computed(() => {
     const routine = this.routine();
@@ -96,10 +92,6 @@ export class StudioRoutinePage implements OnInit {
     description: [''],
   });
 
-  constructor() {
-    this.destroyRef.onDestroy(() => this.clearPreview());
-  }
-
   ngOnInit(): void {
     this.studio.routine(this.id).subscribe({
       next: (routine) => this.show(routine),
@@ -119,7 +111,6 @@ export class StudioRoutinePage implements OnInit {
   private show(routine: StudioRoutine): void {
     const wasReady = this.ready();
     this.routine.set(routine);
-    if (routine.processing?.version !== this.previewVersion) this.clearPreview();
     this.form.setValue({
       name: routine.name,
       difficulty: routine.difficulty,
@@ -136,37 +127,6 @@ export class StudioRoutinePage implements OnInit {
     } else if (routine.processing?.status !== 'READY') {
       this.quality.set(null);
     }
-  }
-
-  /** Download the version students play and show it in place of the poster. */
-  watch(id: number, version: number): void {
-    this.loadingPreview.set(0);
-    this.studio
-      .video(id, version)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (event) => {
-          if (event.type === HttpEventType.DownloadProgress && event.total) {
-            this.loadingPreview.set(Math.round((100 * event.loaded) / event.total));
-          } else if (event.type === HttpEventType.Response && event.body) {
-            this.clearPreview();
-            this.previewVersion = version;
-            this.preview.set(URL.createObjectURL(event.body));
-            this.loadingPreview.set(null);
-          }
-        },
-        error: (error: unknown) => {
-          this.loadingPreview.set(null);
-          this.error.set(apiError(error, 'No se pudo cargar el video.'));
-        },
-      });
-  }
-
-  private clearPreview(): void {
-    const url = this.preview();
-    if (url) URL.revokeObjectURL(url);
-    this.preview.set(null);
-    this.previewVersion = null;
   }
 
   problemLabel(kind: string): string {
@@ -211,6 +171,20 @@ export class StudioRoutinePage implements OnInit {
 
   unpublish(): void {
     this.run('Retirada: vuelve a ser un borrador.', () => this.studio.unpublish(this.id));
+  }
+
+  proposeForCatalog(): void {
+    this.run('Propuesta enviada. El resultado de la revisión aparecerá aquí.', () =>
+      this.studio.proposeForCatalog(this.id),
+    );
+  }
+
+  leaveCatalog(): void {
+    const pending = this.routine()?.catalog_review === 'PENDING';
+    this.run(
+      pending ? 'Propuesta retirada.' : 'Quitada del catálogo: sigue publicada en tus cursos.',
+      () => this.studio.leaveCatalog(this.id),
+    );
   }
 
   replace(event: Event): void {

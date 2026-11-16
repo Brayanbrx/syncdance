@@ -10,7 +10,7 @@ import {
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { catchError, of, switchMap } from 'rxjs';
 
-import { StudioService } from '../../core/studio.service';
+import { RoutineMediaService } from '../core/routine-media.service';
 
 /**
  * Thumbnail of a processed routine version. The file needs the session, so
@@ -50,7 +50,7 @@ import { StudioService } from '../../core/studio.service';
   `,
 })
 export class RoutinePosterComponent {
-  private readonly studio = inject(StudioService);
+  private readonly media = inject(RoutineMediaService);
 
   readonly routine = input.required<number>();
   readonly version = input.required<number>();
@@ -63,7 +63,7 @@ export class RoutinePosterComponent {
     toObservable(key)
       .pipe(
         switchMap(({ id, version }) =>
-          this.studio.poster(id, version).pipe(catchError(() => of(null))),
+          this.media.poster(id, version).pipe(catchError(() => of(null))),
         ),
         takeUntilDestroyed(),
       )
