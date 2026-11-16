@@ -1,0 +1,54 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+  &rsaquo; <a href="{% url 'admin:coaching_course_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{% url 'admin:coaching_course_change' course.pk %}">{{ course.name }}</a>
+  &rsaquo; Progreso
+</div>
+{% endblock %}
+{% block content %}
+<p>
+  Mejores estrellas del modo juego a velocidad normal en cada tarea, con las
+  prácticas ya sincronizadas desde el teléfono. ✓ cumple el objetivo; «—» es sin
+  partidas, no cero. Para comentar una práctica, abrirla en
+  <a href="{% url 'admin:training_dancesession_changelist' %}">Sesiones de baile</a>.
+</p>
+{% if not assignments %}
+  <p>Este curso todavía no tiene tareas.</p>
+{% endif %}
+<table>
+  <thead>
+    <tr>
+      <th>Alumno</th>
+      {% for assignment in assignments %}
+        <th>
+          {{ assignment.routine.name }}<br>
+          <small>objetivo {{ assignment.target_stars }}★{% if assignment.due_date %} · hasta {{ assignment.due_date|date:"d/m/Y" }}{% endif %}</small>
+        </th>
+      {% endfor %}
+      <th>Cumplidas</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>
+        <a href="{% url 'admin:training_dancesession_changelist' %}?q={{ row.student.username|urlencode }}">{{ row.student.username }}</a>
+      </td>
+      {% for cell in row.cells %}
+        <td>
+          {% if cell.stars is None %}—{% else %}{{ cell.stars }}{% endif %}
+          {% if cell.completed %} ✓{% elif cell.overdue %} <strong>vencida</strong>{% endif %}
+          <br><small>{{ cell.practices }} práctica{{ cell.practices|pluralize }}</small>
+        </td>
+      {% endfor %}
+      <td>{{ row.completed }}/{{ assignments|length }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="{{ assignments|length|add:2 }}">Todavía no hay alumnos. Comparte el código {{ course.join_code }}.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

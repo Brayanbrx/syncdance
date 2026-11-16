@@ -58,6 +58,15 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
+          ListTile(
+            leading: const Icon(Icons.school_outlined),
+            title: const Text('Mis cursos'),
+            subtitle: const Text(
+              'Únete con el código de tu instructor y cumple sus tareas',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/courses'),
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 24, 16, 8),
             child: Text('Herramientas'),

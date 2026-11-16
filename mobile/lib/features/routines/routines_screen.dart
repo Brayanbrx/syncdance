@@ -25,9 +25,13 @@ class RoutinesScreen extends StatefulWidget {
     this.videos,
     this.openGame,
     this.sessions,
+    this.startRoutineId,
     super.key,
   });
   final CatalogSession? session;
+
+  /// Opened from an assignment: dance this routine as soon as it is listed.
+  final int? startRoutineId;
   final ReferenceCache? cache;
 
   /// Defaults to a cache beside the references; injectable for tests.
@@ -94,6 +98,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
       await _reloadSaved();
       unawaited(_loadBestGames());
       await _refresh();
+      await _startAssigned();
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -102,6 +107,23 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
         });
       }
     }
+  }
+
+  /// Online from the catalog, offline from the routines saved on this phone.
+  Future<void> _startAssigned() async {
+    final id = widget.startRoutineId;
+    if (id == null || !mounted) return;
+    final listed = _catalogLoaded ? _routines : _offlineRoutines;
+    final routine = listed.where((r) => r.id == id).firstOrNull;
+    if (routine == null) {
+      setState(
+        () => _message =
+            'La rutina asignada no está disponible en el catálogo'
+            '${_catalogLoaded ? '' : ' ni guardada en este teléfono'}.',
+      );
+      return;
+    }
+    await _dance(routine);
   }
 
   /// Stars are a convenience: an unreadable history just hides them.

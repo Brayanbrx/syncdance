@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
+import '../../features/coaching/courses_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/performances/performance_detail_screen.dart';
 import '../../features/performances/performances_screen.dart';
@@ -36,7 +37,13 @@ GoRouter createAppRouter({String initialLocation = '/login'}) => GoRouter(
     ),
     GoRoute(
       path: '/routines',
-      builder: (context, state) => const RoutinesScreen(),
+      builder: (context, state) => RoutinesScreen(
+        startRoutineId: int.tryParse(state.uri.queryParameters['start'] ?? ''),
+      ),
+    ),
+    GoRoute(
+      path: '/courses',
+      builder: (context, state) => const CoursesScreen(),
     ),
     GoRoute(
       path: '/performances',

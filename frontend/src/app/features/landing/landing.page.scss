@@ -1,0 +1,254 @@
+:host {
+  display: block;
+}
+
+.wrap {
+  width: min(100% - 2rem, 70rem);
+  margin-inline: auto;
+}
+
+.skip {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 2;
+  background: var(--paper);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+
+  &:focus {
+    top: 1rem;
+  }
+}
+
+// --- Stage (hero) -----------------------------------------------------------
+
+.stage {
+  background:
+    radial-gradient(60rem 30rem at 85% 20%, rgba(76, 195, 241, 0.16), transparent 60%),
+    radial-gradient(40rem 24rem at 10% 100%, rgba(255, 138, 61, 0.14), transparent 60%),
+    var(--stage);
+  color: var(--paper);
+  padding-bottom: 4rem;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 1.25rem;
+}
+
+.wordmark {
+  font: 800 var(--step-2) / 1 var(--display);
+  font-stretch: 80%;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+.bar-link {
+  color: #dfe3fb;
+  text-underline-offset: 0.25em;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 2rem;
+  padding-top: 2.5rem;
+}
+
+h1 {
+  font-size: var(--step-6);
+  font-weight: 800;
+  font-stretch: 85%;
+  letter-spacing: -0.02em;
+  max-width: 14ch;
+}
+
+.lede {
+  font-size: var(--step-1);
+  color: #dfe3fb;
+  max-width: 38ch;
+}
+
+.download {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.button--cta {
+  background: var(--left);
+  border-color: var(--left);
+  color: var(--stage-deep);
+  font-size: var(--step-1);
+  padding: 1rem 1.75rem;
+
+  &:hover {
+    background: #ffa465;
+    border-color: #ffa465;
+  }
+}
+
+.meta {
+  margin: 0;
+  color: #c9cff0;
+  font-size: var(--step--1);
+}
+
+// --- Sections ---------------------------------------------------------------
+
+.section {
+  padding-block: 4.5rem 1rem;
+
+  h2 {
+    font-size: var(--step-4);
+    font-weight: 800;
+    font-stretch: 90%;
+  }
+}
+
+.steps {
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2.5rem;
+  padding: 0;
+  margin: 2rem 0 0;
+
+  li {
+    counter-increment: step;
+    border-top: 3px solid var(--ink);
+    padding-top: 1rem;
+  }
+
+  li::before {
+    content: counter(step);
+    display: block;
+    font: 800 var(--step-4) / 1 var(--display);
+    margin-bottom: 0.75rem;
+  }
+
+  h3 {
+    font-size: var(--step-1);
+  }
+
+  p {
+    color: var(--muted);
+  }
+}
+
+.steps--compact li::before {
+  font-size: var(--step-2);
+}
+
+.audiences {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3rem;
+  padding-block: 4.5rem;
+
+  h2 {
+    font-size: var(--step-3);
+  }
+
+  ul {
+    padding-left: 1.2rem;
+    margin: 0 0 1.5rem;
+  }
+
+  li {
+    margin-bottom: 0.6rem;
+  }
+}
+
+.audience + .audience {
+  border-left: 1px solid var(--line);
+  padding-left: 3rem;
+}
+
+.aside {
+  color: var(--muted);
+}
+
+.privacy {
+  background: var(--paper);
+  border-block: 1px solid var(--line);
+  padding-block: 3.5rem;
+
+  h2 {
+    font-size: var(--step-3);
+  }
+
+  p {
+    font-size: var(--step-1);
+    max-width: 52ch;
+  }
+}
+
+.download--again {
+  margin-top: 2.5rem;
+
+  .meta {
+    color: var(--muted);
+  }
+}
+
+.notes,
+.fingerprint {
+  color: var(--muted);
+  font-size: var(--step--1);
+  margin-top: 1.5rem;
+}
+
+.fingerprint code {
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+.footer {
+  margin-top: 4rem;
+  padding-block: 2rem;
+  background: var(--stage);
+  color: #c9cff0;
+
+  .wrap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+@media (max-width: 52rem) {
+  .hero,
+  .audiences {
+    grid-template-columns: 1fr;
+  }
+
+  .figure {
+    order: -1;
+    max-width: 15rem;
+    justify-self: center;
+  }
+
+  .steps {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+
+  .audience + .audience {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+    padding-top: 2.5rem;
+  }
+}

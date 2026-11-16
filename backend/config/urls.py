@@ -5,6 +5,8 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 
+from apps.backoffice.urls import app_urlpatterns, panel_urlpatterns
+from apps.coaching.views import CourseViewSet, SessionNoteViewSet
 from apps.performances.views import PerformanceViewSet
 from apps.routines.views import RoutineViewSet
 from apps.training.views import DanceSessionViewSet
@@ -14,6 +16,8 @@ router = DefaultRouter()
 router.register("routines", RoutineViewSet, basename="routine")
 router.register("performances", PerformanceViewSet, basename="performance")
 router.register("training/sessions", DanceSessionViewSet, basename="session")
+router.register("coaching/courses", CourseViewSet, basename="course")
+router.register("coaching/notes", SessionNoteViewSet, basename="session-note")
 
 
 urlpatterns = [
@@ -22,6 +26,8 @@ urlpatterns = [
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/health/", health_check, name="health-check"),
     path("api/auth/", include("apps.accounts.urls")),
+    path("api/app/", include(app_urlpatterns)),
+    path("api/panel/", include(panel_urlpatterns)),
     path("api/", include(router.urls)),
     path("api/performances/", include("apps.analysis.urls")),
 ]

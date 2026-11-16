@@ -23,13 +23,22 @@ def expire_stale_references():
     return _expire_stale_references()
 
 
-@shared_task(soft_time_limit=1500, time_limit=1800)
-def generate_reference(reference_id):
+@shared_task(bind=True, soft_time_limit=1500, time_limit=1800)
+def generate_reference(self, reference_id):
+    task_id = self.request.id or ""
+    log = {"reference_id": reference_id, "task_id": task_id}
     # A duplicate Celery delivery never writes over a completed or running version.
-    if not RoutineReference.objects.filter(pk=reference_id, status="PENDING").update(
-        status="PROCESSING", processing_error="", processing_started_at=timezone.now()
-    ):
+    started = {
+        "status": "PROCESSING",
+        "processing_error": "",
+        "processing_started_at": timezone.now(),
+    }
+    if task_id:
+        started["processing_task_id"] = task_id
+    if not RoutineReference.objects.filter(pk=reference_id, status="PENDING").update(**started):
+        logger.info("reference task skipped: not pending", extra=log)
         return
+    logger.info("reference processing started", extra=log)
     reference = RoutineReference.objects.get(pk=reference_id)
     saved_asset = None
     try:
@@ -60,6 +69,7 @@ def generate_reference(reference_id):
         reference.algorithm_version = artifact["algorithm_version"]
         reference.duration_ms = artifact["duration_ms"]
         reference.status = "READY"
+        reference.processing_finished_at = timezone.now()
         reference.full_clean()
         with transaction.atomic():
             current = RoutineReference.objects.select_for_update().get(pk=reference_id)
@@ -71,15 +81,27 @@ def generate_reference(reference_id):
                 pk=reference.routine_id, master_video=reference.source_video.name
             ).update(duration_ms=reference.duration_ms)
     except Exception as exc:
-        logger.exception("Reference %s failed", reference_id)
+        logger.exception("reference processing failed", extra=log)
         message = (
             str(exc) if isinstance(exc, ReferenceError) else "Falló el procesamiento del video."
         )
         RoutineReference.objects.filter(pk=reference_id, status="PROCESSING").update(
-            status="FAILED", processing_error=message
+            status="FAILED", processing_error=message, processing_finished_at=timezone.now()
         )
         if saved_asset:
             try:
                 reference.reference_asset.storage.delete(saved_asset)
             except Exception:
-                logger.exception("Could not remove orphan artifact for reference %s", reference_id)
+                logger.exception("orphan reference artifact not removed", extra=log)
+        return
+    elapsed = reference.processing_finished_at - reference.processing_started_at
+    logger.info(
+        "reference ready",
+        extra={
+            **log,
+            "version": reference.version,
+            "engine": reference.engine_name,
+            "duration_ms": reference.duration_ms,
+            "elapsed_ms": round(elapsed.total_seconds() * 1000),
+        },
+    )

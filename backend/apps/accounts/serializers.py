@@ -7,9 +7,12 @@ from .services import register_user
 
 
 class UserSerializer(serializers.ModelSerializer):
+    # The web shows its administration panel only to platform administrators.
+    is_platform_admin = serializers.BooleanField(source="manages_all_courses", read_only=True)
+
     class Meta:
         model = User
-        fields = ("id", "username", "email", "first_name", "last_name", "role")
+        fields = ("id", "username", "email", "first_name", "last_name", "role", "is_platform_admin")
         read_only_fields = ("id", "role")
 
 

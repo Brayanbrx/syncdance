@@ -47,9 +47,12 @@ qué segundo.
 
 Inicio → **Detectar postura**.
 
-1. 60 s continuos con el cuerpo completo: la UI no se congela y la pantalla no
-   se apaga. Registrar imágenes/s de captura, tiempo de inferencia y frames
-   descartados al inicio y al final. Las imágenes/s no son FPS de inferencia.
+1. Con el cuerpo completo visible, tocar **Medir rendimiento 60 s** y quedarse
+   en el encuadre: la UI no se congela y la pantalla no se apaga. Al terminar,
+   **Copiar** y pegar el resumen en el registro: imágenes/s de captura,
+   inferencias/s, descartadas, p50/p95/máx de inferencia y p50 de los primeros y
+   últimos 10 s (si el final es mucho más lento, el teléfono se calienta). Las
+   imágenes/s no son FPS de inferencia. Ir a segundo plano cancela la medición.
 2. Levantar solo la mano izquierda: los puntos naranjas la siguen. Repetir con
    la derecha (celeste). La preview se ve como espejo, pero los lados no cambian.
 3. Girar a las cuatro orientaciones: no queda un esqueleto anterior ni se dibuja
@@ -176,11 +179,29 @@ Rutinas → maestro → **Bailar (modo juego)**, con «Seguir como espejo» acti
 5. En `http://<PC>:8000/admin/` con `admin` / `admin`: Sesiones de baile
    (filtro «Juego») y **Progreso por alumno** muestran las partidas.
 
+## Cursos (Fase 8)
+
+1. En el Admin, con un usuario de rol **Instructor** (entra al Admin sin tildar
+   «Es staff»): crear un curso con una tarea de 3 estrellas y fecha límite.
+   Anotar el código.
+2. En el teléfono del alumno: **Inicio → Mis cursos**, escribir el código en
+   minúsculas: aparece el curso con la tarea «Todavía sin partidas enviadas».
+3. Tocar ▶ en la tarea: abre directamente el juego de esa rutina. Al volver,
+   la tarea muestra las estrellas (con red) y ✓ si llega al objetivo.
+4. Jugar sin red y volver a abrir **Mis cursos** con red: la partida se envía
+   primero y la tarea se actualiza.
+5. En el Admin, **Progreso del curso** muestra al alumno; abrir su práctica en
+   **Sesiones de baile** y escribir una observación: el alumno la ve en
+   **Mis cursos** al actualizar. Otro instructor no ve a este alumno.
+6. **Generar un código nuevo**: el código anterior da «Código no válido» y el
+   alumno inscrito sigue viendo el curso.
+
 ## Después de validar
 
 - Ajustar umbrales solo con los datos registrados: encuadre, calibración,
   tolerancias, peso 50/50, corte de posiciones, cobertura mínima del progreso
   y umbrales de feedback.
-- Cada ajuste **sube la versión** de su componente (ver la skill
-  `syncdance-pose`), para que los historiales anteriores sigan interpretándose.
+- Cada ajuste **sube la versión** de su componente (por ejemplo
+  `PoseMatcher.version`; ver los README de `lib/features/training/`), para que
+  los historiales anteriores sigan interpretándose.
 - Actualizar el estado de cada fase en el `README.md` principal.

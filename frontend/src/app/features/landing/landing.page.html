@@ -1,0 +1,158 @@
+<a class="skip" href="#contenido">Saltar al contenido</a>
+
+<header class="stage">
+  <nav class="bar wrap" aria-label="Principal">
+    <a class="wordmark" routerLink="/">SyncDance</a>
+    <a class="bar-link" href="#instructores">Para instructores</a>
+  </nav>
+
+  <div class="hero wrap" id="contenido">
+    <div class="pitch">
+      <h1>Sigue al maestro. Tu teléfono mira cómo bailas.</h1>
+      <p class="lede">
+        SyncDance compara tu cuerpo con el del video del maestro, movimiento a movimiento, y te dice
+        qué repetir. Sin sensores ni trajes: solo la cámara frontal.
+      </p>
+
+      <ng-template #downloadBlock>
+        @switch (state().kind) {
+          @case ('loading') {
+            <p class="meta" role="status">Buscando la última versión…</p>
+          }
+          @case ('none') {
+            <span class="button button--cta" aria-disabled="true">Descargar para Android</span>
+            <p class="meta">La primera versión todavía no está publicada. Vuelve pronto.</p>
+          }
+          @case ('error') {
+            <span class="button button--cta" aria-disabled="true">Descargar para Android</span>
+            <p class="meta">No se pudo consultar la versión disponible. Recarga la página.</p>
+          }
+        }
+        @if (state(); as current) {
+          @if (current.kind === 'ready') {
+            <a class="button button--cta" [href]="current.release.download_url" download>
+              Descargar para Android
+            </a>
+            <p class="meta">
+              Versión {{ current.release.version_name }} para Android
+              {{ current.release.min_android }} o superior, {{ size(current.release.size_bytes) }}.
+              @if (!onAndroid) {
+                <br />Estás en una computadora: abre esta página en el navegador del teléfono.
+              }
+            </p>
+          }
+        }
+      </ng-template>
+      <div class="download">
+        <ng-container [ngTemplateOutlet]="downloadBlock" />
+      </div>
+    </div>
+
+    <sd-dancer class="figure" />
+  </div>
+</header>
+
+<main>
+  <section class="section wrap" aria-labelledby="como">
+    <h2 id="como">Así se entrena</h2>
+    <ol class="steps">
+      <li>
+        <h3>Elige una rutina</h3>
+        <p>
+          Desde pasos básicos hasta coreografías completas, ordenadas por nivel. Se descargan una
+          vez y después funcionan sin internet.
+        </p>
+      </li>
+      <li>
+        <h3>Apoya el teléfono y aléjate</h3>
+        <p>
+          A dos o tres metros, con todo el cuerpo a la vista. La rutina empieza sola cuando te ve de
+          pies a cabeza.
+        </p>
+      </li>
+      <li>
+        <h3>Baila y mira tus calificaciones</h3>
+        <p>
+          Cada movimiento recibe PERFECT, GREAT, GOOD o MISS. Al final ves tus estrellas y practicas
+          más lento los movimientos que fallaste.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="audiences wrap" aria-label="Para quién es">
+    <div class="audience">
+      <h2>Para quien aprende</h2>
+      <ul>
+        <li>Un camino por niveles que te dice cuál es tu siguiente paso.</li>
+        <li>Tu mejor marca en cada rutina y cómo cambia con cada práctica.</li>
+        <li>Te unes al curso de tu instructor con un código y cumples sus tareas.</li>
+      </ul>
+    </div>
+    <div class="audience" id="instructores">
+      <h2>Para quien enseña</h2>
+      <ul>
+        <li>Creas un curso y compartes su código con tus alumnos.</li>
+        <li>Asignas rutinas con un objetivo de estrellas y una fecha límite.</li>
+        <li>Ves quién cumplió y dejas observaciones en cada práctica.</li>
+      </ul>
+      <p class="aside">
+        Los cursos se gestionan desde el panel del instructor. Pide tu cuenta de instructor a la
+        administración de SyncDance.
+      </p>
+      <a class="button button--quiet" href="/admin/">Entrar al panel del instructor</a>
+    </div>
+  </section>
+
+  <section class="privacy" aria-labelledby="privacidad">
+    <div class="wrap">
+      <h2 id="privacidad">Tu imagen no sale del teléfono</h2>
+      <p>
+        La cámara se analiza en el propio teléfono. SyncDance no graba ni sube video: al servidor
+        solo llegan tus resultados, como las estrellas y la similitud de cada práctica.
+      </p>
+    </div>
+  </section>
+
+  <section class="section wrap" aria-labelledby="instalar">
+    <h2 id="instalar">Instalar en Android</h2>
+    <ol class="steps steps--compact">
+      <li>
+        <h3>Descarga el archivo</h3>
+        <p>Desde el navegador del teléfono, con el botón de arriba.</p>
+      </li>
+      <li>
+        <h3>Ábrelo</h3>
+        <p>
+          Si Android lo pide, permite instalar apps desde el navegador o el administrador de
+          archivos. Es necesario porque SyncDance no se instala desde Google Play.
+        </p>
+      </li>
+      <li>
+        <h3>Entra con tu cuenta</h3>
+        <p>Crea tu cuenta de estudiante en la app, o usa la que te dio tu instructor.</p>
+      </li>
+    </ol>
+    <div class="download download--again">
+      <ng-container [ngTemplateOutlet]="downloadBlock" />
+    </div>
+    @if (state(); as current) {
+      @if (current.kind === 'ready') {
+        @if (current.release.notes) {
+          <p class="notes"><strong>Novedades:</strong> {{ current.release.notes }}</p>
+        }
+        <p class="fingerprint">
+          Huella SHA-256 del archivo, para comprobar que no fue alterado:
+          <code>{{ current.release.sha256 }}</code>
+        </p>
+      }
+    }
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>SyncDance, entrenador de baile que analiza tu pose en el teléfono.</p>
+    <a routerLink="/panel">Panel de administración</a>
+  </div>
+</footer>

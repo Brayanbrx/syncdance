@@ -75,6 +75,10 @@ class RoutineReference(models.Model):
     source_video = models.FileField(upload_to="routines/", blank=True)
     source_sha256 = models.CharField(max_length=64, blank=True)
     processing_started_at = models.DateTimeField(null=True, blank=True)
+    # Observability: the Celery task that owns this version and when it ended
+    # (READY or FAILED), to find its log lines and spot slow or lost work.
+    processing_task_id = models.CharField(max_length=64, blank=True)
+    processing_finished_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

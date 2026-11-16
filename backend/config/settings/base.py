@@ -31,6 +31,8 @@ INSTALLED_APPS = [
     "apps.training",
     "apps.performances",
     "apps.analysis",
+    "apps.coaching",
+    "apps.backoffice",
 ]
 
 MIDDLEWARE = [
@@ -103,8 +105,9 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
-    # Login per account name and sign-up per address (see accounts.views).
-    "DEFAULT_THROTTLE_RATES": {"login": "10/minute", "register": "100/hour"},
+    # Login per account name, sign-up per address (see accounts.views) and
+    # course codes per account, so codes cannot be guessed (coaching.views).
+    "DEFAULT_THROTTLE_RATES": {"login": "10/minute", "register": "100/hour", "join": "20/hour"},
 }
 
 # The phone keeps only the refresh token (secure storage) to reopen offline and
@@ -141,6 +144,34 @@ CELERY_BEAT_SCHEDULE = {
         "options": {"expires": 9 * 60},
     },
 }
+# The worker logs through LOGGING below instead of replacing the root handlers.
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+
+# Structured logs on stdout (Docker): one JSON object per line with ids such
+# as reference_id, task_id or session_id. DJANGO_LOG_FORMAT=text reads easier
+# in a local terminal.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {"()": "common.logging.JsonFormatter"},
+        "text": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "text" if os.getenv("DJANGO_LOG_FORMAT") == "text" else "json",
+        },
+    },
+    "root": {"handlers": ["console"], "level": os.getenv("DJANGO_LOG_LEVEL", "INFO")},
+    # Replace Django's default handlers so its lines are not printed twice.
+    # Request lines stay: they show whether the phone reaches the server.
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.server": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
+
 POSE_MODEL_PATH = os.getenv(
     "POSE_MODEL_PATH", str(BASE_DIR / "models" / "pose_landmarker_lite.task")
 )

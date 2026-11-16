@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../coaching/course.dart';
 import 'motion_reference.dart';
 
 class Account {
@@ -145,6 +146,8 @@ class CatalogApi {
     Map<String, String>? body,
     int maxBytes = 1024 * 1024,
     bool expiredOn401 = false,
+    Set<int> accept = const {200},
+    Map<int, String> errors = const {},
   }) async {
     final abort = Completer<void>();
     final timeout = Timer(const Duration(seconds: 30), () => abort.complete());
@@ -163,11 +166,13 @@ class CatalogApi {
         request.body = jsonEncode(body);
       }
       final response = await _client.send(request);
-      if (response.statusCode != 200) {
+      if (!accept.contains(response.statusCode)) {
         await response.stream.listen(null).cancel();
         if (response.statusCode == 401 && (account != null || expiredOn401)) {
           throw const SessionExpiredException();
         }
+        final custom = errors[response.statusCode];
+        if (custom != null) throw ReferenceException(custom);
         throw ReferenceException(switch (response.statusCode) {
           401 => 'Usuario o contraseña incorrectos.',
           403 => 'No tienes acceso a esta rutina.',
@@ -203,6 +208,8 @@ class CatalogApi {
     Account? account,
     Map<String, String>? body,
     bool expiredOn401 = false,
+    Set<int> accept = const {200},
+    Map<int, String> errors = const {},
   }) async => object(
     jsonDecode(
       utf8.decode(
@@ -211,10 +218,33 @@ class CatalogApi {
           account: account,
           body: body,
           expiredOn401: expiredOn401,
+          accept: accept,
+          errors: errors,
         ),
       ),
     ),
   );
+
+  /// Every page of a DRF list, following `next` (bounded, no loops).
+  Future<List<Map<String, dynamic>>> _pages(
+    String first,
+    Account account,
+  ) async {
+    String? next = first;
+    final visited = <String>{};
+    final items = <Map<String, dynamic>>[];
+    while (next != null) {
+      if (!visited.add(next) || visited.length > 50) {
+        throw const FormatException('Paginación inválida.');
+      }
+      final data = await _json(next, account: account);
+      final results = data['results'];
+      if (results is! List) throw const FormatException('Lista inválida.');
+      items.addAll(results.map(object));
+      next = data['next'] as String?;
+    }
+    return items;
+  }
 
   static String? _token(Object? value) =>
       value is String && value.isNotEmpty ? value : null;
@@ -410,6 +440,44 @@ class CatalogApi {
       timeout.cancel();
     }
   }
+
+  /// The courses this student joined, with assignments and their progress.
+  Future<List<Course>> courses(Account account) async => [
+    for (final raw in await _pages('coaching/courses/', account))
+      Course.fromJson(raw),
+  ];
+
+  /// Joins with the instructor's code; joining twice returns the same course.
+  Future<Course> joinCourse(Account account, String code) async =>
+      Course.fromJson(
+        await _json(
+          'coaching/courses/join/',
+          account: account,
+          body: {'code': code},
+          accept: const {200, 201},
+          errors: const {
+            400: 'Escribe el código que te dio tu instructor.',
+            404: 'Código no válido o el curso ya no acepta alumnos.',
+            429: 'Demasiados intentos con códigos. Espera un rato.',
+          },
+        ),
+      );
+
+  Future<void> leaveCourse(Account account, int courseId) async {
+    await _request(
+      'coaching/courses/$courseId/leave/',
+      account: account,
+      body: const {},
+      accept: const {204},
+      errors: const {404: 'Ya no perteneces a este curso.'},
+    );
+  }
+
+  /// Observations of the instructor on this student's synced practices.
+  Future<List<InstructorNote>> instructorNotes(Account account) async => [
+    for (final raw in await _pages('coaching/notes/', account))
+      InstructorNote.fromJson(raw),
+  ];
 
   /// Stream to disk: never allocate the whole (up to 200 MiB) master in memory.
   /// [onProgress] gets the bytes received and the announced size (null when

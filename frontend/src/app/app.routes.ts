@@ -1,28 +1,51 @@
 import { Routes } from '@angular/router';
 
-import { authGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/auth/admin.guard';
 
 export const routes: Routes = [
   {
-    path: 'login',
-    loadComponent: () => import('./features/auth/login.page').then((m) => m.LoginPage),
+    path: '',
+    pathMatch: 'full',
+    title: 'SyncDance: aprende a bailar con tu teléfono',
+    loadComponent: () => import('./features/landing/landing.page').then((m) => m.LandingPage),
   },
   {
-    path: 'dashboard',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/dashboard/dashboard.page').then((m) => m.DashboardPage),
+    path: 'panel/ingresar',
+    title: 'Ingresar al panel | SyncDance',
+    loadComponent: () => import('./features/panel/panel-login.page').then((m) => m.PanelLoginPage),
   },
   {
-    path: 'routines',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/routines/routines.page').then((m) => m.RoutinesPage),
-  },
-  {
-    path: 'performances',
-    canActivate: [authGuard],
+    path: 'panel',
+    canActivate: [adminGuard],
     loadComponent: () =>
-      import('./features/performances/performances.page').then((m) => m.PerformancesPage),
+      import('./features/panel/panel-shell.component').then((m) => m.PanelShellComponent),
+    children: [
+      {
+        path: '',
+        title: 'Resumen | Panel SyncDance',
+        loadComponent: () => import('./features/panel/summary.page').then((m) => m.SummaryPage),
+      },
+      {
+        path: 'usuarios',
+        title: 'Usuarios | Panel SyncDance',
+        loadComponent: () => import('./features/panel/users.page').then((m) => m.UsersPage),
+      },
+      {
+        path: 'rutinas',
+        title: 'Rutinas | Panel SyncDance',
+        loadComponent: () => import('./features/panel/routines.page').then((m) => m.RoutinesPage),
+      },
+      {
+        path: 'cursos',
+        title: 'Cursos | Panel SyncDance',
+        loadComponent: () => import('./features/panel/courses.page').then((m) => m.CoursesPage),
+      },
+      {
+        path: 'app',
+        title: 'App Android | Panel SyncDance',
+        loadComponent: () => import('./features/panel/releases.page').then((m) => m.ReleasesPage),
+      },
+    ],
   },
-  { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
-  { path: '**', redirectTo: 'dashboard' },
+  { path: '**', redirectTo: '' },
 ];

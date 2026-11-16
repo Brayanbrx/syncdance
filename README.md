@@ -3,7 +3,7 @@
 Entrenador móvil de baile en tiempo real: seguir una referencia, analizar la
 pose en el teléfono y recibir feedback técnico inmediato.
 
-**Estado: Fase 6 implementada en código (pasos 1–3) y modo juego «Bailar»; validación física de Fases 1–6 pendiente.**
+**Estado: Fase 6 implementada en código (pasos 1–3) y modo juego «Bailar»; Fase 8 (cursos, tareas y observaciones) implementada; Fase 7 (endurecimiento) iniciada; validación física de Fases 1–6 pendiente. Plataforma objetivo: Android (iOS fuera del alcance por ahora).**
 Flutter incluye cámara frontal, pose ML Kit para Android, esqueleto sobre la
 preview, normalización corporal, evaluación inicial del encuadre, calibración
 de estabilidad y seis ángulos 2D suavizados. El benchmark físico, ajuste de
@@ -34,14 +34,18 @@ Flutter: cámara -> PoseEstimator -> normalización -> comparación -> feedback
     | HTTP: catálogo, referencias y resúmenes
     v
 Django REST + Django Admin -> PostgreSQL
+    |      ^
+    |      | /api, /admin
+    |   nginx (web): landing con la descarga del APK + panel de administración (Angular)
     |
     Redis / Celery -> referencias y análisis posterior
 ```
 
 Flutter es el producto principal. Django administra usuarios, catálogo,
 referencias versionadas e historial; no recibe frames del entrenamiento.
-Celery se reserva para trabajo offline. Angular está **congelado hasta Fase 11**
-y se ejecuta únicamente mediante el perfil opcional `web` de Compose.
+Celery se reserva para trabajo offline. La web (Angular servida por nginx) es la
+landing donde alumnos e instructores descargan la app y el panel de
+administración de la plataforma; ver [frontend/README.md](frontend/README.md).
 
 Ver [arquitectura](docs/ARQUITECTURA.md),
 [ADR-001](docs/ADR-001-live-first-mobile-first.md) y
@@ -77,10 +81,16 @@ rejilla de tiempos y referencia exacta; ver
 Compose aplica las migraciones al iniciar Django, sin borrar los datos
 existentes.
 
-- API: http://localhost:8000/api/
+- Web (landing y descarga del APK): http://localhost:8085/
+- Panel de administración (superusuarios y rol Administrador): http://localhost:8085/panel
+  (en desarrollo, la semilla `admin` / `admin`)
+- Panel del instructor (Django Admin): http://localhost:8085/admin/
+- API: http://localhost:8085/api/ (también directa en el puerto 8000)
 - Swagger: http://localhost:8000/api/docs/
-- Administración temporal: http://localhost:8000/admin/
 - Health: http://localhost:8000/api/health/
+
+Para abrir la landing desde un teléfono de la misma red: `http://<IP-del-PC>:8085/`,
+con esa IP añadida a `DJANGO_ALLOWED_HOSTS` en `.env`.
 
 Para trabajar sin Docker: Python 3.12, PostgreSQL y Redis. Crear el entorno con
 `python -m venv backend/.venv`, instalar `backend/requirements.txt` y definir las
@@ -104,8 +114,15 @@ flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api
 ```
 
 Reemplazar la IP por la del equipo con Django y permitir ese host en
-`DJANGO_ALLOWED_HOSTS`. Android Emulator usa `10.0.2.2`; iOS Simulator puede usar
-`localhost`. La URL del cliente es pública y nunca debe contener secretos.
+`DJANGO_ALLOWED_HOSTS`. Android Emulator usa `10.0.2.2`. La URL del cliente es
+pública y nunca debe contener secretos. Para repartir un APK firmado con una
+clave propia, ver [mobile/android/README.md](mobile/android/README.md).
+
+**Mis cursos** (en Inicio): el alumno se une con el código que le da su
+instructor, ve cada tarea con su objetivo en estrellas, su mejor marca ya
+sincronizada y la fecha límite, la baila con un toque y lee las observaciones
+del instructor. El instructor crea cursos y tareas, revisa el progreso y comenta
+prácticas en el Django Admin. Ver `backend/apps/coaching/README.md`.
 
 **Bailar** (en Inicio) lleva al catálogo: un toque descarga referencia y video
 y abre el modo juego manos libres, con calificaciones al ritmo, combo,
@@ -132,8 +149,8 @@ Muestra un esqueleto que puede ocultarse, landmarks recibidos, confianza media,
 tiempo de inferencia y frames descartados. La izquierda anatómica es naranja y
 la derecha celeste; el espejo solo afecta al dibujo. La confianza no es un score técnico ni reemplaza el futuro quality
 gate. La pantalla permanece encendida durante la captura y recupera el
-comportamiento normal al salir. El target iOS se elevó a 15.5 por la dependencia
-ML Kit, pero el adaptador de pose iOS y su compilación siguen pendientes.
+comportamiento normal al salir. iOS queda fuera del alcance por ahora: no hay
+adaptador de pose iOS ni se compila para iOS.
 
 En esa pantalla también se muestran ángulos 2D de codos, hombros y rodillas,
 separados por lado anatómico. `—` significa que faltan puntos válidos; no se
@@ -166,7 +183,7 @@ Se puede abrir el detalle o eliminar una práctica. Si falla el guardado, el
 resumen sigue visible para reintentar; repetir se habilita después de guardarlo.
 Volver atrás durante la práctica la finaliza y muestra el resumen antes de salir.
 Los registros sobreviven al reinicio, pero se requiere autenticar de nuevo la
-misma cuenta para consultarlos. No se sincronizan todavía. Ver
+misma cuenta para consultarlos. Se envían al servidor con la cola offline. Ver
 [historial local](mobile/lib/features/training/history/README.md),
 [feedback en vivo](mobile/lib/features/training/feedback/README.md),
 [comparación](mobile/lib/features/training/comparison/README.md),
@@ -223,6 +240,10 @@ API nueva, autenticada con JWT:
 | `POST /api/training/sessions/` | Guardar una sesión y sus segmentos/eventos de forma atómica |
 | `GET /api/training/sessions/` | Historial paginado del usuario autenticado |
 | `GET /api/training/sessions/{uuid}/` | Consultar su propio resumen |
+| `GET /api/coaching/courses/` | Cursos del alumno con tareas y su progreso |
+| `POST /api/coaching/courses/join/` | Unirse con el código del instructor |
+| `POST /api/coaching/courses/{id}/leave/` | Salir de un curso |
+| `GET /api/coaching/notes/` | Observaciones del instructor sobre las prácticas propias |
 
 El backend guarda scores calculados por el cliente; todavía no certifica su
 precisión. Las sesiones no se editan por API. El teléfono los sube con una cola
@@ -231,8 +252,16 @@ guardada (sin duplicar hijos) y un UUID de otra cuenta devuelve 409. Las
 partidas del modo juego añaden su bloque `game`. Ver
 `backend/apps/training/README.md`.
 Los valores sin evidencia permanecen `null`, no se convierten en cero.
-El login admite 10 intentos por minuto por nombre de cuenta y el registro 100
-por hora por dirección; la renovación del token no se limita.
+El login admite 10 intentos por minuto por nombre de cuenta, el registro 100
+por hora por dirección y unirse a un curso 20 códigos por hora por cuenta; la
+renovación del token no se limita.
+
+Logs: Django y Celery escriben una línea JSON por evento en la salida estándar
+(`docker compose logs backend celery`), con identificadores como
+`reference_id`, `task_id` o `session_id`, nunca frames ni contraseñas.
+`DJANGO_LOG_FORMAT=text` los muestra como texto y `DJANGO_LOG_LEVEL` fija el
+nivel. Cada versión de referencia guarda su `task_id` de Celery y cuánto tardó
+(Admin → Referencias).
 
 ## Validación
 
@@ -259,16 +288,18 @@ tarea, pero no sustituye la comprobación de Redis/worker en Docker.
 
 ## Siguiente paso
 
-La sincronización offline, la mejor marca por rutina y el modo juego (ritmo,
-pictogramas, estrellas y práctica por movimiento) ya están en código. Lo
-siguiente es la validación física con baile real (`mobile/VALIDACION_FISICA.md`).
+La sincronización offline, la mejor marca por rutina, el modo juego (ritmo,
+pictogramas, estrellas y práctica por movimiento) y los cursos con tareas ya
+están en código. Lo siguiente es la validación física con baile real
+(`mobile/VALIDACION_FISICA.md`); **Detectar postura → Medir rendimiento 60 s**
+da el benchmark de cada teléfono.
 La métrica de ritmo y sus
 avisos siguen pendientes de evidencia temporal fiable. Al retomar el
 teléfono, completar alineación de overlay, benchmark y
 ajuste de calibración/umbrales antes de declarar cerradas las Fases 1–2.
 También falta validar la sincronización y similitud con baile real antes de
 considerar cerrado el entrenador y ajustar los avisos con evidencia. Ver el
-[registro de pasos](mobile/lib/features/training/README.md). Canto, Angular y LLM
+[registro de pasos](mobile/lib/features/training/README.md). Canto y LLM
 quedan para fases posteriores.
 
 El backend de Fase 3 requiere `requirements-pose.txt` y el modelo oficial.
@@ -276,8 +307,10 @@ El Dockerfile prepara ambos; para el entorno virtual, ejecutar
 `python -m pip install -r requirements-pose.txt` y `python manage.py install_pose_model`
 desde `backend/`, además de las migraciones. Ver [pipeline, límites y pruebas](backend/apps/routines/README.md).
 
-Para iniciar la web conservada: `docker compose --profile web up --build`.
-No es necesaria para desarrollar ni validar el producto móvil.
+Para publicar una versión de la app: `flutter build apk --release` (ver
+[mobile/android/README.md](mobile/android/README.md)) y subir el APK en
+**Panel → App Android**. La landing ofrece la versión publicada con el código
+más alto.
 
 ## Convenciones
 

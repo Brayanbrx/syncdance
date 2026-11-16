@@ -8,7 +8,7 @@ MIN_PROGRESS_COVERAGE = 0.5
 
 
 def get_sessions_for_user(*, user):
-    # Instructor/student sharing belongs to a later phase; sessions are private.
+    # The API lists only one's own; instructors review theirs in the Django Admin.
     return (
         DanceSession.objects.filter(student=user)
         .select_related("routine", "reference", "game")
@@ -16,12 +16,16 @@ def get_sessions_for_user(*, user):
     )
 
 
-def get_student_progress():
+def get_student_progress(*, students=None):
     """Per student and routine, for the instructor: practices, games, best
     similarity at normal speed with enough coverage, best game stars and the
-    last practice. Missing evidence stays None, never zero."""
+    last practice. Missing evidence stays None, never zero. [students]
+    limits the rows (an instructor sees only their own)."""
+    sessions = DanceSession.objects.all()
+    if students is not None:
+        sessions = sessions.filter(student__in=students)
     rows = (
-        DanceSession.objects.values("student__username", "routine__name")
+        sessions.values("student__username", "routine__name")
         .annotate(
             practices=Count("id"),
             games=Count("game"),

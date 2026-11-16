@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../camera/camera_capture.dart';
 import '../camera/camera_frame.dart';
+import '../pose/pose_benchmark.dart';
 import '../pose/pose_estimator.dart';
 import '../pose/pose_frame.dart';
 import 'camera_pose_preview.dart';
@@ -60,6 +61,11 @@ class _CameraTrainingScreenState extends State<CameraTrainingScreen>
   final _measurementProcessor = PoseMeasurementProcessor();
   PoseMeasurements? _measurements;
 
+  /// Running device benchmark (Phase 1 record); null when idle.
+  PoseBenchmark? _benchmark;
+  Timer? _benchmarkTicker;
+  int _benchmarkSeconds = 0;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +88,7 @@ class _CameraTrainingScreenState extends State<CameraTrainingScreen>
           if (!identical(_poseCamera, _capture.controller)) {
             _measurementProcessor.reset();
           }
+          _benchmark?.sample(pose, _estimator!.stats);
           final measurements = _measurementProcessor.process(pose);
           if (measurements == null) return;
           _poseExpiry?.cancel();
@@ -118,6 +125,8 @@ class _CameraTrainingScreenState extends State<CameraTrainingScreen>
     if (state != AppLifecycleState.resumed) {
       _poseExpiry?.cancel();
       _resetMeasurements();
+      // A paused camera would make the 60 s meaningless.
+      if (_benchmark != null) setState(_cancelBenchmark);
     }
     unawaited(_capture.setForeground(state == AppLifecycleState.resumed));
   }
@@ -125,6 +134,7 @@ class _CameraTrainingScreenState extends State<CameraTrainingScreen>
   @override
   void dispose() {
     _poseExpiry?.cancel();
+    _cancelBenchmark();
     _poseCamera?.removeListener(_clearRotatedPose);
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_poseSubscription?.cancel());
@@ -154,8 +164,96 @@ class _CameraTrainingScreenState extends State<CameraTrainingScreen>
   void _captureChanged() {
     if (_capture.status != CaptureStatus.streaming && mounted) {
       _poseExpiry?.cancel();
-      setState(_resetMeasurements);
+      setState(() {
+        _resetMeasurements();
+        _cancelBenchmark();
+      });
     }
+  }
+
+  void _cancelBenchmark() {
+    _benchmarkTicker?.cancel();
+    _benchmarkTicker = null;
+    _benchmark = null;
+  }
+
+  void _startBenchmark() {
+    final estimator = _estimator;
+    if (estimator == null || _benchmark != null) return;
+    setState(() {
+      _benchmarkSeconds = 0;
+      _benchmark = PoseBenchmark(
+        stats: estimator.stats,
+        capturedFrames: _capture.receivedFrames,
+      );
+    });
+    _benchmarkTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      final benchmark = _benchmark;
+      if (!mounted || benchmark == null) return timer.cancel();
+      _benchmarkSeconds++;
+      if (_benchmarkSeconds < PoseBenchmark.duration.inSeconds) {
+        setState(() {});
+        return;
+      }
+      final report = benchmark.finish(
+        elapsedMs: _benchmarkSeconds * 1000,
+        stats: estimator.stats,
+        capturedFrames: _capture.receivedFrames,
+      );
+      setState(_cancelBenchmark);
+      unawaited(_showBenchmark(report));
+    });
+  }
+
+  Future<void> _showBenchmark(PoseBenchmarkReport report) => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Rendimiento en este teléfono'),
+      content: SingleChildScrollView(child: SelectableText(report.text)),
+      actions: [
+        TextButton(
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: report.text));
+            if (dialogContext.mounted) Navigator.pop(dialogContext);
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Copiado. Pégalo en el registro de validación física.',
+                  ),
+                ),
+              );
+            }
+          },
+          child: const Text('Copiar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Cerrar'),
+        ),
+      ],
+    ),
+  );
+
+  Widget get _benchmarkControl {
+    if (_benchmark == null) {
+      return TextButton.icon(
+        onPressed: _poseError == null ? _startBenchmark : null,
+        icon: const Icon(Icons.speed),
+        label: const Text('Medir rendimiento 60 s'),
+      );
+    }
+    final left = PoseBenchmark.duration.inSeconds - _benchmarkSeconds;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Flexible(child: Text('Midiendo rendimiento… $left s')),
+        TextButton(
+          onPressed: () => setState(_cancelBenchmark),
+          child: const Text('Cancelar'),
+        ),
+      ],
+    );
   }
 
   @override
@@ -298,6 +396,7 @@ class _CameraTrainingScreenState extends State<CameraTrainingScreen>
                       ),
                       child: Text(_poseStatus, textAlign: TextAlign.center),
                     ),
+                  if (_estimator != null && !widget.embedded) _benchmarkControl,
                   if (_estimator != null &&
                       _visiblePose != null &&
                       _measurements != null)

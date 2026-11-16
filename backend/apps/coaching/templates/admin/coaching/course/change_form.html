@@ -1,0 +1,16 @@
+{% extends "admin/change_form.html" %}
+{% block object-tools-items %}
+  {% if original %}
+    <li><a href="{% url 'admin:coaching_course_progress' original.pk %}">Progreso del curso</a></li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
+{% block field_sets %}
+  {% if original %}
+    <p>
+      Los alumnos se unen desde la app (<strong>Inicio → Mis cursos</strong>) con el
+      código <strong>{{ original.join_code }}</strong>.
+    </p>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

@@ -271,3 +271,36 @@ def test_api_permissions_and_missing_video(setup, engine):
     client.force_authenticate(routine.instructor)
     update_routine(routine=routine, master_video="")
     assert client.post(f"/api/routines/{routine.pk}/generate-reference/").status_code == 400
+
+
+def test_processing_is_traceable_by_task_id_and_time(
+    setup, engine, caplog, django_capture_on_commit_callbacks
+):
+    routine, _, dispatch = setup
+    dispatch.return_value = Mock(id="task-123")
+    with django_capture_on_commit_callbacks(execute=True):
+        ref = queue_reference(routine_id=routine.pk)
+    ref.refresh_from_db()
+    assert ref.processing_task_id == "task-123"
+    assert ref.processing_finished_at is None
+    with caplog.at_level("INFO", logger="apps.routines.tasks"):
+        generate_reference.run(ref.pk)
+    ref.refresh_from_db()
+    assert ref.status == "READY"
+    # A run outside a worker has no task id: the dispatched one is kept.
+    assert ref.processing_task_id == "task-123"
+    assert ref.processing_finished_at >= ref.processing_started_at
+    (ready,) = [r for r in caplog.records if r.getMessage() == "reference ready"]
+    assert ready.reference_id == ref.pk
+    assert ready.elapsed_ms >= 0
+
+
+def test_failed_processing_records_when_it_ended(setup, engine):
+    routine, _, _ = setup
+    build, _ = engine
+    build.side_effect = ReferenceError("Sin persona visible.")
+    ref = queue_reference(routine_id=routine.pk)
+    generate_reference.run(ref.pk)
+    ref.refresh_from_db()
+    assert ref.status == "FAILED"
+    assert ref.processing_finished_at is not None

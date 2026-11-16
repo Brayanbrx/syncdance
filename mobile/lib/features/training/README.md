@@ -292,3 +292,23 @@ Prueba manual pendiente: cuerpo completo/recortado, cerca/lejos, iluminación,
 posición estable y movimiento durante espera, flexiones rápidas y lentas,
 salir/entrar al encuadre, giro, pausa/reanudación y recalibración. Registrar
 falsos rechazos, tiempo de recuperación y retardo visible del suavizado.
+
+## Fase 7 · Paso 1 — benchmark por dispositivo (implementado)
+
+- **Inicio → Detectar postura → Medir rendimiento 60 s** resume una ventana fija
+  de 60 s (`PoseBenchmark`, `pose-benchmark-v1`): imágenes/s de captura,
+  inferencias/s, descartadas (tope de ~12/s o inferencia en curso), p50/p95/máx
+  del tiempo de inferencia y p50 de los primeros y últimos 10 s para detectar
+  calentamiento. **Copiar** deja el texto listo para el registro de validación.
+- Solo lee contadores del estimador y de la captura: no cambia la detección,
+  el quality gate ni el score, y no usa la red.
+- Sin muestras, cada valor queda `—` (no cero). Timestamps repetidos o atrasados
+  no cuentan; si la cámara se reinicia y su contador retrocede, la captura queda
+  sin medir. Ir a segundo plano o perder la cámara cancela la medición.
+
+Validación: pruebas unitarias del cálculo (percentiles, ventanas, ausencias,
+timestamps) y prueba de widget del flujo completo con cámara simulada.
+
+Prueba física pendiente: ejecutar en cada teléfono objetivo con `--profile`
+y pegar el resumen en la tabla del protocolo (Fase 1, paso 1). El tiempo
+incluye el ida y vuelta del canal de plataforma, no solo el modelo.

@@ -27,9 +27,36 @@ node_modules/
 dist/
 .angular/
 
+# Android release artifacts: se publican desde el panel web, no en git
+*.apk
+*.aab
+
 # IDE
 .vscode/
 .idea/
+
+# Asistentes de IA (Claude Code, Copilot, Cursor, etc.): configuración y skills
+# locales; no se versionan
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+skills-lock.json
+.agents/
+AGENTS.md
+GEMINI.md
+.gemini/
+.codex/
+.mcp.json
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules
+.continue/
+.aider*
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/
+.github/modernize/
 
 # OS
 .DS_Store

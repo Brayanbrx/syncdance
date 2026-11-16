@@ -52,6 +52,9 @@
               }
             ],
             "styles": [
+              "@fontsource-variable/bricolage-grotesque/wdth.css",
+              "@fontsource/atkinson-hyperlegible/400.css",
+              "@fontsource/atkinson-hyperlegible/700.css",
               "src/styles.scss"
             ]
           },
@@ -65,8 +68,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "8kB",
+                  "maximumError": "16kB"
                 }
               ],
               "outputHashing": "all"

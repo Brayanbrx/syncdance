@@ -34,8 +34,17 @@ class RoutineAdmin(admin.ModelAdmin):
 
 @admin.register(RoutineReference)
 class RoutineReferenceAdmin(admin.ModelAdmin):
-    list_display = ("routine", "version", "status", "engine_name", "created_at")
+    list_display = (
+        "routine",
+        "version",
+        "status",
+        "engine_name",
+        "created_at",
+        "processing_time",
+        "processing_task_id",
+    )
     list_filter = ("status", "engine_name")
+    search_fields = ("routine__name", "processing_task_id")
     readonly_fields = ("created_at",)
 
     def has_add_permission(self, request):
@@ -43,6 +52,16 @@ class RoutineReferenceAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    @admin.display(description="Procesamiento")
+    def processing_time(self, obj):
+        """How long the worker took; «—» while queued or never started."""
+        if not obj.processing_started_at:
+            return "—"
+        if not obj.processing_finished_at:
+            return "en curso"
+        seconds = (obj.processing_finished_at - obj.processing_started_at).total_seconds()
+        return f"{seconds:.0f} s"
 
     def get_readonly_fields(self, request, obj=None):
         return tuple(field.name for field in self.model._meta.fields)

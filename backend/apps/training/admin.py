@@ -7,6 +7,10 @@ from django.template.response import TemplateResponse
 from django.urls import path
 from django.utils import timezone
 
+from apps.coaching.admin import SessionNoteInline, can_coach
+from apps.coaching.models import SessionNote
+from apps.coaching.selectors import students_of
+
 from .models import (
     DanceSession,
     ErrorEvent,
@@ -18,7 +22,14 @@ from .models import (
 from .selectors import MIN_PROGRESS_COVERAGE, get_student_progress
 
 
-class SegmentScoreInline(admin.TabularInline):
+class CoachCanView:
+    """Instructors read the results of their students without model permissions."""
+
+    def has_view_permission(self, request, obj=None):
+        return can_coach(request.user) or super().has_view_permission(request, obj)
+
+
+class SegmentScoreInline(CoachCanView, admin.TabularInline):
     model = SegmentScore
     extra = 0
     can_delete = False
@@ -28,7 +39,7 @@ class SegmentScoreInline(admin.TabularInline):
         return False
 
 
-class TimelineSegmentInline(admin.TabularInline):
+class TimelineSegmentInline(CoachCanView, admin.TabularInline):
     model = TimelineSegment
     extra = 0
     can_delete = False
@@ -38,7 +49,7 @@ class TimelineSegmentInline(admin.TabularInline):
         return False
 
 
-class FeedbackCountInline(admin.TabularInline):
+class FeedbackCountInline(CoachCanView, admin.TabularInline):
     model = FeedbackCount
     extra = 0
     can_delete = False
@@ -48,7 +59,7 @@ class FeedbackCountInline(admin.TabularInline):
         return False
 
 
-class ErrorEventInline(admin.TabularInline):
+class ErrorEventInline(CoachCanView, admin.TabularInline):
     model = ErrorEvent
     extra = 0
     can_delete = False
@@ -68,7 +79,7 @@ class ErrorEventInline(admin.TabularInline):
         return False
 
 
-class GameResultInline(admin.StackedInline):
+class GameResultInline(CoachCanView, admin.StackedInline):
     model = GameResult
     extra = 0
     can_delete = False
@@ -142,11 +153,58 @@ class DanceSessionAdmin(admin.ModelAdmin):
         FeedbackCountInline,
         SegmentScoreInline,
         ErrorEventInline,
+        SessionNoteInline,
     )
     readonly_fields = tuple(field.name for field in DanceSession._meta.fields)
 
+    @staticmethod
+    def _limited(user):
+        """An instructor reviews only the students of their courses."""
+        return user.is_instructor and not user.manages_all_courses
+
+    def _students(self, request):
+        return students_of(user=request.user) if self._limited(request.user) else None
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        students = self._students(request)
+        return queryset if students is None else queryset.filter(student__in=students)
+
+    def _coaches(self, request, obj):
+        if not can_coach(request.user):
+            return False
+        students = self._students(request)
+        return obj is None or students is None or students.filter(pk=obj.student_id).exists()
+
+    def has_module_permission(self, request):
+        return super().has_module_permission(request) or can_coach(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        if self._limited(request.user):
+            return self._coaches(request, obj)
+        return super().has_view_permission(request, obj) or self._coaches(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        # Every session field is read-only: «change» only adds observations.
+        if self._limited(request.user):
+            return self._coaches(request, obj)
+        return super().has_change_permission(request, obj) or self._coaches(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return not self._limited(request.user) and super().has_delete_permission(request, obj)
+
     def has_add_permission(self, request):
         return False
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model is not SessionNote:
+            return super().save_formset(request, form, formset, change)
+        for note in formset.save(commit=False):
+            if note.author_id is None:
+                note.author = request.user
+            note.save()
+        for note in formset.deleted_objects:
+            note.delete()
 
     @admin.display(description="Modo")
     def kind(self, obj):
@@ -192,7 +250,7 @@ class DanceSessionAdmin(admin.ModelAdmin):
             raise PermissionDenied
         rows = [
             {**row, "stars": None if row["best_stars"] is None else _stars(row["best_stars"])}
-            for row in get_student_progress()
+            for row in get_student_progress(students=self._students(request))
         ]
         context = {
             **self.admin_site.each_context(request),
@@ -223,7 +281,7 @@ class DanceSessionAdmin(admin.ModelAdmin):
                 "Última práctica",
             ]
         )
-        for row in get_student_progress():
+        for row in get_student_progress(students=self._students(request)):
             writer.writerow(
                 [
                     _cell(row["student__username"]),

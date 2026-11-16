@@ -64,11 +64,13 @@ resumen local; los que no las cumplen (formatos anteriores) se omiten.
 
 ## Vista del instructor (Django Admin)
 
-Con un usuario staff (en desarrollo, la semilla `admin` / `admin`):
+Con un usuario staff (en desarrollo, la semilla `admin` / `admin`) o con el rol
+Instructor, que ve solo a los alumnos de sus cursos (ver `apps/coaching/README.md`):
 
 - **Sesiones de baile:** alumno, rutina, modo (Juego o Práctica), estrellas,
   puntos, similitud y cobertura; filtros por modo, rutina, espejo y velocidad,
-  búsqueda por alumno o rutina y navegación por fecha. Solo lectura.
+  búsqueda por alumno o rutina y navegación por fecha. Solo lectura, salvo las
+  **observaciones del instructor** que se añaden al pie de cada práctica.
 - **Progreso por alumno** (`/admin/training/dancesession/progreso/`): por alumno
   y rutina, prácticas, partidas, mejor similitud (velocidad normal y cobertura
   ≥ 50 %, el mismo corte provisional del teléfono), mejores estrellas y última

@@ -22,14 +22,19 @@ def expire_stale_references(*, routine=None):
     """
     queryset = routine.references.all() if routine else RoutineReference.objects.all()
     limit = timezone.now() - STALE_AFTER
+    now = timezone.now()
     expired = queryset.filter(status="PROCESSING", processing_started_at__lt=limit).update(
-        status="FAILED", processing_error="El proceso excedió su tiempo máximo."
+        status="FAILED",
+        processing_error="El proceso excedió su tiempo máximo.",
+        processing_finished_at=now,
     )
     expired += queryset.filter(status="PENDING", created_at__lt=limit).update(
-        status="FAILED", processing_error="El trabajo no comenzó a tiempo. Genera otra versión."
+        status="FAILED",
+        processing_error="El trabajo no comenzó a tiempo. Genera otra versión.",
+        processing_finished_at=now,
     )
     if expired:
-        logger.warning("Expired %s stale reference(s)", expired)
+        logger.warning("stale references expired", extra={"expired": expired})
     return expired
 
 
@@ -37,12 +42,22 @@ def _dispatch(reference_id):
     from .tasks import generate_reference
 
     try:
-        generate_reference.delay(reference_id)
+        result = generate_reference.delay(reference_id)
     except Exception:
-        logger.exception("Could not dispatch reference %s", reference_id)
+        logger.exception("reference dispatch failed", extra={"reference_id": reference_id})
         RoutineReference.objects.filter(pk=reference_id, status="PENDING").update(
-            status="FAILED", processing_error="No se pudo enviar el trabajo. Genera otra versión."
+            status="FAILED",
+            processing_error="No se pudo enviar el trabajo. Genera otra versión.",
+            processing_finished_at=timezone.now(),
         )
+        return
+    task_id = getattr(result, "id", None)
+    if isinstance(task_id, str) and task_id:
+        # An eager run (tests) already stored it: never overwrite.
+        RoutineReference.objects.filter(pk=reference_id, processing_task_id="").update(
+            processing_task_id=task_id
+        )
+    logger.info("reference queued", extra={"reference_id": reference_id, "task_id": task_id})
 
 
 @transaction.atomic
