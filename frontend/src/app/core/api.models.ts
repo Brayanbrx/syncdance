@@ -178,6 +178,9 @@ export interface StudioRoutine {
     version: number;
     error: string;
     finished_at: string | null;
+    /** Students download the 720p version made for the app. */
+    light_video: boolean;
+    poster: boolean;
   } | null;
   courses: number[];
   created_at: string;

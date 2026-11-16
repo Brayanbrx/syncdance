@@ -10,10 +10,11 @@ import {
   routineState,
 } from '../../core/api.models';
 import { StudioService } from '../../core/studio.service';
+import { RoutinePosterComponent } from './routine-poster.component';
 
 @Component({
   selector: 'sd-studio-routines',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, RoutinePosterComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page-head">
@@ -45,12 +46,23 @@ import { StudioService } from '../../core/studio.service';
         @for (routine of routines(); track routine.id) {
           <li>
             <a [routerLink]="['/estudio/rutinas', routine.id]">
-              <strong>{{ routine.name }}</strong>
-              <span class="muted">
-                {{ levels[routine.difficulty] }}{{ routine.style ? ', ' + routine.style : '' }}
-                @if (routine.duration_ms) {
-                  — {{ clock(routine.duration_ms) }}
-                }
+              @if (routine.processing?.poster) {
+                <sd-routine-poster
+                  class="thumb"
+                  [routine]="routine.id"
+                  [version]="routine.processing!.version"
+                />
+              } @else {
+                <span class="thumb" aria-hidden="true"></span>
+              }
+              <span class="text">
+                <strong>{{ routine.name }}</strong>
+                <span class="muted">
+                  {{ levels[routine.difficulty] }}{{ routine.style ? ', ' + routine.style : '' }}
+                  @if (routine.duration_ms) {
+                    — {{ clock(routine.duration_ms) }}
+                  }
+                </span>
               </span>
             </a>
             <span class="status status--{{ state(routine).tone }}">{{ state(routine).label }}</span>
@@ -73,15 +85,28 @@ import { StudioService } from '../../core/studio.service';
       grid-template-columns: minmax(0, 1fr) auto auto;
       align-items: center;
       gap: 1rem;
-      padding: 0.9rem 1.1rem;
+      padding: 0.7rem 1.1rem 0.7rem 0.7rem;
       background: var(--paper);
       border: 1px solid var(--line);
       border-radius: 12px;
     }
     li a {
       display: grid;
-      gap: 0.15rem;
+      grid-template-columns: 3.5rem minmax(0, 1fr);
+      align-items: center;
+      gap: 0.9rem;
       text-decoration: none;
+      min-width: 0;
+    }
+    .thumb {
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 8px;
+      background: var(--floor);
+    }
+    .text {
+      display: grid;
+      gap: 0.15rem;
       min-width: 0;
     }
     .muted {
@@ -103,6 +128,11 @@ import { StudioService } from '../../core/studio.service';
       li {
         grid-template-columns: 1fr;
         gap: 0.4rem;
+      }
+      /* Status and date line up with the name, past the thumbnail. */
+      li > :not(a) {
+        margin-left: 4.4rem;
+        justify-self: start;
       }
     }
   `,

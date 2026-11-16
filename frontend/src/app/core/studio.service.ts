@@ -17,6 +17,7 @@ export interface RoutineFields {
 export class StudioService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiBaseUrl}/studio`;
+  private readonly routinesBase = `${environment.apiBaseUrl}/routines`;
 
   routines(): Observable<StudioRoutine[]> {
     return this.http.get<StudioRoutine[]>(`${this.base}/routines/`);
@@ -67,6 +68,22 @@ export class StudioService {
 
   quality(id: number): Observable<QualityReport> {
     return this.http.get<QualityReport>(`${this.base}/routines/${id}/quality/`);
+  }
+
+  /** Thumbnail of a processed version (authenticated, so fetched as a blob). */
+  poster(id: number, version: number): Observable<Blob> {
+    return this.http.get(`${this.routinesBase}/${id}/references/${version}/poster/`, {
+      responseType: 'blob',
+    });
+  }
+
+  /** The video students play for a version, with download progress. */
+  video(id: number, version: number): Observable<HttpEvent<Blob>> {
+    return this.http.get(`${this.routinesBase}/${id}/references/${version}/video/`, {
+      responseType: 'blob',
+      reportProgress: true,
+      observe: 'events',
+    });
   }
 
   courses(): Observable<StudioCourse[]> {

@@ -19,12 +19,39 @@
     <h2>Video</h2>
     @switch (r.processing?.status) {
       @case ('READY') {
+        <div class="preview">
+          @if (preview(); as src) {
+            <video [src]="src" controls autoplay playsinline></video>
+          } @else {
+            @if (r.processing!.poster) {
+              <sd-routine-poster fit="natural" [routine]="r.id" [version]="r.processing!.version" />
+            }
+            <button
+              class="button play"
+              type="button"
+              [disabled]="loadingPreview() !== null"
+              (click)="watch(r.id, r.processing!.version)"
+            >
+              @if (loadingPreview() === null) {
+                Ver video
+              } @else {
+                Cargando {{ loadingPreview() }} %
+              }
+            </button>
+          }
+        </div>
         <p>
           Procesado (versión {{ r.processing!.version }}, {{ clock(r.duration_ms) }}).
           @if (r.processing!.finished_at) {
             Listo el {{ r.processing!.finished_at | date: 'd MMM y, HH:mm' }}.
           }
         </p>
+        @if (r.processing!.light_video) {
+          <p class="field-hint">
+            Esto es lo que ven tus alumnos: una versión de 720p que ocupa menos datos en su
+            teléfono. Tu archivo original queda guardado.
+          </p>
+        }
       }
       @case ('FAILED') {
         <p class="alert">{{ r.processing!.error || 'El procesamiento falló.' }}</p>
