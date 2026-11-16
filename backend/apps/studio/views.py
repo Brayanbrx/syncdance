@@ -44,6 +44,7 @@ class StudioRoutineViewSet(
 
     permission_classes = [IsInstructorOrAdmin]
     serializer_class = StudioRoutineSerializer
+    pagination_class = None  # one instructor's routines: a short list
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_queryset(self):

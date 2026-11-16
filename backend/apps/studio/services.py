@@ -37,8 +37,11 @@ def probe(upload) -> dict | None:
         logger.warning("video probe unavailable")
         return None
     with tempfile.TemporaryDirectory(prefix="syncdance-probe-") as workspace:
-        path = getattr(upload, "temporary_file_path", None)
-        if path is None:
+        # Large uploads already sit in a temporary file (Django's
+        # TemporaryUploadedFile); small ones live in memory and are copied.
+        if hasattr(upload, "temporary_file_path"):
+            path = upload.temporary_file_path()
+        else:
             path = Path(workspace) / "upload"
             with open(path, "wb") as copy:
                 for chunk in upload.chunks():

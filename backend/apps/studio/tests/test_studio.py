@@ -1,6 +1,7 @@
 import gzip
 import json
 import os
+from pathlib import Path
 
 import pytest
 from django.core.cache import cache
@@ -137,7 +138,7 @@ def test_only_instructors_use_the_studio_and_each_sees_their_own(school):
     upload(client_for(school["teacher"]), name="Del profe")
     upload(client_for(school["other"]), name="De la otra")
 
-    mine = client_for(school["teacher"]).get("/api/studio/routines/").json()["results"]
+    mine = client_for(school["teacher"]).get("/api/studio/routines/").json()
 
     assert [r["name"] for r in mine] == ["Del profe"]
     assert client_for(school["ana"]).get("/api/studio/routines/").status_code == 403
@@ -275,3 +276,35 @@ def test_the_course_list_offers_only_the_instructors_courses(school):
             "students": 1,
         }
     ]
+
+
+def test_the_probe_reads_large_uploads_from_their_temporary_file(monkeypatch, tmp_path):
+    """FFmpeg gets a real path: Django keeps big uploads in a temporary file
+    (temporary_file_path is a method) and small ones in memory."""
+    import sys
+    import types
+
+    from django.core.files.uploadedfile import TemporaryUploadedFile
+
+    from apps.studio import services
+
+    monkeypatch.undo()  # the real probe, not the autouse stand-in
+    opened = []
+
+    def read_frames(path):
+        opened.append((path, Path(path).read_bytes()))
+        yield {"duration": 12.5, "source_size": (1920, 1080)}
+
+    monkeypatch.setitem(
+        sys.modules, "imageio_ffmpeg", types.SimpleNamespace(read_frames=read_frames)
+    )
+    large = TemporaryUploadedFile("grande.mp4", "video/mp4", 5, "utf-8")
+    large.write(b"large")
+    large.seek(0)
+    small = SimpleUploadedFile("chico.mp4", b"small", content_type="video/mp4")
+
+    assert services.probe(large) == {"duration": 12.5, "size": (1920, 1080)}
+    assert services.probe(small) == {"duration": 12.5, "size": (1920, 1080)}
+    assert opened[0] == (large.temporary_file_path(), b"large")
+    assert opened[1][1] == b"small"
+    assert large.read() == b"large"  # rewound for saving afterwards
