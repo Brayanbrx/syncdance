@@ -32,6 +32,7 @@ class RoutineViewSet(viewsets.ModelViewSet):
             "reference_status",
             "reference_download",
             "reference_video",
+            "reference_poster",
         }:
             return [permissions.IsAuthenticated()]
         return [IsInstructorOrAdmin()]
@@ -108,21 +109,42 @@ class RoutineViewSet(viewsets.ModelViewSet):
         url_name="reference-video",
     )
     def reference_video(self, request, pk=None, version=None):
-        # Serve the source pinned to this version, even after the master changes.
+        # Serve the video pinned to this version, even after the master changes:
+        # the light version the reference was computed from, when it exists.
         reference = self.get_object().references.filter(version=version, status="READY").first()
-        if reference is None or not reference.source_video or not reference.source_sha256:
+        if reference is None or not reference.video or not reference.source_sha256:
             raise NotFound("Video de referencia no disponible.")
         try:
-            source = reference.source_video.open("rb")
+            source = reference.video.open("rb")
         except FileNotFoundError as exc:
             raise NotFound("El video de referencia no está disponible.") from exc
         response = FileResponse(
             source,
-            content_type=mimetypes.guess_type(reference.source_video.name)[0]
+            content_type=mimetypes.guess_type(reference.video.name)[0]
             or "application/octet-stream",
         )
         response["ETag"] = f'"{reference.source_sha256}"'
         response["Cache-Control"] = "private, no-cache"
+        return response
+
+    @extend_schema(responses={(200, "image/jpeg"): OpenApiTypes.BINARY})
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path=r"references/(?P<version>[0-9]+)/poster",
+        url_name="reference-poster",
+    )
+    def reference_poster(self, request, pk=None, version=None):
+        reference = self.get_object().references.filter(version=version, status="READY").first()
+        if reference is None or not reference.poster:
+            raise NotFound("Miniatura no disponible.")
+        try:
+            source = reference.poster.open("rb")
+        except FileNotFoundError as exc:
+            raise NotFound("Miniatura no disponible.") from exc
+        response = FileResponse(source, content_type="image/jpeg")
+        # A version never changes its poster.
+        response["Cache-Control"] = "private, max-age=86400"
         return response
 
     def perform_update(self, serializer):

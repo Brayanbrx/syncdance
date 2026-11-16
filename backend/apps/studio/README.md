@@ -36,7 +36,12 @@ administradores (`IsInstructorOrAdmin`), y cada uno ve únicamente sus rutinas.
   de 1 s o más sin una sola persona medible. El 80 % y el segundo son
   **provisionales** hasta la validación física (E2). Sin muestras, los
   porcentajes son `null`, nunca 0.
+- **Video para los alumnos:** el worker prepara una versión de 720p y una
+  miniatura (ver `apps/routines/README.md`). `processing.light_video` y
+  `processing.poster` dicen si la versión actual las tiene; la web muestra la
+  miniatura y reproduce el mismo archivo que descarga el teléfono.
 - **Borrar** solo una rutina sin prácticas, tareas ni videos de alumnos; si
-  no, se retira de los cursos. Los archivos se borran después de confirmar.
+  no, se retira de los cursos. Los archivos se borran después de confirmar,
+  incluidos la versión para la app y la miniatura.
 
 Qué ve cada alumno lo decide `apps.routines.selectors.get_routines_for_user`.

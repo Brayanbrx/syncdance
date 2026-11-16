@@ -45,6 +45,7 @@ class RoutineSerializer(serializers.ModelSerializer):
 
 class RoutineReferenceSerializer(serializers.ModelSerializer):
     download_url = serializers.SerializerMethodField()
+    poster_url = serializers.SerializerMethodField()
 
     def get_download_url(self, obj) -> str | None:
         if obj.status != RoutineReference.Status.READY or not obj.reference_asset:
@@ -55,6 +56,15 @@ class RoutineReferenceSerializer(serializers.ModelSerializer):
                 "pk": obj.routine_id,
                 "version": obj.version,
             },
+            request=self.context.get("request"),
+        )
+
+    def get_poster_url(self, obj) -> str | None:
+        if obj.status != RoutineReference.Status.READY or not obj.poster:
+            return None
+        return reverse(
+            "routine-reference-poster",
+            kwargs={"pk": obj.routine_id, "version": obj.version},
             request=self.context.get("request"),
         )
 
@@ -73,6 +83,8 @@ class RoutineReferenceSerializer(serializers.ModelSerializer):
             "algorithm_version",
             "reference_asset",
             "download_url",
+            "poster_url",
+            "playback_profile",
             "processing_error",
             "source_sha256",
             "checksum_sha256",

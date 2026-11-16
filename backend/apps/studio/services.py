@@ -173,7 +173,9 @@ def delete_routine(*, routine) -> None:
             conflict=True,
         )
     files = [routine.master_video] + [
-        f for r in routine.references.all() for f in (r.reference_asset, r.source_video)
+        f
+        for r in routine.references.all()
+        for f in (r.reference_asset, r.source_video, r.playback_video, r.poster)
     ]
     routine.published_in_courses.clear()
     routine.references.all().delete()

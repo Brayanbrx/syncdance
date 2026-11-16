@@ -16,6 +16,18 @@
 - La versión conserva la ruta del video fuente; reemplazarlo no cambia trabajos
   anteriores. Sus checksums y resultados quedan en el historial. No sobrescribir
   archivos de storage fuera de la aplicación: la ruta debe conservar su contenido.
+- **Versión para la app** (`app-video-v1`, `ai_engine/playback/app_video.py`): antes
+  de medir, el worker convierte el video subido a MP4 H.264/AAC con el lado corto
+  de 720 px como máximo, 30 cuadros/s constantes desde 0 ms, la rotación aplicada
+  y el audio recortado o completado con silencio hasta el final de la imagen. Si
+  la imagen empieza después que el sonido, se repite el primer cuadro para no
+  perder la sincronía. Se quitan los metadatos (la ubicación GPS que guardan los
+  teléfonos). La referencia se calcula **sobre este archivo**, no sobre el subido:
+  `source_sha256` es su hash y la línea de tiempo `video-start-cfr-v1` coincide
+  con lo que reproduce el teléfono. El original queda en `source_video` para
+  volver a procesar; cambiar los comandos de conversión sube `app-video-v1`.
+- Una miniatura JPEG (640 px de lado mayor) sale del cuadro con una sola persona
+  más cercano a un cuarto del video. Si falla, la referencia queda lista igual.
 - FFmpeg corrige rotación/metadatos de píxel, remuestrea a 12 Hz por tiempo de
   presentación y limita el lado mayor a 960 px. MediaPipe Lite extrae pose local
   en modo VIDEO; OpenCV lee el video normalizado. No se llama a IA remota.
@@ -26,8 +38,10 @@
   Ausencias permanecen vacías; se conserva su posición en el timeline.
 - El endpoint actual devuelve únicamente un READY asociado al video vigente.
   Las descargas versionadas mantienen acceso al historial autorizado.
-- `GET /api/routines/{id}/references/{version}/video/` entrega el video fuente
-  asociado a un READY, con JWT y visibilidad de la rutina. Devuelve ETag con
+- `GET /api/routines/{id}/references/{version}/video/` entrega el video de esa
+  versión: la versión para la app, o el video subido en versiones anteriores a
+  `app-video-v1` y en las coreografías generadas. Exige un READY, JWT y
+  visibilidad de la rutina. Devuelve ETag con
   `source_sha256`; Flutter verifica los bytes antes de reproducir. No sustituye
   un video antiguo por el maestro actual. El cliente descarga el archivo entero
   a disco antes de abrirlo, por lo que este endpoint no implementa HTTP Range.
@@ -69,6 +83,8 @@ Todas las rutas llevan `/api/routines/{id}/` y autenticación JWT:
 | GET `reference-status/` | Estado más reciente para el video actual, incluido error |
 | GET `reference/` | Último READY del video actual, checksum y `download_url`; 404 si no existe |
 | GET `references/{version}/download/` | Gzip versionado, `ETag` SHA-256, permisos del catálogo |
+| GET `references/{version}/video/` | Video que reproduce el teléfono (`ETag` = `source_sha256`) |
+| GET `references/{version}/poster/` | Miniatura JPEG; 404 si esa versión no tiene |
 
 `reference_asset` se conserva por compatibilidad. El cliente nuevo debe usar
 `download_url`. En desarrollo `/media/` continúa siendo servido por Django;

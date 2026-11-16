@@ -3,6 +3,8 @@
 Paquete de preprocesamiento de referencias y futuro análisis profundo
 posterior. El loop live y su scoring se ejecutan en Flutter.
 
+- `playback/`: versión del video maestro para la app (`app-video-v1`) y su
+  miniatura; la referencia se calcula sobre ese archivo.
 - `pose/`: extracción de landmarks de videos maestros/offline.
 - `features/`: normalización y características canónicas de referencia.
 - `alignment/`: alineamiento temporal y DTW offline.

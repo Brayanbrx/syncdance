@@ -5,10 +5,13 @@ from tempfile import TemporaryDirectory
 
 from celery import shared_task
 from django.conf import settings
+from django.core.files import File
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 
+from ai_engine.playback.app_video import PROFILE as APP_VIDEO_PROFILE
+from ai_engine.playback.app_video import make_app_video, make_poster, poster_time_ms
 from ai_engine.pose.reference import MAX_SOURCE_BYTES, ReferenceError, build_reference
 
 from .models import Routine, RoutineReference
@@ -40,12 +43,13 @@ def generate_reference(self, reference_id):
         return
     logger.info("reference processing started", extra=log)
     reference = RoutineReference.objects.get(pk=reference_id)
-    saved_asset = None
+    saved = []
     try:
         if not reference.source_video:
             raise ReferenceError("La versión no tiene video maestro asociado.")
         with TemporaryDirectory(prefix="syncdance-source-") as workspace:
-            local = Path(workspace) / "master.video"
+            workspace = Path(workspace)
+            local = workspace / "master.video"
             total = 0
             with reference.source_video.open("rb") as source, local.open("wb") as target:
                 for chunk in source.chunks():
@@ -53,16 +57,34 @@ def generate_reference(self, reference_id):
                     if total > MAX_SOURCE_BYTES:
                         raise ReferenceError("El video supera el límite de 200 MB.")
                     target.write(chunk)
+            # The reference comes from the file the phone plays, not the upload:
+            # same first frame, same frame times (`video-start-cfr-v1`).
+            app_video = workspace / "app.mp4"
+            make_app_video(local, app_video, workspace=workspace)
             payload, artifact = build_reference(
-                local, model_path=settings.POSE_MODEL_PATH, sample_rate=reference.sample_rate_hz
+                app_video, model_path=settings.POSE_MODEL_PATH, sample_rate=reference.sample_rate_hz
             )
-        checksum = hashlib.sha256(payload).hexdigest()
-        reference.reference_asset.save(
-            f"routine-{reference.routine_id}-v{reference.version}-{checksum[:12]}.json.gz",
-            ContentFile(payload),
-            save=False,
-        )
-        saved_asset = reference.reference_asset.name
+            checksum = hashlib.sha256(payload).hexdigest()
+            stem = f"routine-{reference.routine_id}-v{reference.version}-{checksum[:12]}"
+            with app_video.open("rb") as video:
+                reference.playback_video.save(f"{stem}.mp4", File(video), save=False)
+            saved.append(reference.playback_video.name)
+            reference.playback_profile = APP_VIDEO_PROFILE
+            poster = workspace / "poster.jpg"
+            try:
+                make_poster(
+                    app_video,
+                    poster,
+                    at_ms=poster_time_ms(artifact.get("frames"), artifact["duration_ms"]),
+                )
+                with poster.open("rb") as image:
+                    reference.poster.save(f"{stem}.jpg", File(image), save=False)
+                saved.append(reference.poster.name)
+            except (ReferenceError, OSError):
+                # A missing thumbnail never blocks a routine students can dance.
+                logger.warning("reference poster not created", extra=log)
+        reference.reference_asset.save(f"{stem}.json.gz", ContentFile(payload), save=False)
+        saved.append(reference.reference_asset.name)
         reference.checksum_sha256 = checksum
         reference.source_sha256 = artifact["source_sha256"]
         reference.engine_name = artifact["engine"]
@@ -88,11 +110,11 @@ def generate_reference(self, reference_id):
         RoutineReference.objects.filter(pk=reference_id, status="PROCESSING").update(
             status="FAILED", processing_error=message, processing_finished_at=timezone.now()
         )
-        if saved_asset:
+        for name in saved:
             try:
-                reference.reference_asset.storage.delete(saved_asset)
+                reference.reference_asset.storage.delete(name)
             except Exception:
-                logger.exception("orphan reference artifact not removed", extra=log)
+                logger.exception("orphan reference file not removed", extra=log)
         return
     elapsed = reference.processing_finished_at - reference.processing_started_at
     logger.info(

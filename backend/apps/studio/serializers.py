@@ -14,6 +14,8 @@ class ProcessingSerializer(serializers.Serializer):
     version = serializers.IntegerField()
     error = serializers.CharField(allow_blank=True)
     finished_at = serializers.DateTimeField(allow_null=True)
+    light_video = serializers.BooleanField(help_text="Students download the 720p version.")
+    poster = serializers.BooleanField()
 
 
 class StudioRoutineSerializer(serializers.ModelSerializer):
@@ -53,6 +55,8 @@ class StudioRoutineSerializer(serializers.ModelSerializer):
             "version": reference.version,
             "error": reference.processing_error if reference.status == "FAILED" else "",
             "finished_at": reference.processing_finished_at,
+            "light_video": bool(reference.playback_video),
+            "poster": bool(reference.poster),
         }
 
     @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))

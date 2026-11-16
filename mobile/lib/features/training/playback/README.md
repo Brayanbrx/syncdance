@@ -51,6 +51,11 @@ Es una comprobación inicial para detectar incompatibilidades, no una garantía
 de sincronización por frame. La frecuencia de notificación y latencia del
 reproductor deben medirse antes de puntuar. Las fuentes VFR, con metadatos de
 rotación o audio más largo que el video requieren especial comprobación.
+Desde `app-video-v1` (noviembre de 2026) el servidor entrega una versión de
+720p a 30 cuadros/s constantes, con la rotación aplicada y el audio cortado al
+final de la imagen, y calcula la referencia sobre ese mismo archivo; las
+versiones anteriores siguen entregando el video original. La app no cambia: el
+hash que comprueba es el del archivo que descarga.
 
 La reproducción depende de los codecs del dispositivo. Un archivo procesable
 por FFmpeg puede no ser reproducible por el teléfono; se muestra un error y se

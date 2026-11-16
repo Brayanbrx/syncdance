@@ -101,6 +101,13 @@ class RoutineReference(models.Model):
     scoring_profile = models.JSONField(default=dict, blank=True)
     processing_error = models.TextField(blank=True)
     source_video = models.FileField(upload_to="routines/", blank=True)
+    # What the phone downloads and plays: the light version made from the
+    # upload (`ai_engine.playback.app_video`). The reference is computed from this
+    # file, so `source_sha256` is its hash. Empty for versions made before it
+    # existed and for generated masters, which serve `source_video` instead.
+    playback_video = models.FileField(upload_to="routines/app/%Y/%m/", blank=True)
+    playback_profile = models.CharField(max_length=40, blank=True)
+    poster = models.FileField(upload_to="routines/posters/%Y/%m/", blank=True)
     source_sha256 = models.CharField(max_length=64, blank=True)
     processing_started_at = models.DateTimeField(null=True, blank=True)
     # Observability: the Celery task that owns this version and when it ended
@@ -117,6 +124,11 @@ class RoutineReference(models.Model):
 
     def __str__(self):
         return f"{self.routine} · ref-{self.version} ({self.status})"
+
+    @property
+    def video(self):
+        """The file students play: the light version when there is one."""
+        return self.playback_video or self.source_video
 
     def clean(self):
         super().clean()

@@ -264,6 +264,26 @@ def test_only_an_unused_routine_can_be_deleted(school, django_capture_on_commit_
 
 
 @pytest.mark.django_db
+def test_deleting_a_routine_removes_its_light_video_and_poster(
+    school, django_capture_on_commit_callbacks
+):
+    client = client_for(school["teacher"])
+    routine = Routine.objects.get(pk=upload(client).json()["id"])
+    reference = ready_reference(routine, ["SINGLE_PERSON"] * 12)
+    reference.playback_video.save("app.mp4", ContentFile(b"light"), save=False)
+    reference.poster.save("poster.jpg", ContentFile(b"jpeg"), save=False)
+    reference.save()
+    processing = client.get(f"/api/studio/routines/{routine.pk}/").json()["processing"]
+    assert processing["light_video"] is True
+    assert processing["poster"] is True
+    files = [reference.playback_video.path, reference.poster.path]
+
+    with django_capture_on_commit_callbacks(execute=True):
+        assert client.delete(f"/api/studio/routines/{routine.pk}/").status_code == 204
+    assert not any(os.path.exists(f) for f in files)
+
+
+@pytest.mark.django_db
 def test_the_course_list_offers_only_the_instructors_courses(school):
     courses = client_for(school["teacher"]).get("/api/studio/courses/").json()
 

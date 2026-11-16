@@ -2,6 +2,7 @@ import gzip
 import hashlib
 import json
 from datetime import timedelta
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -88,6 +89,16 @@ def engine(monkeypatch):
     payload = gzip.compress(json.dumps(artifact).encode(), mtime=0)
     build = Mock(return_value=(payload, artifact))
     monkeypatch.setattr("apps.routines.tasks.build_reference", build)
+
+    def app_video(source, target, *, workspace):
+        target.write_bytes(b"light " + source.read_bytes())
+        return 30
+
+    def poster(video, target, *, at_ms):
+        target.write_bytes(b"jpeg")
+
+    monkeypatch.setattr("apps.routines.tasks.make_app_video", Mock(side_effect=app_video))
+    monkeypatch.setattr("apps.routines.tasks.make_poster", Mock(side_effect=poster))
     return build, payload
 
 
@@ -304,3 +315,84 @@ def test_failed_processing_records_when_it_ended(setup, engine):
     ref.refresh_from_db()
     assert ref.status == "FAILED"
     assert ref.processing_finished_at is not None
+
+
+def test_students_get_the_light_video_the_reference_was_computed_from(setup, engine):
+    routine, client, _ = setup
+    build, _ = engine
+    result = build.return_value
+    measured = []
+
+    def computed_from(path, **kwargs):
+        measured.append(Path(path).read_bytes())
+        return result
+
+    build.side_effect = computed_from
+    ref = queue_reference(routine_id=routine.pk)
+    generate_reference.run(ref.pk)
+    ref.refresh_from_db()
+
+    assert ref.status == "READY"
+    assert measured == [b"light fixture video"]
+    assert ref.playback_profile == "app-video-v1"
+    video = client.get(f"/api/routines/{routine.pk}/references/{ref.version}/video/")
+    assert b"".join(video.streaming_content) == b"light fixture video"
+    assert video["Content-Type"] == "video/mp4"
+    assert video["ETag"] == f'"{ref.source_sha256}"'
+    video.close()
+    info = client.get(f"/api/routines/{routine.pk}/reference/").data
+    poster = client.get(info["poster_url"])
+    assert poster["Content-Type"] == "image/jpeg"
+    assert b"".join(poster.streaming_content) == b"jpeg"
+    poster.close()
+    # The upload stays: a later version is computed from it again.
+    with ref.source_video.open("rb") as original:
+        assert original.read() == b"fixture video"
+
+
+def test_a_missing_thumbnail_does_not_block_the_routine(setup, engine, monkeypatch):
+    routine, client, _ = setup
+    monkeypatch.setattr(
+        "apps.routines.tasks.make_poster",
+        Mock(side_effect=ReferenceError("No se pudo crear la miniatura.")),
+    )
+    ref = queue_reference(routine_id=routine.pk)
+    generate_reference.run(ref.pk)
+    ref.refresh_from_db()
+    assert ref.status == "READY"
+    assert ref.playback_video
+    assert not ref.poster
+    assert client.get(f"/api/routines/{routine.pk}/reference/").data["poster_url"] is None
+    poster = client.get(f"/api/routines/{routine.pk}/references/{ref.version}/poster/")
+    assert poster.status_code == 404
+
+
+def test_a_video_that_cannot_be_converted_fails_before_measuring(setup, engine, monkeypatch):
+    routine, _, _ = setup
+    build, _ = engine
+    monkeypatch.setattr(
+        "apps.routines.tasks.make_app_video",
+        Mock(side_effect=ReferenceError("No se pudo preparar el video para la app.")),
+    )
+    ref = queue_reference(routine_id=routine.pk)
+    generate_reference.run(ref.pk)
+    ref.refresh_from_db()
+    assert ref.status == "FAILED"
+    assert ref.processing_error == "No se pudo preparar el video para la app."
+    build.assert_not_called()
+
+
+def test_a_run_that_lost_its_turn_removes_the_files_it_wrote(setup, engine, settings):
+    routine, _, _ = setup
+    build, _ = engine
+    result = build.return_value
+
+    def expired_meanwhile(path, **kwargs):
+        RoutineReference.objects.filter(routine=routine).update(status="FAILED")
+        return result
+
+    build.side_effect = expired_meanwhile
+    ref = queue_reference(routine_id=routine.pk)
+    generate_reference.run(ref.pk)
+    files = [p for p in Path(settings.MEDIA_ROOT).rglob("*") if p.is_file()]
+    assert [p.name for p in files] == [Path(routine.master_video.name).name]
