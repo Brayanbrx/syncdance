@@ -35,3 +35,17 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return register_user(**validated_data)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField(max_length=64)
+    token = serializers.CharField(max_length=128)
+    new_password = serializers.CharField(write_only=True, max_length=128)
+
+
+class DetailSerializer(serializers.Serializer):
+    detail = serializers.CharField()

@@ -105,10 +105,32 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
-    # Login per account name, sign-up per address (see accounts.views) and
-    # course codes per account, so codes cannot be guessed (coaching.views).
-    "DEFAULT_THROTTLE_RATES": {"login": "10/minute", "register": "100/hour", "join": "20/hour"},
+    # Login per account name, sign-up per address, reset links per mailbox (see
+    # accounts.views) and course codes per account, so codes cannot be guessed
+    # (coaching.views).
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "10/minute",
+        "register": "100/hour",
+        "password_reset": "5/hour",
+        "password_reset_confirm": "30/hour",
+        "join": "20/hour",
+    },
 }
+
+# Public address of the web (landing and account pages): reset links point
+# to it. Production derives it from SYNCDANCE_DOMAIN.
+PUBLIC_WEB_URL = os.getenv("PUBLIC_WEB_URL", "http://localhost:8085").rstrip("/")
+PASSWORD_RESET_TIMEOUT = 2 * 60 * 60
+
+# Development prints mail in the backend log; production sends it by SMTP.
+EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "SyncDance <no-responder@localhost>")
 
 # The phone keeps only the refresh token (secure storage) to reopen offline and
 # renew later. Rotation + blacklist invalidate a refresh token once it is used.
