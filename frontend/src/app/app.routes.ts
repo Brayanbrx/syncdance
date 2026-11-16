@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { adminGuard } from './core/auth/admin.guard';
+import { studioGuard } from './core/auth/studio.guard';
 
 export const routes: Routes = [
   {
@@ -38,9 +39,37 @@ export const routes: Routes = [
       import('./features/account/delete-account.page').then((m) => m.DeleteAccountPage),
   },
   {
-    path: 'panel/ingresar',
-    title: 'Ingresar al panel | SyncDance',
+    path: 'ingresar',
+    title: 'Ingresar | SyncDance',
     loadComponent: () => import('./features/panel/panel-login.page').then((m) => m.PanelLoginPage),
+  },
+  // Old address of the login (bookmarks, earlier links); query params are kept.
+  { path: 'panel/ingresar', redirectTo: 'ingresar' },
+  {
+    path: 'estudio',
+    canActivate: [studioGuard],
+    loadComponent: () =>
+      import('./features/studio/studio-shell.component').then((m) => m.StudioShellComponent),
+    children: [
+      {
+        path: '',
+        title: 'Mis rutinas | Estudio SyncDance',
+        loadComponent: () =>
+          import('./features/studio/studio-routines.page').then((m) => m.StudioRoutinesPage),
+      },
+      {
+        path: 'nueva',
+        title: 'Subir rutina | Estudio SyncDance',
+        loadComponent: () =>
+          import('./features/studio/studio-new.page').then((m) => m.StudioNewPage),
+      },
+      {
+        path: 'rutinas/:id',
+        title: 'Rutina | Estudio SyncDance',
+        loadComponent: () =>
+          import('./features/studio/studio-routine.page').then((m) => m.StudioRoutinePage),
+      },
+    ],
   },
   {
     path: 'panel',

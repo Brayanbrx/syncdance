@@ -1,0 +1,200 @@
+<a class="back" routerLink="/estudio">Mis rutinas</a>
+
+@if (routine(); as r) {
+  <div class="page-head">
+    <div>
+      <h1>{{ r.name }}</h1>
+      <span class="status status--{{ state()!.tone }}">{{ state()!.label }}</span>
+    </div>
+  </div>
+
+  @if (message()) {
+    <p class="notice" role="status">{{ message() }}</p>
+  }
+  @if (error()) {
+    <p class="alert" role="alert">{{ error() }}</p>
+  }
+
+  <section class="card">
+    <h2>Video</h2>
+    @switch (r.processing?.status) {
+      @case ('READY') {
+        <p>
+          Procesado (versión {{ r.processing!.version }}, {{ clock(r.duration_ms) }}).
+          @if (r.processing!.finished_at) {
+            Listo el {{ r.processing!.finished_at | date: 'd MMM y, HH:mm' }}.
+          }
+        </p>
+      }
+      @case ('FAILED') {
+        <p class="alert">{{ r.processing!.error || 'El procesamiento falló.' }}</p>
+        <p>Sube el video de nuevo, de frente y de cuerpo entero.</p>
+      }
+      @case (undefined) {
+        <p>Todavía no se procesó. Sube el video otra vez si no cambia en unos minutos.</p>
+      }
+      @default {
+        <p class="working" role="status">
+          Analizando cada momento del video. Suele tardar menos que la duración del video; esta
+          página se actualiza sola.
+        </p>
+      }
+    }
+    <label class="replace">
+      Reemplazar el video
+      <input
+        type="file"
+        accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mkv"
+        (change)="replace($event)"
+        [disabled]="busy()"
+      />
+      <span class="field-hint">La rutina vuelve a borrador hasta que el nuevo se procese.</span>
+    </label>
+    @if (progress() !== null) {
+      <p role="status">Subiendo {{ progress() }} %</p>
+    }
+  </section>
+
+  @if (quality(); as q) {
+    <section class="card">
+      <h2>Cómo se ve tu cuerpo en el video</h2>
+      <div class="meter" aria-hidden="true">
+        <span class="ok" [style.width.%]="(q.single_person ?? 0) * 100"></span>
+        <span class="pose" [style.width.%]="(q.no_usable_pose ?? 0) * 100"></span>
+        <span class="many" [style.width.%]="(q.multiple_people ?? 0) * 100"></span>
+      </div>
+      <dl class="shares">
+        <div>
+          <dt>Una sola persona visible</dt>
+          <dd>{{ percent(q.single_person) }}</dd>
+        </div>
+        <div>
+          <dt>Sin el cuerpo completo</dt>
+          <dd>{{ percent(q.no_usable_pose) }}</dd>
+        </div>
+        <div>
+          <dt>Más de una persona</dt>
+          <dd>{{ percent(q.multiple_people) }}</dd>
+        </div>
+      </dl>
+      @if (q.problems.length) {
+        <h3>Tramos para revisar</h3>
+        <ul>
+          @for (p of q.problems; track p.start_ms) {
+            <li>De {{ clock(p.start_ms) }} a {{ clock(p.end_ms) }}: {{ problemLabel(p.kind) }}.</li>
+          }
+        </ul>
+      }
+      @if (!q.publishable) {
+        <p class="alert">
+          Para publicar, al menos el {{ percent(q.min_usable_ratio) }} del video debe mostrar a una
+          sola persona de cuerpo entero. Graba de nuevo los tramos marcados.
+        </p>
+      } @else if (!q.problems.length) {
+        <p class="notice">Se te ve bien durante todo el video.</p>
+      }
+    </section>
+  }
+
+  <section class="card">
+    <h2>Publicar en tus cursos</h2>
+    @if (r.is_published) {
+      <p>
+        Publicada
+        @if (publishedIn().length) {
+          en:
+          @for (course of publishedIn(); track course.id; let last = $last) {
+            <strong>{{ course.name }}</strong
+            >{{ last ? '.' : ', ' }}
+          }
+        }
+        Para cambiar los cursos, marca otros y vuelve a publicar.
+      </p>
+    }
+    @if (!courses().length) {
+      <p>
+        Todavía no tienes cursos. Créalos en
+        <a href="/admin/coaching/course/add/">Cursos y progreso</a> y vuelve aquí.
+      </p>
+    } @else {
+      <fieldset>
+        <legend>Cursos</legend>
+        @for (course of courses(); track course.id) {
+          <label class="check">
+            <input
+              type="checkbox"
+              [checked]="chosen().has(course.id)"
+              (change)="toggle(course.id, $any($event.target).checked)"
+            />
+            {{ course.name }} ({{ course.students }}
+            {{ course.students === 1 ? 'alumno' : 'alumnos' }})
+          </label>
+        }
+      </fieldset>
+      <fieldset>
+        <legend>La música de este video</legend>
+        @for (option of rightsOptions; track option[0]) {
+          <label class="check">
+            <input
+              type="radio"
+              name="rights"
+              [checked]="rights() === option[0]"
+              (change)="rights.set(option[0])"
+            />
+            {{ option[1] }}
+          </label>
+        }
+        <span class="field-hint">
+          Es tu declaración: no publiques canciones de otros sin permiso.
+        </span>
+      </fieldset>
+      <div class="actions">
+        <button class="button" type="button" [disabled]="!canPublish()" (click)="publish()">
+          {{ r.is_published ? 'Actualizar publicación' : 'Publicar' }}
+        </button>
+        @if (r.is_published) {
+          <button
+            class="button button--quiet"
+            type="button"
+            [disabled]="busy()"
+            (click)="unpublish()"
+          >
+            Retirar de los cursos
+          </button>
+        }
+      </div>
+      @if (!ready()) {
+        <p class="field-hint">Podrás publicar cuando termine el procesamiento.</p>
+      }
+    }
+  </section>
+
+  <section class="card">
+    <h2>Datos de la rutina</h2>
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <label>Nombre <input formControlName="name" maxlength="150" /></label>
+      <div class="row">
+        <label>
+          Nivel
+          <select formControlName="difficulty">
+            @for (level of levels; track level) {
+              <option [value]="level">{{ levelLabels[level] }}</option>
+            }
+          </select>
+        </label>
+        <label>Estilo <input formControlName="style" maxlength="40" /></label>
+      </div>
+      <label>Descripción <textarea formControlName="description" rows="3"></textarea></label>
+      <button class="button button--quiet" type="submit" [disabled]="form.invalid || busy()">
+        Guardar datos
+      </button>
+    </form>
+  </section>
+
+  <section class="danger-zone">
+    <button class="button button--danger" type="button" [disabled]="busy()" (click)="remove()">
+      Borrar rutina
+    </button>
+    <span class="field-hint">Solo si nadie la practicó ni la tiene como tarea.</span>
+  </section>
+}

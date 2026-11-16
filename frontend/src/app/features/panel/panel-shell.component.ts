@@ -121,6 +121,6 @@ export class PanelShellComponent {
 
   logout(): void {
     this.auth.logout();
-    this.router.navigateByUrl('/panel/ingresar');
+    this.router.navigateByUrl('/ingresar');
   }
 }

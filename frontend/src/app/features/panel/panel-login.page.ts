@@ -14,16 +14,17 @@ import { AuthService } from '../../core/auth/auth.service';
   template: `
     <main class="login">
       <a class="wordmark" routerLink="/">SyncDance</a>
-      <h1>Panel de administración</h1>
-      <p class="muted">Para quienes administran la plataforma.</p>
+      <h1>Ingresar</h1>
+      <p class="muted">
+        Para instructores (estudio de rutinas) y administración. Los alumnos usan la app.
+      </p>
 
       @if (expired) {
         <p class="notice" role="status">Tu sesión terminó. Vuelve a ingresar.</p>
       }
       @if (noAccess()) {
         <p class="alert" role="alert">
-          Esta cuenta no administra la plataforma. Si eres instructor, gestiona tus cursos en el
-          <a href="/admin/">panel del instructor</a>.
+          Las cuentas de alumno se usan en la app de Android: <a routerLink="/">descárgala aquí</a>.
         </p>
       }
 
@@ -135,6 +136,8 @@ export class PanelLoginPage implements OnInit {
         this.busy.set(false);
         if (me.is_platform_admin) {
           this.router.navigateByUrl('/panel');
+        } else if (me.role === 'INSTRUCTOR') {
+          this.router.navigateByUrl('/estudio');
         } else {
           this.auth.logout();
           this.noAccess.set(true);

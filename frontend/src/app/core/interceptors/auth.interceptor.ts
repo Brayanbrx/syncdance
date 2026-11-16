@@ -22,7 +22,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
       return auth.refreshAccess().pipe(
         switchMap((token) => next(withToken(request, token))),
         catchError((refreshError: unknown) => {
-          router.navigate(['/panel/ingresar'], { queryParams: { expirada: 1 } });
+          router.navigate(['/ingresar'], { queryParams: { expirada: 1 } });
           return throwError(() => refreshError);
         }),
       );

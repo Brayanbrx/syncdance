@@ -8,13 +8,12 @@ import { AuthService } from './auth.service';
 export const adminGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  return auth
-    .ensureMe()
-    .pipe(
-      map((me) =>
-        me?.is_platform_admin
-          ? true
-          : router.createUrlTree(['/panel/ingresar'], me ? { queryParams: { sinacceso: 1 } } : {}),
-      ),
-    );
+  return auth.ensureMe().pipe(
+    map((me) => {
+      if (me?.is_platform_admin) return true;
+      // An instructor who opens the panel lands in their own studio.
+      if (me?.role === 'INSTRUCTOR') return router.createUrlTree(['/estudio']);
+      return router.createUrlTree(['/ingresar'], me ? { queryParams: { sinacceso: 1 } } : {});
+    }),
+  );
 };

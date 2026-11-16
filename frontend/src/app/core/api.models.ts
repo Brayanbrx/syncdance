@@ -141,3 +141,100 @@ export function apiError(error: unknown, fallback: string): string {
   if (typeof body === 'string' && body.length < 300) return body;
   return fallback;
 }
+
+// ---- Studio (instructors) ----
+
+export type Difficulty = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+
+export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+  BEGINNER: 'Principiante',
+  INTERMEDIATE: 'Intermedio',
+  ADVANCED: 'Avanzado',
+};
+
+export type MusicRights = 'OWN' | 'LICENSED' | 'FREE';
+
+export const MUSIC_RIGHTS_LABELS: Record<MusicRights, string> = {
+  OWN: 'Es música propia',
+  LICENSED: 'Tengo licencia o permiso para usarla',
+  FREE: 'Es música libre de derechos',
+};
+
+export interface StudioRoutine {
+  id: number;
+  name: string;
+  description: string;
+  difficulty: Difficulty;
+  style: string;
+  visibility: 'CATALOG' | 'COURSES';
+  is_published: boolean;
+  published_at: string | null;
+  music_rights: MusicRights | '';
+  rights_declared_at: string | null;
+  duration_ms: number;
+  is_active: boolean;
+  processing: {
+    status: ReferenceStatus;
+    version: number;
+    error: string;
+    finished_at: string | null;
+  } | null;
+  courses: number[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudioCourse {
+  id: number;
+  name: string;
+  join_code: string;
+  accepts_students: boolean;
+  students: number;
+}
+
+export interface QualityReport {
+  version: string;
+  samples: number;
+  duration_ms: number | null;
+  single_person: number | null;
+  no_usable_pose: number | null;
+  multiple_people: number | null;
+  problems: { start_ms: number; end_ms: number; kind: string }[];
+  min_usable_ratio: number;
+  publishable: boolean;
+}
+
+export type RoutineTone = 'ok' | 'warn' | 'danger' | 'neutral';
+
+/** One label for where a routine stands, from draft to published. */
+export function routineState(routine: StudioRoutine): { label: string; tone: RoutineTone } {
+  if (routine.is_published) {
+    const n = routine.courses.length;
+    return { label: `Publicada en ${n} ${n === 1 ? 'curso' : 'cursos'}`, tone: 'ok' };
+  }
+  switch (routine.processing?.status) {
+    case 'READY':
+      return { label: 'Lista para publicar', tone: 'neutral' };
+    case 'FAILED':
+      return { label: 'Con error', tone: 'danger' };
+    case 'PENDING':
+    case 'PROCESSING':
+      return { label: 'Procesando el video', tone: 'warn' };
+    default:
+      return { label: 'Borrador', tone: 'neutral' };
+  }
+}
+
+/** 0.873 -> "87 %"; unknown stays "—", never 0. */
+export function percent(ratio: number | null): string {
+  return ratio === null ? '—' : `${Math.round(ratio * 100)} %`;
+}
+
+/** 93500 -> "1:33,5" (minutes, seconds and tenths when present). */
+export function clock(ms: number): string {
+  const tenths = Math.round(ms / 100);
+  const seconds = Math.floor(tenths / 10);
+  const rest = tenths % 10;
+  const text = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  return rest ? `${text},${rest}` : text;
+}
