@@ -28,6 +28,7 @@ urlpatterns = [
     path("api/auth/", include("apps.accounts.urls")),
     path("api/app/", include(app_urlpatterns)),
     path("api/panel/", include(panel_urlpatterns)),
+    path("api/studio/", include("apps.studio.urls")),
     path("api/", include(router.urls)),
     path("api/performances/", include("apps.analysis.urls")),
 ]
