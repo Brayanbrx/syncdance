@@ -92,6 +92,14 @@ existentes.
 Para abrir la landing desde un teléfono de la misma red: `http://<IP-del-PC>:8085/`,
 con esa IP añadida a `DJANGO_ALLOWED_HOSTS` en `.env`.
 
+Cuentas: recuperar la contraseña (`/cuenta/recuperar`, también desde el login
+de la app) y borrar la cuenta (`/cuenta/borrar` y **Mi cuenta** en la app). En
+desarrollo el correo con el enlace se imprime en el log de `celery`.
+
+**Producción:** `docker-compose.prod.yml` con HTTPS (Caddy), gunicorn y copias
+de seguridad diarias. Guía de despliegue, copias y restauración en
+[ops/README.md](ops/README.md).
+
 Para trabajar sin Docker: Python 3.12, PostgreSQL y Redis. Crear el entorno con
 `python -m venv backend/.venv`, instalar `backend/requirements.txt` y definir las
 variables de `backend/.env.example` en el shell (Django no carga ese archivo
