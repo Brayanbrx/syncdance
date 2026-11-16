@@ -3,7 +3,13 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
-import { MusicRights, QualityReport, StudioCourse, StudioRoutine } from './api.models';
+import {
+  Choreography,
+  MusicRights,
+  QualityReport,
+  StudioCourse,
+  StudioRoutine,
+} from './api.models';
 
 export interface RoutineFields {
   name?: string;
@@ -55,6 +61,11 @@ export class StudioService {
       courses,
       music_rights: musicRights,
     });
+  }
+
+  /** Save the tempo and steps (bpm null clears them). */
+  saveChoreography(id: number, draft: Choreography): Observable<StudioRoutine> {
+    return this.http.put<StudioRoutine>(`${this.base}/routines/${id}/choreography/`, draft);
   }
 
   unpublish(id: number): Observable<StudioRoutine> {

@@ -69,6 +69,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/studio/studio-routine.page').then((m) => m.StudioRoutinePage),
       },
+      {
+        path: 'rutinas/:id/pasos',
+        title: 'Compás y pasos | Estudio SyncDance',
+        loadComponent: () =>
+          import('./features/studio/studio-choreography.page').then(
+            (m) => m.StudioChoreographyPage,
+          ),
+      },
     ],
   },
   {

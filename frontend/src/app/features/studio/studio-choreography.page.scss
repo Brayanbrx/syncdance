@@ -1,0 +1,258 @@
+.back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-size: var(--step--1);
+}
+
+/* Video and counts on the left (kept in view while scrolling the steps). */
+.editor {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 64rem) {
+  .editor {
+    grid-template-columns: minmax(0, 26rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .stage {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+video {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border-radius: 12px;
+  background: var(--ink);
+}
+
+.loading {
+  padding: 3rem 1rem;
+  text-align: center;
+  border-radius: 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+/* Dancers count in eights: the beat being danced lights up. */
+.beats {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.3rem;
+
+  li {
+    padding: 0.45rem 0;
+    text-align: center;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--muted);
+    font: 800 var(--step-0) / 1 var(--display);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .one {
+    border-color: var(--ink-soft);
+  }
+
+  .on {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+}
+
+.where {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.5rem 0 0;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.speeds,
+.nudge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+
+  input {
+    width: auto;
+  }
+}
+
+.panel {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.card {
+  padding: 1.25rem 1.4rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+
+  h2 {
+    font-size: var(--step-1);
+    margin: 0 0 0.5rem;
+  }
+}
+
+.tap-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem;
+  margin: 0.75rem 0 1rem;
+}
+
+/* Big and instant: taps register on press, not on release. */
+.tap {
+  min-width: 9rem;
+  min-height: 3.25rem;
+  font-size: var(--step-1);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.tempo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem 2rem;
+
+  input {
+    width: 8rem;
+  }
+}
+
+.tempo + .field-hint {
+  margin-top: 0.9rem;
+}
+
+.first {
+  display: grid;
+  gap: 0.3rem;
+
+  .label {
+    font-weight: 700;
+    font-size: var(--step--1);
+  }
+
+  strong {
+    font: 800 var(--step-1) / 1.2 var(--display);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.steps {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.6rem;
+
+  > li {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--floor);
+  }
+
+  .now {
+    border-color: var(--ink);
+    box-shadow: inset 3px 0 0 var(--ink);
+  }
+
+  .bad {
+    border-color: var(--danger);
+  }
+
+  .empty {
+    color: var(--muted);
+    border-style: dashed;
+    background: none;
+  }
+}
+
+/* On a phone the buttons wrap below the name instead of squeezing it. */
+.step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+
+  .name {
+    flex: 1 1 12rem;
+  }
+}
+
+.num {
+  min-width: 1.5rem;
+  text-align: center;
+  font: 800 var(--step-0) / 1 var(--display);
+}
+
+.step-time {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  font-size: var(--step--1);
+}
+
+.counts {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 400;
+
+  input {
+    width: 4.5rem;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.problem {
+  color: var(--danger);
+}

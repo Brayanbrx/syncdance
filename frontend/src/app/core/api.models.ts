@@ -216,9 +216,32 @@ export interface StudioRoutine {
   duration_ms: number;
   is_active: boolean;
   processing: RoutineProcessing | null;
+  choreography: ChoreographyState;
   courses: number[];
   created_at: string;
   updated_at: string;
+}
+
+/** A step as the instructor marks it: counted in beats from the first "1". */
+export interface ChoreographyStep {
+  name: string;
+  start_beat: number;
+  counts: number;
+  tip: string;
+}
+
+/** The instructor's draft of tempo and steps; students get it on publish. */
+export interface Choreography {
+  bpm: number | null;
+  first_beat_ms: number | null;
+  steps: ChoreographyStep[];
+}
+
+export interface ChoreographyState extends Choreography {
+  /** Marked on a video that has since been replaced: check the first beat. */
+  stale: boolean;
+  /** Published, but students still have the previous tempo or steps. */
+  unpublished_changes: boolean;
 }
 
 export interface StudioCourse {

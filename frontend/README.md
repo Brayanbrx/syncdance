@@ -26,6 +26,10 @@ nginx también es la entrada única a Django: reenvía `/api`, `/admin` y
   - vista previa: el mismo video de 720p que descargan los alumnos
   - informe de calidad con los tramos donde no se ve a una sola persona
   - publicar en sus cursos declarando los derechos de la música
+  - compás y pasos (`/estudio/rutinas/:id/pasos`): el tempo se marca tocando
+    «Tiempo» o la tecla T sobre el video, con cuentas de ocho y metrónomo para
+    comprobarlo; cada paso tiene nombre, inicio, duración en tiempos y un
+    consejo. Los alumnos lo reciben al publicar.
   - proponerla al catálogo SyncDance y ver el resultado de la revisión
   - retirar, editar, reemplazar el video o borrar
 
@@ -64,6 +68,7 @@ npm ci
 npm start          # http://localhost:4200, con /api y /admin hacia localhost:8000
 npm run lint
 npm run format:check
+npm test -- --watch=false --browsers=ChromeHeadless
 npm run build
 ```
 

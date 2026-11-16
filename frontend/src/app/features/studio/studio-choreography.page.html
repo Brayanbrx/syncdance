@@ -1,0 +1,309 @@
+<a class="back" [routerLink]="['/estudio/rutinas', id]">{{
+  routine()?.name || 'Volver a la rutina'
+}}</a>
+
+<div class="page-head">
+  <div>
+    <h1>Compás y pasos</h1>
+    <p>
+      Marca el tempo de la música y divide la coreografía en pasos. Tus alumnos verán la lista y
+      podrán practicar cada paso en bucle, más lento, con las cuentas en pantalla.
+    </p>
+  </div>
+</div>
+
+@if (routine()?.choreography?.stale) {
+  <p class="alert">Cambiaste el video: revisa que el primer 1 siga en su lugar y guarda.</p>
+}
+@if (message()) {
+  <p class="notice" role="status">{{ message() }}</p>
+}
+@if (error()) {
+  <p class="alert" role="alert">{{ error() }}</p>
+}
+
+@if (routine(); as r) {
+  @if (r.processing?.status !== 'READY') {
+    <p>Podrás marcar el compás cuando termine el procesamiento del video.</p>
+  } @else {
+    <div class="editor">
+      <div class="stage">
+        @if (videoUrl(); as src) {
+          <video
+            #video
+            [src]="src"
+            controls
+            playsinline
+            (play)="playing()"
+            (pause)="moved()"
+            (seeked)="moved()"
+            (timeupdate)="moved()"
+          ></video>
+        } @else {
+          <p class="loading" role="status">Cargando el video {{ loadingVideo() ?? 0 }} %</p>
+        }
+        <div class="counter">
+          <ol class="beats" aria-hidden="true">
+            @for (n of eight; track n) {
+              <li [class.on]="count()?.count === n" [class.one]="n === 1">{{ n }}</li>
+            }
+          </ol>
+          <p class="where">
+            <span>
+              @if (count(); as c) {
+                Ocho {{ c.eight }}
+                @if (current(); as s) {
+                  — {{ s.name }}
+                }
+              } @else if (tempo()) {
+                Antes del primer 1
+              } @else {
+                Marca el tempo para ver las cuentas
+              }
+            </span>
+            <span class="time">{{ clock(position()) }}</span>
+          </p>
+        </div>
+        <div class="controls">
+          <div class="speeds" role="group" aria-label="Velocidad">
+            @for (option of speeds; track option.value) {
+              <button
+                type="button"
+                class="button button--small"
+                [class.button--quiet]="speed() !== option.value"
+                [attr.aria-pressed]="speed() === option.value"
+                (click)="setSpeed(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            }
+          </div>
+          <label class="check">
+            <input
+              type="checkbox"
+              [checked]="metronome()"
+              (change)="toggleMetronome($any($event.target).checked)"
+            />
+            Metrónomo
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <section class="card">
+          <h2>1. Tempo</h2>
+          <p>
+            Reproduce el video y toca <strong>Tiempo</strong> (o la tecla T) en cada tiempo de la
+            música, empezando en el primer 1 de la coreografía. Con {{ minTaps }} toques calculamos
+            el tempo y dónde cae el 1.
+          </p>
+          <div class="tap-row">
+            <button
+              class="button tap"
+              type="button"
+              [disabled]="!videoUrl()"
+              (pointerdown)="tap($event)"
+              (keydown.space)="tap($event)"
+              (keydown.enter)="tap($event)"
+            >
+              Tiempo
+            </button>
+            <span class="muted"
+              >{{ taps().length }} {{ taps().length === 1 ? 'toque' : 'toques' }}</span
+            >
+            @if (taps().length) {
+              <button
+                class="button button--quiet button--small"
+                type="button"
+                (click)="resetTaps()"
+              >
+                Empezar de nuevo
+              </button>
+            }
+          </div>
+          <div class="tempo">
+            <label>
+              Tempo (BPM)
+              <input
+                type="number"
+                inputmode="decimal"
+                step="0.01"
+                [min]="minBpm"
+                [max]="maxBpm"
+                [value]="bpm() ?? ''"
+                (change)="setBpm($any($event.target).value)"
+              />
+            </label>
+            <div class="first">
+              <span class="label">Primer 1</span>
+              <strong>{{ firstBeat() === null ? '—' : clock(firstBeat()!) }}</strong>
+              <span class="nudge">
+                <button
+                  class="button button--quiet button--small"
+                  type="button"
+                  aria-label="Mover el 1 veinte milisegundos antes"
+                  [disabled]="firstBeat() === null"
+                  (click)="nudge(-1)"
+                >
+                  −20 ms
+                </button>
+                <button
+                  class="button button--quiet button--small"
+                  type="button"
+                  aria-label="Mover el 1 veinte milisegundos después"
+                  [disabled]="firstBeat() === null"
+                  (click)="nudge(1)"
+                >
+                  +20 ms
+                </button>
+                <button
+                  class="button button--quiet button--small"
+                  type="button"
+                  [disabled]="!videoUrl()"
+                  (click)="firstBeatHere()"
+                >
+                  Poner el 1 aquí
+                </button>
+              </span>
+            </div>
+          </div>
+          <p class="field-hint">
+            Para comprobarlo, activa el metrónomo y reproduce: el clic agudo debe caer en cada 1.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2>2. Pasos</h2>
+          <p>
+            Lleva el video a donde empieza cada paso y agrégalo: se ajusta al tiempo más cercano. Un
+            paso suele durar 4 u 8 tiempos.
+          </p>
+          <button class="button" type="button" [disabled]="!tempo()" (click)="addStep()">
+            Agregar paso aquí
+          </button>
+          @if (!tempo()) {
+            <span class="field-hint"> Primero marca el tempo.</span>
+          }
+          <ol class="steps">
+            @for (step of steps(); track step.key; let i = $index) {
+              <li
+                [class.now]="current()?.key === step.key"
+                [class.bad]="overlaps().has(i) || tooLong().has(i)"
+              >
+                <div class="step-head">
+                  <span class="num">{{ i + 1 }}</span>
+                  <input
+                    class="name"
+                    maxlength="60"
+                    [attr.aria-label]="'Nombre del paso ' + (i + 1)"
+                    [value]="step.name"
+                    (change)="update(step.key, { name: $any($event.target).value })"
+                  />
+                  <button
+                    class="button button--quiet button--small"
+                    type="button"
+                    (click)="watch(step)"
+                  >
+                    Ver
+                  </button>
+                  <button
+                    class="button button--quiet button--small"
+                    type="button"
+                    [attr.aria-label]="'Quitar ' + step.name"
+                    (click)="remove(step.key)"
+                  >
+                    Quitar
+                  </button>
+                </div>
+                <div class="step-time">
+                  <span>
+                    Empieza en el {{ beatLabel(step.start_beat) }}
+                    <span class="muted">({{ clock(startMs(step)) }})</span>
+                  </span>
+                  <span class="nudge">
+                    <button
+                      class="button button--quiet button--small"
+                      type="button"
+                      aria-label="Un tiempo antes"
+                      (click)="shift(step, -1)"
+                    >
+                      −1
+                    </button>
+                    <button
+                      class="button button--quiet button--small"
+                      type="button"
+                      aria-label="Un tiempo después"
+                      (click)="shift(step, 1)"
+                    >
+                      +1
+                    </button>
+                    <button
+                      class="button button--quiet button--small"
+                      type="button"
+                      (click)="startHere(step)"
+                    >
+                      Empieza aquí
+                    </button>
+                  </span>
+                  <label class="counts">
+                    Dura
+                    <input
+                      type="number"
+                      min="1"
+                      [max]="maxCounts"
+                      [value]="step.counts"
+                      (change)="setCounts(step.key, $any($event.target).value)"
+                    />
+                    tiempos
+                  </label>
+                </div>
+                <input
+                  class="tip"
+                  maxlength="140"
+                  placeholder="Consejo breve para tus alumnos (opcional)"
+                  [attr.aria-label]="'Consejo del paso ' + (i + 1)"
+                  [value]="step.tip"
+                  (change)="update(step.key, { tip: $any($event.target).value })"
+                />
+              </li>
+            } @empty {
+              @if (tempo()) {
+                <li class="empty">
+                  Pausa el video donde empieza el primer paso y toca «Agregar paso aquí».
+                </li>
+              }
+            }
+          </ol>
+        </section>
+
+        <div class="actions">
+          <button class="button" type="button" [disabled]="busy() || !!problem()" (click)="save()">
+            Guardar compás y pasos
+          </button>
+          @if (r.choreography.unpublished_changes && !dirty()) {
+            <button class="button" type="button" [disabled]="busy()" (click)="publishChanges()">
+              Publicar cambios
+            </button>
+          }
+          @if (bpm() !== null || steps().length) {
+            <button
+              class="button button--quiet"
+              type="button"
+              [disabled]="busy()"
+              (click)="clearAll()"
+            >
+              Borrar todo
+            </button>
+          }
+        </div>
+        @if (problem()) {
+          <p class="field-hint problem">{{ problem() }}</p>
+        } @else if (dirty()) {
+          <p class="field-hint">Tienes cambios sin guardar.</p>
+        } @else if (r.choreography.unpublished_changes) {
+          <p class="field-hint">Tus alumnos todavía ven la versión anterior.</p>
+        }
+      </div>
+    </div>
+  }
+}

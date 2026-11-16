@@ -67,6 +67,39 @@
     }
   </section>
 
+  @if (ready()) {
+    <section class="card">
+      <h2>Compás y pasos</h2>
+      @if (r.choreography.stale) {
+        <p class="alert">Cambiaste el video: revisa que el primer 1 siga en su lugar y guarda.</p>
+      }
+      @if (r.choreography.bpm) {
+        <p>
+          {{ r.choreography.bpm }} BPM, {{ r.choreography.steps.length }}
+          {{ r.choreography.steps.length === 1 ? 'paso' : 'pasos' }}.
+        </p>
+      } @else {
+        <p>
+          Marca el tempo y divide la coreografía en pasos: tus alumnos podrán practicar cada uno en
+          bucle, más lento, con las cuentas en pantalla.
+        </p>
+      }
+      <div class="actions">
+        <a class="button button--quiet" [routerLink]="['/estudio/rutinas', r.id, 'pasos']">
+          {{ r.choreography.bpm ? 'Editar compás y pasos' : 'Marcar compás y pasos' }}
+        </a>
+        @if (r.choreography.unpublished_changes) {
+          <button class="button" type="button" [disabled]="!canPublish()" (click)="publish()">
+            Publicar cambios
+          </button>
+        }
+      </div>
+      @if (r.choreography.unpublished_changes) {
+        <p class="field-hint">Tus alumnos todavía ven el compás y los pasos anteriores.</p>
+      }
+    </section>
+  }
+
   @if (quality(); as q) {
     <section class="card">
       <h2>Cómo se ve tu cuerpo en el video</h2>
