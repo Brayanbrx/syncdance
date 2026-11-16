@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+!.env.prod.example
+
+# Production database and media copies (ops/backup.sh)
+/backups/
 
 # Python / Django
 __pycache__/

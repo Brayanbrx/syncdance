@@ -1,0 +1,11 @@
+# HTTPS in front of the web service. With a public domain Caddy obtains and
+# renews the certificate by itself; with "localhost" it uses its own local CA
+# (useful to try the production stack on a laptop: curl -k).
+{
+	email {$ACME_EMAIL}
+}
+
+{$SYNCDANCE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:80
+}

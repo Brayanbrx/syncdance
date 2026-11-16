@@ -1,0 +1,129 @@
+# Producción en un servidor con Docker Compose.
+#
+# Caddy recibe HTTPS (certificados automáticos) y reenvía al servicio web
+# (nginx), la única entrada a Django. Ningún otro puerto queda expuesto, el
+# código no se monta y no se crea la cuenta admin/admin.
+#
+#   cp .env.prod.example .env.prod      # completar los valores
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Guía completa: ops/README.md
+name: syncdance-prod
+
+x-backend: &backend
+  build: ./backend
+  image: syncdance-backend:prod
+  restart: unless-stopped
+  env_file: .env.prod
+  environment:
+    DJANGO_SETTINGS_MODULE: config.settings.production
+    POSTGRES_HOST: postgres
+    CELERY_BROKER_URL: redis://redis:6379/0
+    CELERY_RESULT_BACKEND: redis://redis:6379/1
+  volumes:
+    - media:/app/media
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env.prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    <<: *backend
+    # gunicorn is the image's CMD; migrations run first on every start.
+    command: >-
+      sh -c "python manage.py migrate --noinput &&
+      exec gunicorn config.wsgi:application --bind 0.0.0.0:8000
+      --workers $${GUNICORN_WORKERS:-3} --timeout 300 --forwarded-allow-ips '*'"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/', timeout=5)"
+      interval: 10s
+      timeout: 6s
+      retries: 12
+      start_period: 30s
+
+  # MediaPipe uses a lot of memory: one reference at a time on a small server.
+  celery:
+    <<: *backend
+    command: sh -c "exec celery -A config worker --loglevel=info --concurrency=$${CELERY_CONCURRENCY:-1}"
+
+  celery-beat:
+    <<: *backend
+    command: celery -A config beat --loglevel=info --schedule /tmp/celerybeat-schedule
+
+  web:
+    build: ./frontend
+    image: syncdance-web:prod
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env.prod
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+  # Daily copy of the database and the uploaded files into ./backups
+  # (ops/backup.sh). Copy that folder off the server too: see ops/README.md.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env.prod
+    command: sh /ops/backup.sh --loop
+    volumes:
+      - ./ops:/ops:ro
+      - ./backups:/backups
+      # Not /media: Alpine ships folders there and Docker would copy them
+      # into the uploads volume. nocopy keeps the volume untouched.
+      - type: volume
+        source: media
+        target: /uploads
+        read_only: true
+        volume:
+          nocopy: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  media:
+  caddy_data:
+  caddy_config:
