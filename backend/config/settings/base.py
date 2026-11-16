@@ -113,6 +113,7 @@ REST_FRAMEWORK = {
         "register": "100/hour",
         "password_reset": "5/hour",
         "password_reset_confirm": "30/hour",
+        "account_delete": "10/hour",
         "join": "20/hour",
     },
 }

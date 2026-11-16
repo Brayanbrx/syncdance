@@ -18,6 +18,14 @@ class InvalidResetLink(Exception):
     """The link is malformed, expired, already used or for another account."""
 
 
+class WrongPassword(Exception):
+    """Deleting an account asks for its password again."""
+
+
+class AccountProtected(Exception):
+    """Other people depend on what the account owns; the message says what to do."""
+
+
 def register_user(**validated_data) -> User:
     return User.objects.create_user(role=User.Role.STUDENT, **validated_data)
 
@@ -77,6 +85,50 @@ def reset_password(*, uid: str, token: str, password: str) -> User:
     revoke_sessions(user)
     logger.info("password reset", extra={"user_id": user.pk})
     return user
+
+
+def deletion_blocker(user: User) -> str | None:
+    """Why this account cannot delete itself, or None.
+
+    Courses, routines and notes on students' practices belong to other people
+    too (their models protect them): an administrator transfers them first.
+    """
+    if user.is_superuser:
+        return (
+            "Un superusuario no puede borrarse a sí mismo: pide a otro administrador "
+            "que lo haga desde el Django Admin."
+        )
+    if user.courses_taught.exists() or user.routines.exists() or user.session_notes.exists():
+        return (
+            "Tu cuenta tiene cursos, rutinas u observaciones de alumnos a cargo. Pide a un "
+            "administrador que los transfiera antes de borrarla."
+        )
+    return None
+
+
+@transaction.atomic
+def delete_account(*, user: User, password: str) -> None:
+    """Delete the account and everything that is only its own: practices and
+    their results, course memberships and old uploaded performance videos.
+    Open sessions stop renewing at once.
+    """
+    if not user.check_password(password):
+        raise WrongPassword
+    blocker = deletion_blocker(user)
+    if blocker:
+        raise AccountProtected(blocker)
+    videos = [p.video for p in user.performances.exclude(video="")]
+    revoke_sessions(user)
+    user_id = user.pk
+    user.delete()
+
+    def remove_files():
+        for video in videos:
+            video.storage.delete(video.name)
+
+    # Files go only once the rows are gone for good.
+    transaction.on_commit(remove_files)
+    logger.info("account deleted", extra={"user_id": user_id, "files": len(videos)})
 
 
 def revoke_sessions(user: User) -> int:

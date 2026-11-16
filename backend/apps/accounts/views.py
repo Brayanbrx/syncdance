@@ -10,13 +10,21 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .serializers import (
+    DeleteAccountSerializer,
     DetailSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RegisterSerializer,
     UserSerializer,
 )
-from .services import InvalidResetLink, request_password_reset, reset_password
+from .services import (
+    AccountProtected,
+    InvalidResetLink,
+    WrongPassword,
+    delete_account,
+    request_password_reset,
+    reset_password,
+)
 
 
 class FieldThrottle(SimpleRateThrottle):
@@ -108,3 +116,30 @@ class PasswordResetConfirmView(APIView):
                 {"new_password": list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST
             )
         return Response({"detail": "Contraseña cambiada. Ya puedes ingresar con la nueva."})
+
+
+class DeleteAccountView(APIView):
+    """The account deletes itself after typing its password again (Google Play
+    asks for this inside the app and on a public web page)."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "account_delete"
+
+    @extend_schema(
+        request=DeleteAccountSerializer,
+        responses={204: None, 400: None, 409: DetailSerializer},
+    )
+    def post(self, request):
+        serializer = DeleteAccountSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            delete_account(user=request.user, password=serializer.validated_data["password"])
+        except WrongPassword:
+            return Response(
+                {"password": ["La contraseña no es correcta."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except AccountProtected as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
+        return Response(status=status.HTTP_204_NO_CONTENT)

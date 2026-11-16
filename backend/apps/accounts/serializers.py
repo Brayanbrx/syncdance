@@ -47,5 +47,9 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     new_password = serializers.CharField(write_only=True, max_length=128)
 
 
+class DeleteAccountSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True, max_length=128)
+
+
 class DetailSerializer(serializers.Serializer):
     detail = serializers.CharField()
