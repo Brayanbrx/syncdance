@@ -10,6 +10,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/landing/landing.page').then((m) => m.LandingPage),
   },
   {
+    path: 'privacidad',
+    title: 'Política de privacidad | SyncDance',
+    loadComponent: () => import('./features/legal/privacy.page').then((m) => m.PrivacyPage),
+  },
+  {
+    path: 'terminos',
+    title: 'Términos de uso | SyncDance',
+    loadComponent: () => import('./features/legal/terms.page').then((m) => m.TermsPage),
+  },
+  {
     path: 'cuenta/recuperar',
     title: 'Recuperar contraseña | SyncDance',
     loadComponent: () =>
