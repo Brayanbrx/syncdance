@@ -74,6 +74,13 @@ class DanceSession(models.Model):
     summary_version = models.CharField(max_length=80, blank=True)
     feedback_version = models.CharField(max_length=80, blank=True)
     reference_version = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    # Per-step results of the instructor's steps (`StepResult`); blank when
+    # the phone did not send them (older app, or a reference without steps).
+    step_summary_version = models.CharField(max_length=40, blank=True)
+    # Camera framing tries the phone logged since its previous saved practice,
+    # and how many reached measurable framing (the pilot's calibration metric).
+    calibration_attempts = models.PositiveSmallIntegerField(null=True, blank=True)
+    calibration_successes = models.PositiveSmallIntegerField(null=True, blank=True)
     synced_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -81,6 +88,12 @@ class DanceSession(models.Model):
 
     def __str__(self):
         return f"{self.student} · {self.routine} ({self.status})"
+
+    @property
+    def calibration(self):
+        if self.calibration_attempts is None:
+            return None
+        return {"attempts": self.calibration_attempts, "calibrated": self.calibration_successes}
 
     def clean(self):
         super().clean()
@@ -130,6 +143,46 @@ class TimelineSegment(models.Model):
 
     def __str__(self):
         return f"{self.session_id} · {self.start_ms}-{self.end_ms}ms"
+
+
+class StepResult(models.Model):
+    """One instructor step of a practice (`step-summary-v1`): the same 100 ms
+    evidence as the timeline, over the step's window. Null score: no evidence."""
+
+    session = models.ForeignKey(DanceSession, on_delete=models.CASCADE, related_name="step_results")
+    index = models.PositiveSmallIntegerField()
+    start_ms = models.PositiveIntegerField()
+    end_ms = models.PositiveIntegerField()
+    evaluated_ms = models.PositiveIntegerField()
+    score = models.FloatField(null=True, blank=True, validators=score_validators)
+    # Cues shown inside the step, {code: count}; codes come from feedback_counts.
+    feedback = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ("index",)
+        constraints = [
+            models.UniqueConstraint(fields=("session", "index"), name="unique_session_step"),
+            models.CheckConstraint(
+                condition=models.Q(end_ms__gt=models.F("start_ms")),
+                name="step_result_time_order",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(evaluated_ms__lte=models.F("end_ms") - models.F("start_ms")),
+                name="step_result_evidence_within_step",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(evaluated_ms=0, score__isnull=True)
+                | models.Q(evaluated_ms__gt=0, score__isnull=False),
+                name="step_result_score_requires_evidence",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.session_id} · paso {self.index + 1}"
+
+    @property
+    def coverage(self):
+        return self.evaluated_ms / (self.end_ms - self.start_ms)
 
 
 class FeedbackCount(models.Model):

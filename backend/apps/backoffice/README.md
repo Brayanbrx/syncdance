@@ -19,6 +19,7 @@ API del panel web de administración y de la descarga pública de la app.
 | `POST /api/panel/users/{id}/set-password/` | Nueva contraseña (validadores de Django) |
 | `GET/PATCH /api/panel/routines/` | Catálogo con estado de referencia; solo cambia `is_active` |
 | `GET /api/panel/courses/` | Todos los cursos con su código |
+| `GET /api/panel/pilot/` | Métricas del piloto frente a su meta: actividad semanal, retención a 4 semanas, rutinas por instructor, concordancia y calibración |
 | `GET /api/panel/proposals/` | Rutinas propuestas para el catálogo, la más antigua primero |
 | `POST /api/panel/proposals/{id}/approve/` | Aprobar: la rutina pasa al catálogo SyncDance (204) |
 | `POST /api/panel/proposals/{id}/reject/` | Rechazar con `{"note": "..."}` obligatorio, que lee el instructor (204) |

@@ -1,7 +1,8 @@
-from datetime import timedelta
+from collections import defaultdict
+from datetime import datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
+from django.db.models import Count, OuterRef, Prefetch, Q, Subquery, Sum
 from django.utils import timezone
 
 from apps.coaching.models import Assignment, Course, Enrollment
@@ -110,4 +111,97 @@ def platform_summary():
             "assignments": Assignment.objects.count(),
         },
         "latest_release": latest_release(),
+    }
+
+
+# --- pilot metrics (E5) -------------------------------------------------------
+
+PILOT_WEEKS = 8
+# Provisional gate of the pilot (docs: E5); the panel shows each against it.
+PILOT_TARGETS = {
+    "calibration": 0.8,
+    "concordance": 0.6,
+    "retention_week4": 0.4,
+    "routines_per_instructor": 3,
+}
+
+
+def _week_start(moment):
+    day = timezone.localtime(moment).date()
+    return day - timedelta(days=day.weekday())
+
+
+def pilot_metrics(*, now=None):
+    """The pilot's gate figures, from synced practices only. Missing evidence
+    is None (the panel shows "—"), never zero."""
+    from apps.coaching.concordance import concordance
+
+    now = now or timezone.now()
+    completed = DanceSession.objects.filter(status=DanceSession.Status.COMPLETED)
+
+    # Weekly activity: practices with evaluated time, Monday to Sunday (local).
+    first_week = _week_start(now) - timedelta(weeks=PILOT_WEEKS - 1)
+    weeks = {first_week + timedelta(weeks=i): (set(), 0) for i in range(PILOT_WEEKS)}
+    since = timezone.make_aware(datetime.combine(first_week, time.min))
+    for student, started in completed.filter(started_at__gte=since, evaluated_ms__gt=0).values_list(
+        "student_id", "started_at"
+    ):
+        week = _week_start(started)
+        if week in weeks:
+            students, practices = weeks[week]
+            students.add(student)
+            weeks[week] = (students, practices + 1)
+
+    # Week-4 retention: students whose first practice is at least 28 days old,
+    # and who practised again between days 21 and 28 after it.
+    days = defaultdict(list)
+    for student, started in completed.order_by("started_at").values_list(
+        "student_id", "started_at"
+    ):
+        days[student].append(started)
+    cohort = [times for times in days.values() if times[0] <= now - timedelta(days=28)]
+    retained = sum(
+        any(times[0] + timedelta(days=21) <= t < times[0] + timedelta(days=28) for t in times)
+        for times in cohort
+    )
+
+    instructors = (
+        get_user_model()
+        .objects.filter(role=get_user_model().Role.INSTRUCTOR)
+        .annotate(
+            published=Count(
+                "routines",
+                filter=Q(routines__published_at__isnull=False, routines__is_active=True),
+                distinct=True,
+            ),
+            drafts=Count("routines", filter=Q(routines__published_at__isnull=True), distinct=True),
+        )
+        .order_by("username")
+    )
+
+    calibration = completed.aggregate(
+        attempts=Sum("calibration_attempts"), calibrated=Sum("calibration_successes")
+    )
+    attempts = calibration["attempts"] or 0
+    return {
+        "weeks": [
+            {"week_start": week, "active_students": len(students), "evaluated_practices": n}
+            for week, (students, n) in sorted(weeks.items())
+        ],
+        "retention_week4": {
+            "cohort": len(cohort),
+            "retained": retained,
+            "ratio": retained / len(cohort) if cohort else None,
+        },
+        "instructors": [
+            {"username": i.username, "published": i.published, "drafts": i.drafts}
+            for i in instructors
+        ],
+        "concordance": concordance(),
+        "calibration": {
+            "attempts": attempts,
+            "calibrated": calibration["calibrated"] or 0,
+            "ratio": (calibration["calibrated"] or 0) / attempts if attempts else None,
+        },
+        "targets": PILOT_TARGETS,
     }

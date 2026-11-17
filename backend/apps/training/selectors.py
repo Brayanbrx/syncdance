@@ -12,7 +12,9 @@ def get_sessions_for_user(*, user):
     return (
         DanceSession.objects.filter(student=user)
         .select_related("routine", "reference", "game")
-        .prefetch_related("segment_scores", "timeline_segments", "feedback_counts", "error_events")
+        .prefetch_related(
+            "segment_scores", "timeline_segments", "feedback_counts", "error_events", "step_results"
+        )
     )
 
 

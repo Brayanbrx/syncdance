@@ -12,10 +12,13 @@ from .models import (
     FeedbackCount,
     GameResult,
     SegmentScore,
+    StepResult,
     TimelineSegment,
 )
 
 MAX_TIMELINE_SEGMENTS = 60
+MAX_STEPS = 40
+STEP_SUMMARY_VERSIONS = ("step-summary-v1",)
 MAX_FEEDBACK_CODES = 64
 # Metrics that exist only when some video time was evaluated (missing is not zero).
 EVIDENCE_METRICS = (
@@ -58,6 +61,41 @@ class TimelineSegmentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("La evidencia excede la duración del tramo.")
         if (attrs["evaluated_ms"] > 0) != (attrs.get("score") is not None):
             raise serializers.ValidationError("Solo un tramo con evidencia tiene score.")
+        return attrs
+
+
+class StepResultSerializer(serializers.ModelSerializer):
+    """One instructor step of the practice; the phone computes it from the
+    same 100 ms bins as the timeline."""
+
+    score = FiniteFloatField(min_value=0, max_value=100, allow_null=True, required=False)
+    feedback = serializers.DictField(
+        child=serializers.IntegerField(min_value=1, max_value=3000), required=False
+    )
+
+    class Meta:
+        model = StepResult
+        fields = ("index", "start_ms", "end_ms", "evaluated_ms", "score", "feedback")
+
+    def validate(self, attrs):
+        if attrs["end_ms"] <= attrs["start_ms"]:
+            raise serializers.ValidationError("El paso termina antes de comenzar.")
+        if attrs["evaluated_ms"] > attrs["end_ms"] - attrs["start_ms"]:
+            raise serializers.ValidationError("La evidencia excede la duración del paso.")
+        if (attrs["evaluated_ms"] > 0) != (attrs.get("score") is not None):
+            raise serializers.ValidationError("Solo un paso con evidencia tiene score.")
+        return attrs
+
+
+class CalibrationSerializer(serializers.Serializer):
+    """Framing tries since the phone's previous saved practice."""
+
+    attempts = serializers.IntegerField(min_value=1, max_value=1000)
+    calibrated = serializers.IntegerField(min_value=0, max_value=1000)
+
+    def validate(self, attrs):
+        if attrs["calibrated"] > attrs["attempts"]:
+            raise serializers.ValidationError("Hay más calibraciones logradas que intentos.")
         return attrs
 
 
@@ -151,6 +189,8 @@ class DanceSessionSerializer(serializers.ModelSerializer):
     feedback_counts = FeedbackCountSerializer(many=True, required=False)
     error_events = ErrorEventSerializer(many=True, required=False)
     game = GameResultSerializer(required=False, allow_null=True)
+    step_results = StepResultSerializer(many=True, required=False)
+    calibration = CalibrationSerializer(required=False, allow_null=True)
     # Read-only context so a phone can rebuild its local history from here.
     routine_name = serializers.CharField(source="routine.name", read_only=True)
     reference_metadata = RoutineReferenceSerializer(source="reference", read_only=True)
@@ -191,6 +231,9 @@ class DanceSessionSerializer(serializers.ModelSerializer):
             "feedback_counts",
             "error_events",
             "game",
+            "step_summary_version",
+            "step_results",
+            "calibration",
             "routine_name",
             "reference_metadata",
         )
@@ -321,4 +364,53 @@ class DanceSessionSerializer(serializers.ModelSerializer):
         if attrs.get("game") and attrs.get("status") != DanceSession.Status.COMPLETED:
             raise serializers.ValidationError(
                 {"game": "Solo una partida terminada tiene resultado."}
+            )
+        self._validate_steps(attrs, evaluated, feedback)
+
+    def _validate_steps(self, attrs, evaluated, feedback):
+        """Steps must be exactly those the reference version published."""
+        steps = attrs.get("step_results")
+        version = attrs.get("step_summary_version")
+        if steps is None and not version:
+            return  # an app from before per-step results
+        if version not in STEP_SUMMARY_VERSIONS:
+            raise serializers.ValidationError(
+                {"step_summary_version": "Versión de resultados por paso desconocida."}
+            )
+        steps = sorted(steps or [], key=lambda step: step["index"])
+        profile = attrs["reference"].scoring_profile or {}
+        expected = (profile.get("steps") or {}).get("items") or []
+        if len(steps) != len(expected) or len(steps) > MAX_STEPS:
+            raise serializers.ValidationError(
+                {"step_results": "No coinciden con los pasos de la referencia."}
+            )
+        for index, (step, published) in enumerate(zip(steps, expected, strict=True)):
+            if (step["index"], step["start_ms"], step["end_ms"]) != (
+                index,
+                published["start_ms"],
+                published["end_ms"],
+            ):
+                raise serializers.ValidationError(
+                    {"step_results": "No coinciden con los pasos de la referencia."}
+                )
+        if sum(step["evaluated_ms"] for step in steps) > evaluated:
+            raise serializers.ValidationError(
+                {"step_results": "La evidencia de los pasos excede el tiempo evaluado."}
+            )
+        totals = {item["code"]: item["count"] for item in feedback}
+        shown = {}
+        for step in steps:
+            if step.get("feedback") and step["evaluated_ms"] == 0:
+                raise serializers.ValidationError(
+                    {"step_results": "No hay avisos en un paso sin tiempo evaluado."}
+                )
+            for code, count in (step.get("feedback") or {}).items():
+                if code not in totals:
+                    raise serializers.ValidationError(
+                        {"step_results": "Un aviso del paso no está entre los de la práctica."}
+                    )
+                shown[code] = shown.get(code, 0) + count
+        if any(count > totals[code] for code, count in shown.items()):
+            raise serializers.ValidationError(
+                {"step_results": "Los avisos de los pasos superan los de la práctica."}
             )

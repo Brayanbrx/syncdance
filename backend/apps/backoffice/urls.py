@@ -9,6 +9,7 @@ from .views import (
     PanelReleaseViewSet,
     PanelRoutineViewSet,
     PanelUserViewSet,
+    PilotMetricsView,
     PlatformSummaryView,
 )
 
@@ -27,5 +28,6 @@ app_urlpatterns = [
 
 panel_urlpatterns = [
     path("summary/", PlatformSummaryView.as_view(), name="panel-summary"),
+    path("pilot/", PilotMetricsView.as_view(), name="panel-pilot"),
     path("", include(panel.urls)),
 ]

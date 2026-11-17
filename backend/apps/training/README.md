@@ -23,6 +23,8 @@ El móvil envía cada resumen `local-session-v1` congelado:
 | `timeline_segments` | `summary.segments` | Contiguos desde 0, cubren `duration_ms` |
 | `feedback_counts` | `summary.feedback` | Avisos mostrados, no todas las desviaciones |
 | `game` | `game` (opcional) | Solo partidas del modo juego; ver abajo |
+| `step_summary_version` + `step_results` | `summary.steps` (opcional) | Resultados por paso del instructor; ver abajo |
+| `calibration` | `calibration` (opcional) | `{"attempts", "calibrated"}`: intentos de encuadre desde la práctica guardada anterior |
 
 El servidor deriva `quality_ratio = evaluated_ms / duration_ms` (cobertura
 estimada) y copia `pose_schema_version`, `feature_schema_version` y
@@ -35,6 +37,27 @@ Se rechaza con 400, sin escribir filas parciales:
 - un tramo con score sin evidencia;
 - avisos duplicados o avisos sin tiempo evaluado;
 - valores no finitos, una referencia que no está `READY` o una rutina no visible.
+
+## Resultados por paso (`step-summary-v1`)
+
+Si la versión de referencia trae pasos del instructor
+(`scoring_profile.steps`), el teléfono envía uno por paso, calculado con las
+mismas casillas de 100 ms que los tramos:
+
+```json
+"step_summary_version": "step-summary-v1",
+"step_results": [{"index": 0, "start_ms": 1250, "end_ms": 5536,
+                  "evaluated_ms": 3900, "score": 72.4,
+                  "feedback": {"leftElbow_extend": 2}}]
+```
+
+Se rechaza con 400 si no son exactamente los pasos publicados (cantidad,
+orden y ventanas), si un paso tiene score sin evidencia, si la evidencia de
+los pasos supera `evaluated_ms`, o si sus avisos no están entre los de la
+práctica o los superan. Sin pasos en la referencia, la lista va vacía. Un
+teléfono anterior no los envía y la práctica se guarda igual. Es un bloque
+aparte de `summary_version`: el progreso del alumno compara por esa versión
+y no se reinicia.
 
 ## Resultado del modo juego (`game`)
 

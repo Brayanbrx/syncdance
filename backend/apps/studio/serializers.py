@@ -163,3 +163,130 @@ class QualityReportSerializer(serializers.Serializer):
     problems = QualityProblemSerializer(many=True)
     min_usable_ratio = serializers.FloatField()
     publishable = serializers.BooleanField()
+
+
+# --- course progress (E5) -----------------------------------------------------
+
+
+class CourseRoutineOptionSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    steps = serializers.IntegerField(help_text="Steps students have in the published version.")
+
+
+class StudioCourseDetailSerializer(StudioCourseSerializer):
+    routines = serializers.SerializerMethodField()
+
+    class Meta(StudioCourseSerializer.Meta):
+        fields = (*StudioCourseSerializer.Meta.fields, "routines")
+        read_only_fields = fields
+
+    @extend_schema_field(CourseRoutineOptionSerializer(many=True))
+    def get_routines(self, obj):
+        from .progress import _steps_of, course_routines, published_reference
+
+        return [
+            {"id": r.pk, "name": r.name, "steps": len(_steps_of(published_reference(r)))}
+            for r in course_routines(obj)
+        ]
+
+
+class MapQuerySerializer(serializers.Serializer):
+    routine = serializers.IntegerField(min_value=1)
+    follow_mode = serializers.ChoiceField(choices=("mirror", "same-side"), default="mirror")
+    speed = serializers.ChoiceField(choices=("0.5", "0.75", "1", "1.0"), default="1")
+
+
+class StepErrorSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    message = serializers.CharField()
+    region = serializers.CharField(allow_blank=True)
+    students = serializers.IntegerField()
+    count = serializers.IntegerField()
+
+
+class StepSummarySerializer(serializers.Serializer):
+    index = serializers.IntegerField()
+    name = serializers.CharField()
+    counts = serializers.IntegerField()
+    start_ms = serializers.IntegerField()
+    end_ms = serializers.IntegerField()
+    students = serializers.IntegerField(help_text="Students with evidence on this step.")
+    median = serializers.FloatField(allow_null=True)
+    below_threshold = serializers.FloatField(allow_null=True)
+    frequent_errors = StepErrorSerializer(many=True)
+
+
+class MapStudentSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    practices = serializers.IntegerField()
+    last_practice_at = serializers.DateTimeField(allow_null=True)
+    scores = serializers.ListField(child=serializers.FloatField(allow_null=True))
+
+
+class MapRoutineSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+
+class DifficultyMapSerializer(serializers.Serializer):
+    version = serializers.CharField()
+    routine = MapRoutineSerializer()
+    reference_version = serializers.IntegerField(allow_null=True)
+    follow_mode = serializers.CharField()
+    speed = serializers.FloatField()
+    min_group = serializers.IntegerField()
+    threshold = serializers.FloatField()
+    steps = StepSummarySerializer(many=True)
+    students = MapStudentSerializer(many=True)
+
+
+class ConcordanceSerializer(serializers.Serializer):
+    pairs = serializers.IntegerField()
+    spearman = serializers.FloatField(allow_null=True)
+
+
+class PracticeRowSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    student = serializers.SerializerMethodField()
+    routine_name = serializers.CharField(source="routine.name")
+    started_at = serializers.DateTimeField()
+    follow_mode = serializers.CharField()
+    playback_speed = serializers.FloatField()
+    score = serializers.FloatField(source="pose_score", allow_null=True)
+    coverage = serializers.FloatField(source="quality_ratio", allow_null=True)
+    stars = serializers.SerializerMethodField()
+    rating = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.CharField())
+    def get_student(self, obj):
+        from apps.coaching.serializers import display_name
+
+        return display_name(obj.student)
+
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
+    def get_stars(self, obj):
+        game = getattr(obj, "game", None)
+        return game.stars if game else None
+
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
+    def get_rating(self, obj):
+        mine = getattr(obj, "my_ratings", [])
+        return mine[0].rating if mine else None
+
+
+class CoursePracticesSerializer(serializers.Serializer):
+    concordance = ConcordanceSerializer()
+    practices = PracticeRowSerializer(many=True)
+
+
+class RatingSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(
+        max_length=1000,
+        allow_blank=True,
+        required=False,
+        default="",
+        help_text="Optional; saved as an observation the student reads.",
+    )

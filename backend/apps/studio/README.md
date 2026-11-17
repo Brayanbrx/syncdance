@@ -14,6 +14,10 @@ administradores (`IsInstructorOrAdmin`), y cada uno ve únicamente sus rutinas.
 | `PUT /api/studio/routines/{id}/choreography/` | Guardar tempo y pasos: `{"bpm", "first_beat_ms", "steps": [{"name", "start_beat", "counts", "tip"}]}`; `bpm: null` los borra |
 | `GET /api/studio/routines/{id}/quality/` | Informe de calidad de la referencia (404 si no está lista) |
 | `GET /api/studio/courses/` | Sus cursos, con el número de alumnos |
+| `GET /api/studio/courses/{id}/` | El curso y sus rutinas (publicadas o asignadas), con cuántos pasos tiene cada una |
+| `GET /api/studio/courses/{id}/map/?routine=&follow_mode=&speed=` | Mapa de dificultad de una rutina (`difficulty-map-v1`) |
+| `GET /api/studio/courses/{id}/practices/` | Las 50 prácticas más recientes del curso, con la calificación del instructor y la concordancia |
+| `PUT/DELETE /api/studio/practices/{uuid}/rating/` | Calificar de 1 a 5 (`{"rating", "comment"}`) o quitar la calificación |
 
 ## Reglas
 
@@ -67,5 +71,23 @@ administradores (`IsInstructorOrAdmin`), y cada uno ve únicamente sus rutinas.
 - **Borrar** solo una rutina sin prácticas, tareas ni videos de alumnos; si
   no, se retira de los cursos. Los archivos se borran después de confirmar,
   incluidos la versión para la app y la miniatura.
+
+## Progreso del curso (`progress.py`)
+
+- **Mapa de dificultad:** por cada paso publicado, el último resultado
+  comparable de cada alumno y, para el grupo, la mediana, la proporción bajo
+  50 (GOOD del juego) y cuántos alumnos tienen evidencia. Comparable es la
+  versión que los alumnos descargan hoy, un mismo modo (espejo o mismos lados)
+  y una misma velocidad. Un resultado cuenta si el paso se midió al menos en un
+  50 %. Sin evidencia es `null` («—»), nunca 0. Las cifras del grupo y los
+  **errores frecuentes** (avisos que salieron dentro del paso, por alumnos
+  afectados) se muestran solo con 3 alumnos o más. Umbral, cobertura y mínimo
+  son **provisionales** hasta la validación física.
+- **Calificación del instructor** (`coaching.PracticeRating`): 1 a 5 sobre una
+  práctica de un alumno de sus cursos, una por instructor y práctica. El alumno
+  no la ve; el comentario opcional se guarda como observación, que sí lee.
+- **Concordancia** (`coaching.concordance`): correlación de rangos de Spearman
+  entre la calificación y la similitud de la app, solo con prácticas a
+  velocidad normal y cobertura ≥ 50 %; sin al menos 5 pares no hay cifra.
 
 Qué ve cada alumno lo decide `apps.routines.selectors.get_routines_for_user`.

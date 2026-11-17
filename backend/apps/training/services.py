@@ -7,6 +7,7 @@ from .models import (
     FeedbackCount,
     GameResult,
     SegmentScore,
+    StepResult,
     TimelineSegment,
 )
 
@@ -31,6 +32,8 @@ def create_session(
     feedback_counts=(),
     error_events=(),
     game=None,
+    step_results=(),
+    calibration=None,
     **data,
 ):
     """Return (session, created). Summaries are immutable: a same-owner retry never rewrites."""
@@ -38,6 +41,9 @@ def create_session(
     duration, evaluated = data.get("duration_ms"), data.get("evaluated_ms")
     if duration is not None:
         data["quality_ratio"] = evaluated / duration
+    if calibration:
+        data["calibration_attempts"] = calibration["attempts"]
+        data["calibration_successes"] = calibration["calibrated"]
     try:
         with transaction.atomic():
             session = DanceSession.objects.create(
@@ -61,6 +67,9 @@ def create_session(
             )
             if game:
                 GameResult.objects.create(session=session, **game)
+            StepResult.objects.bulk_create(
+                StepResult(session=session, **{"feedback": {}, **step}) for step in step_results
+            )
     except IntegrityError:
         # A concurrent retry of the same upload may win the insert.
         existing = find_synced_session(student=student, session_id=data.get("id"))

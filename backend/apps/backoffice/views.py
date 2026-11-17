@@ -17,6 +17,7 @@ from .selectors import (
     panel_courses,
     panel_routines,
     panel_users,
+    pilot_metrics,
     platform_summary,
 )
 from .serializers import (
@@ -28,6 +29,7 @@ from .serializers import (
     PanelUserCreateSerializer,
     PanelUserSerializer,
     PasswordSerializer,
+    PilotMetricsSerializer,
     PlatformSummarySerializer,
     PublicReleaseSerializer,
     ReviewNoteSerializer,
@@ -107,6 +109,17 @@ class PlatformSummaryView(APIView):
         OpenApiParameter("search", str),
     ]
 )
+class PilotMetricsView(APIView):
+    """The pilot's gate figures (E5): activity, retention, routines per
+    instructor, app-instructor concordance and calibration."""
+
+    permission_classes = [IsPlatformAdmin]
+
+    @extend_schema(responses=PilotMetricsSerializer)
+    def get(self, request):
+        return Response(PilotMetricsSerializer(pilot_metrics()).data)
+
+
 class PanelUserViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,

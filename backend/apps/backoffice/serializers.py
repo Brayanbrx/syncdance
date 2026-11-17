@@ -241,3 +241,48 @@ class CatalogProposalSerializer(serializers.ModelSerializer):
 
 class ReviewNoteSerializer(serializers.Serializer):
     note = serializers.CharField(allow_blank=True, required=False, max_length=1000)
+
+
+class PilotWeekSerializer(serializers.Serializer):
+    week_start = serializers.DateField()
+    active_students = serializers.IntegerField()
+    evaluated_practices = serializers.IntegerField()
+
+
+class RetentionSerializer(serializers.Serializer):
+    cohort = serializers.IntegerField(help_text="Students whose first practice is 28+ days old.")
+    retained = serializers.IntegerField(help_text="Of them, practised on days 21-28.")
+    ratio = serializers.FloatField(allow_null=True)
+
+
+class PilotInstructorSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    published = serializers.IntegerField()
+    drafts = serializers.IntegerField()
+
+
+class PilotConcordanceSerializer(serializers.Serializer):
+    pairs = serializers.IntegerField()
+    spearman = serializers.FloatField(allow_null=True)
+
+
+class PilotCalibrationSerializer(serializers.Serializer):
+    attempts = serializers.IntegerField()
+    calibrated = serializers.IntegerField()
+    ratio = serializers.FloatField(allow_null=True)
+
+
+class PilotTargetsSerializer(serializers.Serializer):
+    calibration = serializers.FloatField()
+    concordance = serializers.FloatField()
+    retention_week4 = serializers.FloatField()
+    routines_per_instructor = serializers.IntegerField()
+
+
+class PilotMetricsSerializer(serializers.Serializer):
+    weeks = PilotWeekSerializer(many=True)
+    retention_week4 = RetentionSerializer()
+    instructors = PilotInstructorSerializer(many=True)
+    concordance = PilotConcordanceSerializer()
+    calibration = PilotCalibrationSerializer()
+    targets = PilotTargetsSerializer()

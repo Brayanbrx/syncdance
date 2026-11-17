@@ -1,20 +1,32 @@
+from django.db import transaction
 from django.db.models import Count, Prefetch
-from drf_spectacular.utils import extend_schema
+from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.accounts.serializers import DetailSerializer
-from apps.coaching.models import Course
+from apps.coaching.concordance import concordance
+from apps.coaching.models import Course, PracticeRating, SessionNote
+from apps.coaching.selectors import students_of
 from apps.routines.models import Routine, RoutineReference
+from apps.training.models import DanceSession
 from common.permissions import IsInstructorOrAdmin
 
+from .progress import course_routines, recent_practices, step_map
 from .quality import quality_report
 from .serializers import (
     ChoreographySerializer,
+    CoursePracticesSerializer,
+    DifficultyMapSerializer,
+    MapQuerySerializer,
     PublishSerializer,
     QualityReportSerializer,
+    RatingSerializer,
+    StudioCourseDetailSerializer,
     StudioCourseSerializer,
     StudioRoutineSerializer,
     StudioRoutineWriteSerializer,
@@ -174,12 +186,49 @@ class StudioRoutineViewSet(
         return Response(report)
 
 
-class StudioCourseViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
-    """The instructor's courses, to choose where a routine is published."""
+class StudioCourseViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    """The instructor's courses: where routines are published and how the
+    students are doing (difficulty map, recent practices, ratings)."""
 
     permission_classes = [IsInstructorOrAdmin]
     serializer_class = StudioCourseSerializer
     pagination_class = None
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return StudioCourseDetailSerializer
+        return StudioCourseSerializer
+
+    @extend_schema(
+        parameters=[MapQuerySerializer],
+        responses={200: DifficultyMapSerializer, 404: DetailSerializer},
+        description="Per step of the routine: each student's latest result and the group's.",
+    )
+    @action(detail=True, methods=["get"], url_path="map")
+    def difficulty_map(self, request, pk=None):
+        course = self.get_object()
+        query = MapQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        routine = get_object_or_404(course_routines(course), pk=query.validated_data["routine"])
+        data = step_map(
+            course=course,
+            routine=routine,
+            follow_mode=query.validated_data["follow_mode"],
+            speed=float(query.validated_data["speed"]),
+        )
+        return Response(DifficultyMapSerializer(data).data)
+
+    @extend_schema(responses=CoursePracticesSerializer)
+    @action(detail=True, methods=["get"])
+    def practices(self, request, pk=None):
+        course = self.get_object()
+        data = {
+            "concordance": concordance(PracticeRating.objects.filter(instructor=request.user)),
+            "practices": recent_practices(course=course, instructor=request.user),
+        }
+        return Response(CoursePracticesSerializer(data).data)
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):  # schema generation
@@ -189,3 +238,43 @@ class StudioCourseViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             .annotate(students=Count("enrollments"))
             .order_by("name", "pk")
         )
+
+
+class PracticeRatingView(APIView):
+    """The instructor rates one practice of their students from 1 to 5."""
+
+    permission_classes = [IsInstructorOrAdmin]
+
+    def _practice(self, request, pk):
+        return get_object_or_404(
+            DanceSession.objects.filter(student__in=students_of(user=request.user)), pk=pk
+        )
+
+    @extend_schema(
+        request=RatingSerializer,
+        responses={200: RatingSerializer},
+        parameters=[OpenApiParameter("id", str, OpenApiParameter.PATH)],
+    )
+    def put(self, request, pk):
+        practice = self._practice(request, pk)
+        data = RatingSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        comment = data.validated_data["comment"].strip()
+        with transaction.atomic():
+            PracticeRating.objects.update_or_create(
+                session=practice,
+                instructor=request.user,
+                defaults={"rating": data.validated_data["rating"]},
+            )
+            if comment:
+                SessionNote.objects.create(session=practice, author=request.user, text=comment)
+        return Response({"rating": data.validated_data["rating"], "comment": comment})
+
+    @extend_schema(
+        responses={204: None},
+        parameters=[OpenApiParameter("id", str, OpenApiParameter.PATH)],
+    )
+    def delete(self, request, pk):
+        practice = self._practice(request, pk)
+        PracticeRating.objects.filter(session=practice, instructor=request.user).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -152,3 +152,42 @@ class SessionNote(models.Model):
             ).exists()
             if not teaches:
                 raise ValidationError("Solo puedes comentar prácticas de alumnos de tus cursos.")
+
+
+class PracticeRating(models.Model):
+    """The instructor's 1-5 judgement of one practice. Students do not see it:
+    it measures how well the app's score agrees with the instructor (pilot)."""
+
+    session = models.ForeignKey(
+        "training.DanceSession",
+        on_delete=models.CASCADE,
+        related_name="ratings",
+        verbose_name="práctica",
+    )
+    instructor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="practice_ratings",
+        verbose_name="instructor",
+    )
+    rating = models.PositiveSmallIntegerField(
+        "calificación", validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
+    created_at = models.DateTimeField("creada", auto_now_add=True)
+    updated_at = models.DateTimeField("actualizada", auto_now=True)
+
+    class Meta:
+        ordering = ("-updated_at",)
+        verbose_name = "calificación del instructor"
+        verbose_name_plural = "calificaciones del instructor"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("session", "instructor"), name="one_rating_per_instructor"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(rating__gte=1, rating__lte=5), name="practice_rating_1_5"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.instructor} · {self.session_id}: {self.rating}"
