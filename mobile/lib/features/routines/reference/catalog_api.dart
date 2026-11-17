@@ -521,7 +521,10 @@ class CatalogApi {
         409 => const UploadResult.rejected(
           'El identificador pertenece a otra cuenta.',
         ),
-        400 || 403 || 404 => const UploadResult.rejected(
+        // Only the API's own verdict on this summary is final. A 403 or 404
+        // comes from a proxy, a deploy or a wrong address: rejecting then
+        // would drop every pending practice for good.
+        400 => const UploadResult.rejected(
           'El servidor no aceptó el resumen: la rutina o su referencia ya no '
           'están disponibles, o los datos no son compatibles.',
         ),

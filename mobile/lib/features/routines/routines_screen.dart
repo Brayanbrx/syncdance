@@ -132,13 +132,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
       final store =
           widget.sessions ?? await SessionStore.open(_session.cacheScope);
       final history = await store.readAll();
-      final best = {
-        for (final progress in const RoutineProgressCalculator().compute(
-          history.sessions,
-        ))
-          if (progress.bestGame case final session?)
-            session.reference.routineId: session.game!,
-      };
+      final best = bestGamesByRoutine(history.sessions);
       if (mounted) setState(() => _bestGames = best);
     } catch (_) {}
   }

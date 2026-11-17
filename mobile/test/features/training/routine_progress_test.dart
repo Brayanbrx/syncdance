@@ -177,4 +177,17 @@ void main() {
       expect(progress.bestGame!.game!.points, 100);
     }
   });
+
+  test('a passed step stays passed: the best game at normal speed counts', () {
+    final best = bestGamesByRoutine([
+      practice(80, day: 1, version: 1, perfectMoves: 3), // passed on v1
+      practice(60, day: 2, version: 2, perfectMoves: 1), // a new version
+      practice(70, day: 3, followMode: FollowMode.mirror, perfectMoves: 2),
+      practice(90, day: 4, speed: 0.5, perfectMoves: 4), // slow: not counted
+      practice(50, day: 5, routine: 8), // no game at all
+    ]);
+    expect(best.keys, [7]);
+    expect(best[7]!.points, 300);
+    expect(best[7]!.stars, greaterThanOrEqualTo(3));
+  });
 }

@@ -1,4 +1,29 @@
+import '../game/dance_game.dart';
 import 'saved_session.dart';
+
+/// The best game of each routine at normal speed, of any reference version
+/// or follow mode, by share of points: the rule the server uses for course
+/// tasks (`apps/coaching/selectors.routine_evidence`). The catalog stars and
+/// the learning path use it, so they never disagree with the course, and a
+/// passed step stays passed after a new version or a change of mode.
+Map<int, GameSummary> bestGamesByRoutine(Iterable<SavedSession> sessions) {
+  final best = <int, GameSummary>{};
+  for (final session in sessions) {
+    final game = session.game;
+    if (game == null ||
+        game.maxPoints <= 0 ||
+        session.summary.playbackSpeed != 1.0) {
+      continue;
+    }
+    final routine = session.reference.routineId;
+    final current = best[routine];
+    if (current == null ||
+        game.points / game.maxPoints > current.points / current.maxPoints) {
+      best[routine] = game;
+    }
+  }
+  return best;
+}
 
 /// Best mark and recent trend among comparable practices of one routine.
 class RoutineProgress {

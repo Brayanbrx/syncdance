@@ -255,6 +255,23 @@ void main() {
     expect((await sync().run()).synced, 2);
   });
 
+  test(
+    'a proxy 403 or 404 keeps the practices pending, never rejected',
+    () async {
+      // A wrong address or a deploy answers 404 for the whole API: the
+      // practices must survive until the real server is back.
+      await store.save(savedPractice(at: DateTime.utc(2026, 10, 1)));
+      await store.save(savedPractice(at: DateTime.utc(2026, 10, 2)));
+      for (final code in [403, 404]) {
+        server.answer = (_) => code;
+        final report = await sync().run();
+        expect((report.pending, report.rejected), (2, 0), reason: '$code');
+      }
+      server.answer = (_) => 201;
+      expect((await sync().run()).synced, 2);
+    },
+  );
+
   test('server errors are transient', () async {
     await store.save(savedPractice());
     server.answer = (_) => 503;
