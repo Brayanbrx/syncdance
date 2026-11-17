@@ -1,7 +1,6 @@
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
-
+import '../../../core/storage/file_hash.dart';
 import '../../../core/storage/temporary_files.dart';
 import 'motion_reference.dart';
 
@@ -34,8 +33,7 @@ class MasterVideoCache {
     final file = _file(metadata);
     if (!await file.exists()) return null;
     if (await file.length() > maxVideoBytes ||
-        (await sha256.bind(file.openRead()).first).toString() !=
-            metadata.sourceHash) {
+        await fileSha256(file) != metadata.sourceHash) {
       // Remove unusable data so a retry can replace it and reclaim its quota.
       await file.delete();
       return null;
@@ -71,9 +69,7 @@ class MasterVideoCache {
       } finally {
         await output.close();
       }
-      if (received == 0 ||
-          (await sha256.bind(partial.openRead()).first).toString() !=
-              metadata.sourceHash) {
+      if (received == 0 || await fileSha256(partial) != metadata.sourceHash) {
         throw const ReferenceException(
           'El video no coincide con esta versión de referencia.',
         );

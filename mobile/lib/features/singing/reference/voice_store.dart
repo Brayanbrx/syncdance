@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/storage/file_hash.dart';
 import '../../../core/storage/temporary_files.dart';
 import '../../routines/reference/motion_reference.dart'
     show ReferenceException, object;
@@ -175,9 +176,7 @@ class VoiceStore {
       } finally {
         await sink.close();
       }
-      if (received == 0 ||
-          (await sha256.bind(partial.openRead()).first).toString() !=
-              metadata.sourceHash) {
+      if (received == 0 || await fileSha256(partial) != metadata.sourceHash) {
         throw const ReferenceException(
           'El audio no coincide con esta versión. Descárgalo otra vez.',
         );
@@ -248,8 +247,7 @@ class VoiceStore {
         ));
         final audio = _audioFile(metadata);
         if (!await audio.exists() ||
-            (await sha256.bind(audio.openRead()).first).toString() !=
-                metadata.sourceHash) {
+            await fileSha256(audio) != metadata.sourceHash) {
           continue;
         }
         saved.add(SavedVoiceRoutine(data['name'] as String, reference, audio));
