@@ -24,21 +24,27 @@ import { RoutinePosterComponent } from './routine-poster.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (url(); as src) {
-      <video [src]="src" controls autoplay playsinline></video>
+      @if (audio()) {
+        <audio [src]="src" controls autoplay></audio>
+      } @else {
+        <video [src]="src" controls autoplay playsinline></video>
+      }
     } @else {
       @if (poster()) {
         <sd-routine-poster fit="natural" [routine]="routine()" [version]="version()" />
       }
       <button class="button" type="button" [disabled]="loading() !== null" (click)="watch()">
         @if (loading() === null) {
-          Ver video
+          {{ audio() ? 'Escuchar' : 'Ver video' }}
         } @else {
           Cargando {{ loading() }} %
         }
       </button>
     }
     @if (failed()) {
-      <p class="alert" role="alert">No se pudo cargar el video. Inténtalo de nuevo.</p>
+      <p class="alert" role="alert">
+        No se pudo cargar {{ audio() ? 'el audio' : 'el video' }}. Inténtalo de nuevo.
+      </p>
     }
   `,
   styles: `
@@ -48,9 +54,13 @@ import { RoutinePosterComponent } from './routine-poster.component';
       gap: 0.75rem;
     }
     sd-routine-poster,
-    video {
+    video,
+    audio {
       max-width: min(100%, 28rem);
       border-radius: 12px;
+    }
+    audio {
+      width: 28rem;
     }
     video {
       display: block;
@@ -66,6 +76,8 @@ export class RoutinePreviewComponent {
   readonly version = input.required<number>();
   /** Whether the version has a poster to show before the video. */
   readonly poster = input(false);
+  /** A singing routine: its file is the voice students sing with. */
+  readonly audio = input(false);
 
   readonly url = signal<string | null>(null);
   readonly loading = signal<number | null>(null);

@@ -24,6 +24,7 @@
           [routine]="r.id"
           [version]="r.processing!.version"
           [poster]="r.processing!.poster"
+          [audio]="r.kind === 'SING'"
         />
         <p>
           Procesado (versión {{ r.processing!.version }}, {{ clock(r.duration_ms) }}).
