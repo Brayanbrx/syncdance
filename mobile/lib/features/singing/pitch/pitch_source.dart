@@ -18,8 +18,9 @@ class PitchSample {
 }
 
 /// The singing domain never sees the audio plugin: it gets pitch samples.
-/// Contract: one capture at a time; `stop` releases the microphone and is safe
-/// to call twice; errors arrive through the stream.
+/// Contract: one capture per source; `stop` releases the microphone and the
+/// source, is safe to call twice and must be called even when the capture
+/// never started; errors arrive through the stream.
 abstract class PitchSource {
   /// Asks for the microphone; false when the person refused.
   Future<bool> requestPermission();

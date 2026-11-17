@@ -84,15 +84,17 @@ class _SingingPracticeScreenState extends State<SingingPracticeScreen>
     WidgetsBinding.instance.addObserver(this);
   }
 
+  /// The microphone is never open in the background. `inactive` is not
+  /// enough: the notification shade, a call banner or the permission dialog
+  /// cause it too.
+  static bool _away(AppLifecycleState? state) =>
+      state == AppLifecycleState.paused ||
+      state == AppLifecycleState.hidden ||
+      state == AppLifecycleState.detached;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // The microphone is never left open in the background. `inactive` is not
-    // enough: the notification shade or a call banner cause it too.
-    final away =
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached;
-    if (away && _phase == _Phase.running) {
+    if (_away(state) && _phase == _Phase.running) {
       unawaited(_finish(reachedEnd: false));
     }
   }
@@ -128,9 +130,13 @@ class _SingingPracticeScreenState extends State<SingingPracticeScreen>
     GuidePlayer? opened;
     try {
       final allowed = await source.requestPermission();
-      // Left while the permission dialog was open: nothing was opened yet.
-      if (!mounted) return;
+      // Left while the permission dialog was open: only the source to free.
+      if (!mounted) {
+        await source.stop();
+        return;
+      }
       if (!allowed) {
+        unawaited(source.stop());
         setState(() {
           _starting = false;
           _message =
@@ -146,6 +152,15 @@ class _SingingPracticeScreenState extends State<SingingPracticeScreen>
       // microphone must not be started for a screen that is gone.
       if (!mounted) {
         await player.dispose();
+        await source.stop();
+        return;
+      }
+      // Sent to the background while the guide was opening: the lifecycle
+      // stop only covers a running practice, so nothing starts from here.
+      if (_away(WidgetsBinding.instance.lifecycleState)) {
+        await player.dispose();
+        await source.stop();
+        if (mounted) setState(() => _starting = false);
         return;
       }
       _player = player;

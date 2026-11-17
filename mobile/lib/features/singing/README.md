@@ -16,7 +16,7 @@ guía (.m4a, video_player) -> PlaybackClock ----------^
 |---|---|
 | `pitch/yin.dart` | Detector YIN en Dart puro. Ventana de 1024 muestras más el período más largo, 65–1100 Hz |
 | `pitch/pitch_source.dart` | Contrato `PitchSource` y `PcmPitchTracker` (PCM → una muestra cada 32 ms, buffer circular) |
-| `pitch/adapters/record_pitch_source.dart` | Único archivo que conoce el plugin `record`. Sin cancelación de eco, supresión de ruido ni ganancia automática; fuente `voiceRecognition`; Bluetooth sin tocar |
+| `pitch/adapters/record_pitch_source.dart` | Único archivo que conoce el plugin `record`. Sin cancelación de eco, supresión de ruido ni ganancia automática; fuente `voiceRecognition`; Bluetooth sin tocar. Una captura por fuente: `stop` libera la grabadora nativa, aunque nunca haya grabado |
 | `reference/pitch_reference.dart` | `pitch-reference-v1`: SHA-256 sobre el gzip antes de expandir, límites de tamaño, todas las versiones y el hash del audio |
 | `reference/voice_store.dart` | Melodía y audio por cuenta y servidor, verificados por hash al leer, e historial local (`vocal-summary-v1`, 200 prácticas) |
 | `practice/vocal_practice.dart` | Compara contra la nota de la guía en ese momento, avisos sin parpadeo y resumen por nota |
@@ -27,7 +27,8 @@ guía (.m4a, video_player) -> PlaybackClock ----------^
 
 - **La voz no sale del teléfono:** no se graba a un archivo ni se envía. Solo
   queda en el teléfono un resumen.
-- **El micrófono se cierra** al terminar y al pasar a segundo plano.
+- **El micrófono se cierra** al terminar y al pasar a segundo plano. Si la
+  app pasa a segundo plano mientras se abre la guía, no se enciende.
 - **Cualquier octava vale:** cada muestra se lleva a la octava de la nota
   esperada.
 - **Ausente ≠ cero:**

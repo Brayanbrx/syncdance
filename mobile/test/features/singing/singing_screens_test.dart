@@ -207,11 +207,12 @@ void main() {
     tester,
   ) async {
     final player = FakePlayer();
+    final source = FakeSource(allowed: false);
     await tester.pumpWidget(
       MaterialApp(
         home: SingingPracticeScreen(
           routine: routine,
-          createSource: () => FakeSource(allowed: false),
+          createSource: () => source,
           createPlayer: () => player,
         ),
       ),
@@ -220,6 +221,8 @@ void main() {
     await tester.pump();
     expect(find.textContaining('Sin permiso de micrófono'), findsOneWidget);
     expect(player.playing, isFalse);
+    // The source is freed even though it never captured.
+    expect(source.stopped, isTrue);
   });
 
   testWidgets('leaving while the guide opens never starts the microphone', (
@@ -248,6 +251,50 @@ void main() {
     expect(source.started, isFalse);
     expect(player.playing, isFalse);
     expect(player.disposed, isTrue);
+    expect(source.stopped, isTrue);
+  });
+
+  testWidgets('going to the background while the guide opens starts nothing', (
+    tester,
+  ) async {
+    final source = FakeSource();
+    final opening = Completer<void>();
+    final player = SlowPlayer(opening.future);
+    addTearDown(
+      () => tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SingingPracticeScreen(
+          routine: routine,
+          createSource: () => source,
+          createPlayer: () => player,
+        ),
+      ),
+    );
+    await tester.tap(find.text('Empezar a cantar'));
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    opening.complete();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
+    expect(source.started, isFalse);
+    expect(player.playing, isFalse);
+    expect(player.disposed, isTrue);
+    expect(source.stopped, isTrue);
+
+    // Back in the app, it can start again.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    final start = find.ancestor(
+      of: find.text('Empezar a cantar'),
+      matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+    );
+    expect(tester.widget<FilledButton>(start).onPressed, isNotNull);
   });
 
   testWidgets('a guide that cannot be opened is released and explained', (
@@ -354,6 +401,97 @@ void main() {
     expect(requests.where((r) => r.contains('/download/')).length, downloads);
     expect(opened, ['Arpegio de Do', 'Arpegio de Do']);
   });
+
+  testWidgets(
+    'pulling to refresh during a download does not free the buttons',
+    (tester) async {
+      final guide = StreamController<List<int>>();
+      var listings = 0;
+      http.StreamedResponse streamed(http.Response response) =>
+          http.StreamedResponse(
+            Stream.value(response.bodyBytes),
+            response.statusCode,
+          );
+      final api = CatalogApi(
+        'http://localhost:8000/api',
+        client: MockClient.streaming((request, _) async {
+          final url = request.url;
+          if (url.path.endsWith('/routines/')) {
+            listings++;
+            return streamed(
+              reply({
+                'results': [
+                  {'id': 41, 'name': 'Arpegio de Do', 'kind': 'SING'},
+                ],
+                'next': null,
+              }),
+            );
+          }
+          if (url.path.endsWith('/41/reference/')) {
+            return streamed(reply(fixtureJson()));
+          }
+          if (url.path.endsWith('/download/')) {
+            return streamed(reply(fixtureBytes()));
+          }
+          return http.StreamedResponse(guide.stream, 200);
+        }),
+      );
+      addTearDown(api.close);
+      final opened = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SingingScreen(
+            session: CatalogSession(api)
+              ..account = const Account(1, 'ana', 'token'),
+            store: MemoryVoiceStore(),
+            openPractice: (routine, _) {
+              opened.add(routine.name);
+              return const Scaffold(body: Text('Practicando'));
+            },
+          ),
+        ),
+      );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        await tester.tap(find.byTooltip('Cantar «Arpegio de Do»'));
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pump();
+      expect(find.textContaining('Descargando la guía'), findsOneWidget);
+
+      await tester.fling(
+        find.text('Usa audífonos'),
+        const Offset(0, 300),
+        1000,
+      );
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(seconds: 1));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+      }
+      expect(listings, 1);
+      expect(
+        tester
+            .widget<IconButton>(
+              find.widgetWithIcon(IconButton, Icons.play_circle_fill),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await tester.runAsync(() async {
+        guide.add([1, 2, 3]);
+        await guide.close();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+      expect(opened, ['Arpegio de Do']);
+    },
+  );
 
   group('on disk', () {
     late Directory root;

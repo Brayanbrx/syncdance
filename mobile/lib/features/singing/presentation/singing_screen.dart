@@ -274,7 +274,11 @@ class _SingingScreenState extends State<SingingScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _refresh,
+        // Pulling during a download would end it as "not busy": the buttons
+        // came back and a second download could start over the first.
+        onRefresh: () async {
+          if (!_busy) await _refresh();
+        },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [

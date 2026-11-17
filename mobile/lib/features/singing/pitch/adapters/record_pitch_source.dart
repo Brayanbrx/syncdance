@@ -11,6 +11,10 @@ import '../pitch_source.dart';
 /// every Android phone offers. Bluetooth is left alone, so wireless headphones
 /// keep playing the guide in good quality while the phone's own microphone
 /// listens.
+///
+/// One capture per source: the plugin creates a native recorder as soon as
+/// [AudioRecorder] is built, and [stop] frees it. A practice that never let
+/// it go would leave one behind every time.
 class RecordPitchSource implements PitchSource {
   RecordPitchSource({AudioRecorder? recorder})
     : _recorder = recorder ?? AudioRecorder();
@@ -18,6 +22,7 @@ class RecordPitchSource implements PitchSource {
   final AudioRecorder _recorder;
   StreamSubscription<List<int>>? _subscription;
   StreamController<PitchSample>? _output;
+  bool _released = false;
 
   static const config = RecordConfig(
     encoder: AudioEncoder.pcm16bits,
@@ -37,6 +42,7 @@ class RecordPitchSource implements PitchSource {
 
   @override
   Stream<PitchSample> start() {
+    if (_released) throw StateError('source already released');
     if (_output != null) throw StateError('capture already running');
     final tracker = PcmPitchTracker();
     late final StreamController<PitchSample> output;
@@ -70,17 +76,17 @@ class RecordPitchSource implements PitchSource {
     _subscription = null;
     _output = null;
     await subscription?.cancel();
-    try {
-      if (await _recorder.isRecording()) await _recorder.stop();
-    } catch (_) {
-      // Already released by the system (call, another app).
+    if (!_released) {
+      _released = true;
+      try {
+        // Stops a capture still starting too: the plugin runs its calls in
+        // order, so this waits for the start and then ends it.
+        await _recorder.dispose();
+      } catch (_) {
+        // Already released by the system (call, another app).
+      }
     }
     // Never awaited: after the listener cancels, close() never completes.
     if (output != null && !output.isClosed) unawaited(output.close());
-  }
-
-  Future<void> dispose() async {
-    await stop();
-    await _recorder.dispose();
   }
 }
