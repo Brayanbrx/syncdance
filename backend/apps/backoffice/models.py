@@ -41,3 +41,27 @@ class AppRelease(models.Model):
     @property
     def download_name(self):
         return f"SyncDance-{self.version_name}.apk"
+
+
+class AppErrorReport(models.Model):
+    """An error the Android app hit on a phone. One row per kind of error and
+    app version, with a count: a loop of the same crash never floods the
+    table. No account, images or poses: only what helps fix the code."""
+
+    fingerprint = models.CharField(max_length=64, unique=True)
+    app_version = models.CharField("versión de la app", max_length=40)
+    os_version = models.CharField("sistema", max_length=120, blank=True)
+    kind = models.CharField("tipo de error", max_length=120)
+    message = models.CharField("mensaje", max_length=500, blank=True)
+    stack = models.TextField("primeras líneas de la pila", blank=True, max_length=4000)
+    count = models.PositiveIntegerField("veces", default=1)
+    first_seen = models.DateTimeField("primera vez", auto_now_add=True)
+    last_seen = models.DateTimeField("última vez")
+
+    class Meta:
+        ordering = ("-last_seen",)
+        verbose_name = "error de la app"
+        verbose_name_plural = "errores de la app"
+
+    def __str__(self):
+        return f"{self.kind} en {self.app_version} (×{self.count})"

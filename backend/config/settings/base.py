@@ -116,6 +116,9 @@ REST_FRAMEWORK = {
         "password_reset_confirm": "30/hour",
         "account_delete": "10/hour",
         "join": "20/hour",
+        # Error reports of the Android app, per address: a crash loop on
+        # one phone cannot flood the table (repeats are only counted anyway).
+        "app_errors": "60/hour",
     },
 }
 
@@ -130,7 +133,7 @@ PASSWORD_RESET_TIMEOUT = 2 * 60 * 60
 # here: sign-up stores the version each person accepted.
 LEGAL_CONTROLLER = os.getenv("LEGAL_CONTROLLER", "el equipo de SyncDance")
 LEGAL_CONTACT_EMAIL = os.getenv("LEGAL_CONTACT_EMAIL", "")
-LEGAL_TERMS_VERSION = "2026-11-16"
+LEGAL_TERMS_VERSION = "2026-11-17"
 
 # Development prints mail in the backend log; production sends it by SMTP.
 EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")

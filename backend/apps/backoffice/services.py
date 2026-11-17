@@ -4,7 +4,8 @@ import logging
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models import F
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
@@ -12,7 +13,7 @@ from rest_framework.exceptions import APIException, PermissionDenied, Validation
 from apps.routines.models import Routine
 
 from .apk import apk_versions
-from .models import AppRelease
+from .models import AppErrorReport, AppRelease
 
 logger = logging.getLogger(__name__)
 
@@ -227,3 +228,31 @@ def reject_for_catalog(*, actor, routine, note):
     )
     logger.info("catalog proposal rejected", extra={"routine_id": routine.pk, "user_id": actor.pk})
     return routine
+
+
+def report_app_error(*, app_version, kind, message="", stack="", os_version=""):
+    """Count one more occurrence of an error, grouped by version, kind and
+    where it happened (the first lines of the stack)."""
+    top = "\n".join(stack.splitlines()[:3])
+    fingerprint = hashlib.sha256(f"{app_version}|{kind}|{top}".encode()).hexdigest()
+    now = timezone.now()
+    updated = AppErrorReport.objects.filter(fingerprint=fingerprint).update(
+        count=F("count") + 1, last_seen=now
+    )
+    if updated:
+        return
+    try:
+        with transaction.atomic():
+            AppErrorReport.objects.create(
+                fingerprint=fingerprint,
+                app_version=app_version,
+                os_version=os_version,
+                kind=kind,
+                message=message,
+                stack=stack,
+                last_seen=now,
+            )
+    except IntegrityError:  # the same error arrived twice at once
+        AppErrorReport.objects.filter(fingerprint=fingerprint).update(
+            count=F("count") + 1, last_seen=now
+        )

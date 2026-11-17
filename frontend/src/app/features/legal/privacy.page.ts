@@ -40,8 +40,9 @@ import { LegalFrameComponent, LegalInfoService } from './legal-frame.component';
         </li>
         <li>
           <strong>Resúmenes de tus prácticas:</strong> rutina, fecha, duración, velocidad, puntajes
-          por tramo y por parte del cuerpo, los avisos que más recibiste y, en el modo juego, tus
-          estrellas y calificaciones. Se suben cuando hay conexión.
+          por tramo, por paso y por parte del cuerpo, los avisos que más recibiste, cuántas veces
+          intentaste ubicarte frente a la cámara y, en el modo juego, tus estrellas y
+          calificaciones. Se suben cuando hay conexión.
         </li>
         <li>
           <strong>Tus cursos:</strong> a qué cursos te uniste y las observaciones que te escribe tu
@@ -50,6 +51,11 @@ import { LegalFrameComponent, LegalInfoService } from './legal-frame.component';
         <li>
           <strong>Registros técnicos del servidor:</strong> dirección IP, fecha y página pedida,
           para seguridad y para resolver fallas.
+        </li>
+        <li>
+          <strong>Informes de fallas de la app:</strong> si la app falla, envía el tipo de error, en
+          qué parte del código ocurrió y las versiones de la app y del sistema. No incluyen tu
+          cuenta, imágenes ni datos de tu cuerpo.
         </li>
         <li>Qué versión de estos textos aceptaste y cuándo.</li>
       </ul>

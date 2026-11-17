@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from common.permissions import IsPlatformAdmin
@@ -21,6 +22,7 @@ from .selectors import (
     platform_summary,
 )
 from .serializers import (
+    AppErrorSerializer,
     CatalogProposalSerializer,
     PanelCourseSerializer,
     PanelReleaseSerializer,
@@ -40,12 +42,30 @@ from .services import (
     create_user,
     delete_release,
     reject_for_catalog,
+    report_app_error,
     set_password,
     update_release,
     update_user,
 )
 
 NO_RELEASE = "Todavía no hay una versión publicada de la app."
+
+
+class AppErrorView(APIView):
+    """Public: the Android app reports an error it hit (no account needed:
+    it may crash before signing in). Throttled per address."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "app_errors"
+
+    @extend_schema(request=AppErrorSerializer, responses={204: None})
+    def post(self, request):
+        data = AppErrorSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        report_app_error(**data.validated_data)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class LatestReleaseView(APIView):

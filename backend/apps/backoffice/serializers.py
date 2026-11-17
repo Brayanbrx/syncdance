@@ -291,3 +291,19 @@ class PilotMetricsSerializer(serializers.Serializer):
     concordance = PilotConcordanceSerializer()
     calibration = PilotCalibrationSerializer()
     targets = PilotTargetsSerializer()
+
+
+class AppErrorSerializer(serializers.Serializer):
+    """What the phone sends about an error; long fields are cut, not refused."""
+
+    app_version = serializers.CharField(max_length=40)
+    os_version = serializers.CharField(max_length=120, required=False, allow_blank=True)
+    kind = serializers.CharField(max_length=120)
+    message = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+    stack = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+
+    def validate_message(self, value):
+        return value[:500]
+
+    def validate_stack(self, value):
+        return value[:4000]

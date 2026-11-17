@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    AppErrorView,
     DownloadLatestView,
     LatestReleaseView,
     PanelCatalogProposalViewSet,
@@ -24,6 +25,7 @@ panel.register("releases", PanelReleaseViewSet, basename="panel-release")
 app_urlpatterns = [
     path("latest/", LatestReleaseView.as_view(), name="app-latest"),
     path("download/", DownloadLatestView.as_view(), name="app-download"),
+    path("errors/", AppErrorView.as_view(), name="app-errors"),
 ]
 
 panel_urlpatterns = [
