@@ -454,6 +454,30 @@ def test_any_file_decodes_to_mono_16k_and_playlists_are_refused(ffmpeg, tmp_path
         decode_audio(trap)
 
 
+def test_a_file_that_does_not_announce_its_length_is_measured(ffmpeg, tmp_path):
+    import subprocess
+
+    import imageio_ffmpeg
+
+    from ai_engine.voice.audio import duration_seconds
+
+    voice = _wav(tmp_path / "voz.wav", _voice([69, 71, 72]))
+    assert math.isclose(duration_seconds(voice), 1.5, abs_tol=0.05)
+    # Written to a pipe like a browser recording: "Duration: N/A".
+    streamed = tmp_path / "navegador.webm"
+    encoded = subprocess.run(
+        [imageio_ffmpeg.get_ffmpeg_exe(), "-v", "error", "-i", str(voice)]
+        + ["-c:a", "libopus", "-f", "webm", "pipe:1"],
+        capture_output=True,
+        check=True,
+    )
+    streamed.write_bytes(encoded.stdout)
+    assert math.isclose(duration_seconds(streamed), 1.5, abs_tol=0.05)
+    garbage = tmp_path / "ruido.mp3"
+    garbage.write_bytes(b"not audio at all" * 100)
+    assert duration_seconds(garbage) is None
+
+
 def test_the_reference_of_a_voice_file_is_deterministic(ffmpeg, pyin, tmp_path):
     from ai_engine.voice.reference import build_pitch_reference
 

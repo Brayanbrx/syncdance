@@ -54,10 +54,18 @@ APP_AUDIO = [
 
 
 _DURATION = re.compile(rb"Duration: (\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
+_DECODED = re.compile(rb"time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
+# Measuring by decoding stops here: past the limit the exact length is moot.
+MEASURE_LIMIT_SECONDS = 3600
+
+
+def _seconds(groups):
+    hours, minutes, seconds = groups
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
 def duration_seconds(path):
-    """Length of a file's audio as FFmpeg reports it; None when unreadable."""
+    """Length of a file's audio; None when unreadable."""
     command = [_ffmpeg_exe(), "-nostdin", "-hide_banner", *SAFE_INPUT, "-i", str(Path(path))]
     try:
         # Without an output FFmpeg exits with an error after printing the info.
@@ -67,10 +75,37 @@ def duration_seconds(path):
     if b"Audio:" not in result.stderr:
         return None
     match = _DURATION.search(result.stderr)
-    if not match:
+    if match:
+        return _seconds(match.groups())
+    # A file written as a stream (a browser recording, a pipe) says
+    # "Duration: N/A": decode its audio once and see how far it goes.
+    return _decoded_seconds(path)
+
+
+def _decoded_seconds(path):
+    command = [
+        _ffmpeg_exe(),
+        "-nostdin",
+        "-hide_banner",
+        *SAFE_INPUT,
+        "-i",
+        str(Path(path)),
+        "-map",
+        "0:a:0",
+        "-t",
+        str(MEASURE_LIMIT_SECONDS),
+        "-f",
+        "null",
+        "-",
+    ]
+    try:
+        result = subprocess.run(command, capture_output=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
         return None
-    hours, minutes, seconds = match.groups()
-    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    times = _DECODED.findall(result.stderr)
+    if result.returncode != 0 or not times:
+        return None
+    return _seconds(times[-1])
 
 
 def make_app_audio(source, target, *, max_seconds=MAX_SECONDS):
