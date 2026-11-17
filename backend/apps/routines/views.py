@@ -2,7 +2,7 @@ import mimetypes
 
 from django.http import FileResponse
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -16,13 +16,34 @@ from .selectors import get_routines_for_user
 from .serializers import RoutineReferenceSerializer, RoutineSerializer
 from .services import create_routine, update_routine
 
+# Singing routines play AAC audio; some systems lack this mapping.
+mimetypes.add_type("audio/mp4", ".m4a")
 
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "kind",
+                str,
+                enum=Routine.Kind.values,
+                required=False,
+                description="Solo rutinas de baile (DANCE) o de canto (SING).",
+            )
+        ]
+    )
+)
 class RoutineViewSet(viewsets.ModelViewSet):
     queryset = Routine.objects.all()
     serializer_class = RoutineSerializer
 
     def get_queryset(self):
-        return get_routines_for_user(user=self.request.user)
+        routines = get_routines_for_user(user=self.request.user)
+        # The app lists dance and singing in separate sections.
+        kind = self.request.query_params.get("kind")
+        if self.action == "list" and kind in Routine.Kind.values:
+            routines = routines.filter(kind=kind)
+        return routines
 
     def get_permissions(self):
         if self.action in {

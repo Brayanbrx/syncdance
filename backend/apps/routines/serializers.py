@@ -12,6 +12,7 @@ class RoutineSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
+            "kind",
             "description",
             "instructor",
             "difficulty",
@@ -32,6 +33,7 @@ class RoutineSerializer(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
+            "kind",
             "instructor",
             "visibility",
             "published_at",

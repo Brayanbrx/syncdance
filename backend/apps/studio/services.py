@@ -17,6 +17,8 @@ from .quality import quality_report
 logger = logging.getLogger(__name__)
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm", ".mkv"}
+# Singing: the instructor's voice alone, recorded as audio or video.
+VOICE_EXTENSIONS = VIDEO_EXTENSIONS | {".m4a", ".mp3", ".wav", ".aac", ".ogg", ".flac"}
 MIN_SECONDS = 5
 MIN_SHORT_SIDE = 360
 
@@ -59,8 +61,34 @@ def probe(upload) -> dict | None:
     return {"duration": meta.get("duration"), "size": meta.get("source_size") or meta.get("size")}
 
 
-def check_master_video(upload) -> None:
+def probe_voice(upload):
+    """Seconds of audio in an upload; None when unreadable, False when the
+    server has no FFmpeg (then the worker still checks while processing)."""
+    try:
+        from ai_engine.voice import VoiceError
+        from ai_engine.voice.audio import duration_seconds
+    except ImportError:
+        return False
+    with tempfile.TemporaryDirectory(prefix="syncdance-probe-") as workspace:
+        if hasattr(upload, "temporary_file_path"):
+            path = upload.temporary_file_path()
+        else:
+            path = Path(workspace) / ("upload" + Path(upload.name).suffix.lower())
+            with open(path, "wb") as copy:
+                for chunk in upload.chunks():
+                    copy.write(chunk)
+        try:
+            return duration_seconds(path)
+        except VoiceError:
+            return False  # no FFmpeg binary here
+        finally:
+            upload.seek(0)
+
+
+def check_master_video(upload, *, kind=Routine.Kind.DANCE) -> None:
     """Refuse at upload time what the worker would only reject minutes later."""
+    if kind == Routine.Kind.SING:
+        return check_voice(upload)
     if Path(upload.name).suffix.lower() not in VIDEO_EXTENSIONS:
         raise StudioError("Sube un video MP4, MOV, WEBM o MKV.", field="master_video")
     if upload.size > MAX_SOURCE_BYTES:
@@ -86,6 +114,28 @@ def check_master_video(upload) -> None:
         )
 
 
+def check_voice(upload) -> None:
+    """The instructor's voice for a singing routine: audio or video, 5 s to 5 min."""
+    if Path(upload.name).suffix.lower() not in VOICE_EXTENSIONS:
+        raise StudioError(
+            "Sube tu voz como audio (M4A, MP3, WAV) o video (MP4, MOV).", field="master_video"
+        )
+    if upload.size > MAX_SOURCE_BYTES:
+        raise StudioError("El archivo pesa más de 200 MB.", field="master_video")
+    duration = probe_voice(upload)
+    if duration is False:
+        return
+    if not duration:
+        raise StudioError(
+            "No se pudo leer el audio. Expórtalo como M4A o MP3 e inténtalo de nuevo.",
+            field="master_video",
+        )
+    if duration > MAX_DURATION_SECONDS:
+        raise StudioError("La grabación dura más de 5 minutos. Recórtala.", field="master_video")
+    if duration < MIN_SECONDS:
+        raise StudioError("La grabación debe durar al menos 5 segundos.", field="master_video")
+
+
 def current_reference(routine):
     """Latest reference made from the routine's current master video."""
     references = [
@@ -96,7 +146,7 @@ def current_reference(routine):
 
 def create_studio_routine(*, instructor, master_video, **fields) -> Routine:
     """Always a draft for the instructor's courses, even for administrators."""
-    check_master_video(master_video)
+    check_master_video(master_video, kind=fields.get("kind", Routine.Kind.DANCE))
     return create_routine(
         instructor=instructor,
         master_video=master_video,
@@ -110,9 +160,11 @@ def create_studio_routine(*, instructor, master_video, **fields) -> Routine:
 def update_studio_routine(*, routine, **fields) -> Routine:
     """A new video goes back to draft: its reference has to be processed and
     reviewed before students dance it."""
+    if fields.get("kind", routine.kind) != routine.kind:
+        raise StudioError("Una rutina no cambia entre baile y canto: crea una nueva.", field="kind")
     video = fields.get("master_video")
     if video is not None:
-        check_master_video(video)
+        check_master_video(video, kind=routine.kind)
         fields["published_at"] = None
         routine.leave_catalog_review()
     return update_routine(routine=routine, **fields)
@@ -165,6 +217,8 @@ def choreography_is_stale(routine) -> bool:
 
 def save_choreography(*, routine, draft) -> Routine:
     """Keep the instructor's tempo and steps; students get them on publish."""
+    if routine.is_singing:
+        raise StudioError("Las rutinas de canto todavía no tienen compás ni pasos.", conflict=True)
     reference = current_reference(routine)
     if reference is None or reference.status != "READY":
         raise StudioError(
@@ -189,6 +243,8 @@ def freeze_choreography(*, routine, reference) -> RoutineReference:
     """Publishing carries the tempo and steps to the phone. A READY version is
     never edited: when they changed, a new version reuses the same files (the
     analysis, the light video and the poster), with no reprocessing."""
+    if routine.is_singing:
+        return reference  # no tempo or steps yet for singing
     if choreography_is_stale(routine):
         raise StudioError(
             "Cambiaste el video: revisa el primer tiempo en «Compás y pasos» y guarda, o bórralos.",

@@ -24,6 +24,8 @@ from ai_engine.voice.notes import Note, segment_notes, track_from_notes, tuning_
 from ai_engine.voice.pitch import PitchTrack
 
 SCHEMA_VERSION = "pitch-reference-v1"
+# What RoutineReference.algorithm_version records for a voice reference.
+ALGORITHM_VERSION = f"{pitch.ALGORITHM_VERSION}+{notes_module.ALGORITHM_VERSION}"
 MAX_COMPRESSED_BYTES = 4 * 1024 * 1024
 MAX_EXPANDED_BYTES = 16 * 1024 * 1024
 MIN_MELODY_MS = 1000
@@ -147,12 +149,12 @@ def _read(artifact):
     return PitchTrack(midi=values, confidence=levels, hop_ms=hop_ms), sung
 
 
-def build_pitch_reference(source_path):
+def build_pitch_reference(source_path, *, max_seconds=audio.MAX_SECONDS):
     """The reference of the instructor's voice file."""
     path = Path(source_path)
     with path.open("rb") as source:
         source_hash = hashlib.file_digest(source, "sha256").hexdigest()
-    track = pitch.track_from_samples(audio.decode(path))
+    track = pitch.track_from_samples(audio.decode(path, max_seconds=max_seconds))
     sung = segment_notes(track)
     if sum(note.duration_ms for note in sung) < MIN_MELODY_MS:
         raise VoiceError("No se encontró una voz cantando en la grabación.")
@@ -167,20 +169,26 @@ def build_pitch_reference(source_path):
     )
 
 
-def exercise_reference(sung):
-    """A reference written as notes, for exercises (scales, held notes)."""
+def exercise_reference(sung, *, duration_ms=None, source_sha256=None):
+    """A reference written as notes, for exercises (scales, held notes).
+
+    `source_sha256` is the hash of the guide audio the phone plays, rendered
+    from these same notes; without it, the hash of the note list.
+    """
     if not sung:
         raise VoiceError("El ejercicio no tiene notas.")
     ordered = sorted(sung, key=lambda note: note.start_ms)
     for previous, note in zip(ordered, ordered[1:], strict=False):
         if note.start_ms < previous.end_ms:
             raise VoiceError("Las notas del ejercicio se superponen.")
-    listing = json.dumps([note.to_dict() for note in ordered], sort_keys=True).encode()
+    if source_sha256 is None:
+        listing = json.dumps([note.to_dict() for note in ordered], sort_keys=True).encode()
+        source_sha256 = hashlib.sha256(listing).hexdigest()
     return encode(
-        track_from_notes(ordered),
+        track_from_notes(ordered, duration_ms=duration_ms),
         ordered,
         engine="notes",
         engine_version=notes_module.ALGORITHM_VERSION,
-        source_sha256=hashlib.sha256(listing).hexdigest(),
+        source_sha256=source_sha256,
         quality={"voiced_ratio": None, "median_confidence": None, "warnings": []},
     )

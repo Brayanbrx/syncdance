@@ -6,6 +6,10 @@ from django.utils import timezone
 
 
 class Routine(models.Model):
+    class Kind(models.TextChoices):
+        DANCE = "DANCE", "Baile"
+        SING = "SING", "Canto"
+
     class Difficulty(models.TextChoices):
         BEGINNER = "BEGINNER", "Principiante"
         INTERMEDIATE = "INTERMEDIATE", "Intermedio"
@@ -26,6 +30,11 @@ class Routine(models.Model):
         REJECTED = "REJECTED", "Rechazada"
 
     name = models.CharField(max_length=150)
+    # Dance: the master is a video and the reference is the body pose
+    # (`motion-features-v1`). Singing: the master is the instructor's voice
+    # alone, audio or video, and the reference is its melody
+    # (`pitch-reference-v1`); `master_video` then holds that recording.
+    kind = models.CharField("tipo", max_length=8, choices=Kind.choices, default=Kind.DANCE)
     description = models.TextField(blank=True)
     instructor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -96,6 +105,10 @@ class Routine(models.Model):
     @property
     def is_published(self):
         return self.published_at is not None
+
+    @property
+    def is_singing(self):
+        return self.kind == self.Kind.SING
 
     def leave_catalog_review(self) -> list[str]:
         """A new video or a retired routine has to be reviewed again: drop a

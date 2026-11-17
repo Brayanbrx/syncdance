@@ -27,6 +27,8 @@ def quality_report(reference) -> dict | None:
     """Report of a READY reference; None when there is nothing to measure."""
     if reference is None or reference.status != "READY" or not reference.reference_asset:
         return None
+    if reference.feature_schema != "motion-features-v1":
+        return None  # a melody has no pose to report on
     key = f"studio:{VERSION}:{reference.pk}:{reference.checksum_sha256}"
     report = cache.get(key)
     if report is None:

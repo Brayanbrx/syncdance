@@ -38,6 +38,14 @@ def expire_stale_references(*, routine=None):
     return expired
 
 
+def reference_schema(routine) -> dict:
+    """What a new version of this routine holds: body pose or melody."""
+    if routine.is_singing:
+        # One pitch value every 32 ms (31.25 per second, stored rounded).
+        return {"feature_schema": "pitch-reference-v1", "sample_rate_hz": 31}
+    return {"feature_schema": "motion-features-v1", "sample_rate_hz": 12}
+
+
 def _dispatch(reference_id):
     from .tasks import generate_reference
 
@@ -81,8 +89,7 @@ def queue_reference(*, routine_id):
         routine=routine,
         version=version,
         source_video=routine.master_video.name,
-        feature_schema="motion-features-v1",
-        sample_rate_hz=12,
+        **reference_schema(routine),
     )
     transaction.on_commit(lambda: _dispatch(reference.pk))
     return reference

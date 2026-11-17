@@ -17,6 +17,10 @@ class ProcessingSerializer(serializers.Serializer):
     finished_at = serializers.DateTimeField(allow_null=True)
     light_video = serializers.BooleanField(help_text="Students download the 720p version.")
     poster = serializers.BooleanField()
+    warnings = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="Singing: NOT_VOICE_ONLY when the voice seems to have music behind it.",
+    )
 
 
 class ChoreographyStepSerializer(serializers.Serializer):
@@ -60,6 +64,7 @@ class StudioRoutineSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
+            "kind",
             "description",
             "difficulty",
             "style",
@@ -94,6 +99,9 @@ class StudioRoutineSerializer(serializers.ModelSerializer):
             "finished_at": reference.processing_finished_at,
             "light_video": bool(reference.playback_video),
             "poster": bool(reference.poster),
+            "warnings": list(
+                ((reference.scoring_profile or {}).get("voice_quality") or {}).get("warnings") or []
+            ),
         }
 
     @extend_schema_field(ChoreographyStateSerializer)
@@ -128,7 +136,15 @@ class StudioRoutineWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Routine
-        fields = ("name", "description", "difficulty", "style", "music_rights", "master_video")
+        fields = (
+            "name",
+            "kind",
+            "description",
+            "difficulty",
+            "style",
+            "music_rights",
+            "master_video",
+        )
 
 
 class PublishSerializer(serializers.Serializer):
