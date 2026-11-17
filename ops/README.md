@@ -31,6 +31,15 @@ curl https://TU-DOMINIO/api/health/   # {"status":"ok", ..., "environment":"prod
 
 Generar secretos: `python -c "import secrets; print(secrets.token_urlsafe(50))"`.
 
+Instalar el catálogo. Sin el último comando, la sección **Cantar** de la app
+queda vacía. Los tres crean solo lo que falta y se pueden repetir:
+
+```sh
+docker compose -f docker-compose.prod.yml exec backend python manage.py load_default_catalog
+docker compose -f docker-compose.prod.yml exec backend python manage.py generate_standard_catalog
+docker compose -f docker-compose.prod.yml exec backend python manage.py generate_singing_catalog
+```
+
 ## Actualizar
 
 ```sh

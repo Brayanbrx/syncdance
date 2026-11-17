@@ -71,12 +71,15 @@ con videos de licencia libre; ver `backend/apps/routines/README.md`):
 ```powershell
 docker compose exec backend python manage.py load_default_catalog
 docker compose exec backend python manage.py generate_standard_catalog
+docker compose exec backend python manage.py generate_singing_catalog
 ```
 
 El segundo genera el **estándar SyncDance** (16 rutinas en tres niveles: pasos
 básicos y una coreografía original por nivel) con coach animado, ritmo propio,
 rejilla de tiempos y referencia exacta; ver
-`backend/ai_engine/choreography/README.md`.
+`backend/ai_engine/choreography/README.md`. El tercero genera los 6 ejercicios
+de la sección **Cantar** (audio guía y melodía exacta); ver
+`backend/ai_engine/voice/README.md`.
 
 Compose aplica las migraciones al iniciar Django, sin borrar los datos
 existentes.
