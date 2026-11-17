@@ -191,10 +191,36 @@ class VoiceStore {
           }),
         ),
       );
+      await _removeOtherVersions(metadata);
       return SavedVoiceRoutine(name, checked, target);
     } finally {
       if (await partial.exists()) await partial.delete();
       await pending.delete(recursive: true);
+    }
+  }
+
+  /// Only the newest version of a routine is practiced, and this section has
+  /// no button to delete downloads: older versions go as soon as a new one is
+  /// kept, so the space never fills up with them.
+  Future<void> _removeOtherVersions(PitchReferenceMetadata kept) async {
+    final melody = '${_stem(kept)}.json';
+    final sound = _audioFile(kept).uri.pathSegments.last;
+    final prefix = '${kept.routineId}-';
+    for (final folder in [directory, Directory('${directory.path}/audio')]) {
+      if (!await folder.exists()) continue;
+      await for (final entry in folder.list(followLinks: false)) {
+        final name = entry.uri.pathSegments.last;
+        if (entry is File &&
+            name.startsWith(prefix) &&
+            name != melody &&
+            name != sound) {
+          try {
+            await entry.delete();
+          } on FileSystemException {
+            // Left for the next save; the newest version is already safe.
+          }
+        }
+      }
     }
   }
 

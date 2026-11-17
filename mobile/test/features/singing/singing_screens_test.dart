@@ -24,13 +24,16 @@ class FakeSource implements PitchSource {
   FakeSource({this.allowed = true});
   final bool allowed;
   final controller = StreamController<PitchSample>();
-  bool stopped = false;
+  bool stopped = false, started = false;
 
   @override
   Future<bool> requestPermission() async => allowed;
 
   @override
-  Stream<PitchSample> start() => controller.stream;
+  Stream<PitchSample> start() {
+    started = true;
+    return controller.stream;
+  }
 
   @override
   Future<void> stop() async {
@@ -40,12 +43,18 @@ class FakeSource implements PitchSource {
 }
 
 class FakePlayer extends ChangeNotifier implements GuidePlayer {
+  FakePlayer({this.broken = false});
+  final bool broken;
   int position = 0, duration = 0;
   bool playing = false, completed = false, disposed = false;
   double? volume;
 
   @override
-  Future<void> open(File audio) async => duration = 11872;
+  Future<void> open(File audio) async {
+    if (broken) throw const FileSystemException('unreadable');
+    duration = 11872;
+  }
+
   @override
   Future<void> play() async => playing = true;
   @override
@@ -69,6 +78,17 @@ class FakePlayer extends ChangeNotifier implements GuidePlayer {
   void at(int ms) {
     position = ms;
     notifyListeners();
+  }
+}
+
+/// A guide that takes its time to open, to leave the screen meanwhile.
+class SlowPlayer extends FakePlayer {
+  SlowPlayer(this.ready);
+  final Future<void> ready;
+  @override
+  Future<void> open(File audio) async {
+    await ready;
+    duration = 11872;
   }
 }
 
@@ -202,6 +222,58 @@ void main() {
     expect(player.playing, isFalse);
   });
 
+  testWidgets('leaving while the guide opens never starts the microphone', (
+    tester,
+  ) async {
+    final source = FakeSource();
+    final opening = Completer<void>();
+    final player = SlowPlayer(opening.future);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SingingPracticeScreen(
+          routine: routine,
+          createSource: () => source,
+          createPlayer: () => player,
+        ),
+      ),
+    );
+    await tester.tap(find.text('Empezar a cantar'));
+    await tester.pump();
+    await tester.pumpWidget(const MaterialApp(home: Text('Otra pantalla')));
+    opening.complete();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
+    expect(source.started, isFalse);
+    expect(player.playing, isFalse);
+    expect(player.disposed, isTrue);
+  });
+
+  testWidgets('a guide that cannot be opened is released and explained', (
+    tester,
+  ) async {
+    final source = FakeSource();
+    final player = FakePlayer(broken: true);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SingingPracticeScreen(
+          routine: routine,
+          createSource: () => source,
+          createPlayer: () => player,
+        ),
+      ),
+    );
+    await tester.tap(find.text('Empezar a cantar'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
+    expect(find.textContaining('No se pudo abrir'), findsOneWidget);
+    expect(player.disposed, isTrue);
+    expect(source.stopped, isTrue);
+  });
+
   testWidgets('the section lists singing, downloads once and opens it', (
     tester,
   ) async {
@@ -320,6 +392,43 @@ void main() {
       expect(await store.readAll(), isEmpty);
       // Another account never sees it.
       expect(await VoiceStore(root, 'server|2').readAll(), isEmpty);
+    });
+
+    test('a new version replaces the older one on the phone', () async {
+      final store = VoiceStore(root, 'server|1');
+      Future<SavedVoiceRoutine> keep(
+        int version,
+        List<int> audio, {
+        int routine = 41,
+      }) {
+        final hash = sha256.convert(audio).toString();
+        final (bytes, metadata) = tampered((a) => a['source_sha256'] = hash);
+        final json = metadata.toJson()
+          ..['source_sha256'] = hash
+          ..['version'] = version
+          ..['routine'] = routine;
+        return store.save(
+          'Arpegio',
+          PitchReferenceMetadata.fromJson(json),
+          bytes,
+          Stream.value(audio),
+        );
+      }
+
+      final old = await keep(3, utf8.encode('first guide'));
+      final other = await keep(3, utf8.encode('first guide'), routine: 4);
+      final newer = await keep(4, utf8.encode('second guide'));
+
+      expect(await old.audio.exists(), isFalse);
+      expect(await newer.audio.exists(), isTrue);
+      expect(await other.audio.exists(), isTrue); // another routine stays
+      final listed = await store.readAll();
+      expect(
+        listed.map(
+          (r) => (r.reference.metadata.routineId, r.reference.metadata.version),
+        ),
+        unorderedEquals([(41, 4), (4, 3)]),
+      );
     });
 
     test('the history keeps the newest and skips unreadable records', () async {

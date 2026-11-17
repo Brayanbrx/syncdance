@@ -125,8 +125,12 @@ class _SingingPracticeScreenState extends State<SingingPracticeScreen>
       _message = null;
     });
     final source = (widget.createSource ?? RecordPitchSource.new)();
+    GuidePlayer? opened;
     try {
-      if (!await source.requestPermission()) {
+      final allowed = await source.requestPermission();
+      // Left while the permission dialog was open: nothing was opened yet.
+      if (!mounted) return;
+      if (!allowed) {
         setState(() {
           _starting = false;
           _message =
@@ -135,15 +139,23 @@ class _SingingPracticeScreenState extends State<SingingPracticeScreen>
         });
         return;
       }
-      final player = (widget.createPlayer ?? VideoGuidePlayer.new)();
+      final player = opened = (widget.createPlayer ?? VideoGuidePlayer.new)();
       await player.open(widget.routine.audio);
       await player.setVolume(_guideVolume);
+      // Left while the guide was opening: dispose() already ran, so the
+      // microphone must not be started for a screen that is gone.
+      if (!mounted) {
+        await player.dispose();
+        return;
+      }
       _player = player;
       _source = source;
       _practice = VocalPractice(_reference, latencyMs: _headphones.latencyMs);
       _trail.clear();
       _playback.reset();
       player.addListener(_onPlayer);
+      // Running from here: a microphone error during the start ends it too.
+      _phase = _Phase.running;
       _samples = source.start().listen(
         _onSample,
         onError: (Object _) {
@@ -153,18 +165,21 @@ class _SingingPracticeScreenState extends State<SingingPracticeScreen>
       );
       unawaited(WakelockPlus.enable().catchError((_) {}));
       await player.play();
+      // dispose() or a microphone error already released everything.
+      if (!mounted || _phase != _Phase.running) return;
       _frames = Timer.periodic(const Duration(milliseconds: 33), (_) {
         final position = _playback.positionAt(_wallMs());
         if (position != null) _now.value = position - _headphones.latencyMs;
       });
-      if (mounted) {
-        setState(() {
-          _phase = _Phase.running;
-          _starting = false;
-        });
-      }
+      setState(() {
+        _phase = _Phase.running;
+        _starting = false;
+      });
     } catch (_) {
+      _phase = _Phase.setup;
       await source.stop();
+      // A player that never became ours is released here.
+      if (opened != null && _player == null) await opened.dispose();
       await _release();
       if (mounted) {
         setState(() {
