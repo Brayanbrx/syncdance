@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/storage/temporary_files.dart';
 import '../../routines/reference/motion_reference.dart'
     show ReferenceException, object;
 import '../practice/vocal_practice.dart';
@@ -150,6 +151,9 @@ class VoiceStore {
     Stream<List<int>> audio,
   ) async {
     final checked = await compute(_decode, (reference, metadata));
+    // A download cut by a killed app would count against the space forever,
+    // and this section has no button to free it.
+    await removeStaleTemporaries(directory);
     final used = await _used();
     final pending = await (await directory.create(
       recursive: true,

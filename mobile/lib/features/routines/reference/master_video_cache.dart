@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import '../../../core/storage/temporary_files.dart';
 import 'motion_reference.dart';
 
 /// Download state for the screen: a fraction when the size is known, so
@@ -44,6 +45,8 @@ class MasterVideoCache {
 
   Future<File> save(ReferenceMetadata metadata, Stream<List<int>> bytes) async {
     await directory.create(recursive: true);
+    // A partial master is not counted below, but it fills the phone.
+    await removeStaleTemporaries(directory);
     final target = _file(metadata);
     var used = 0;
     await for (final file in directory.list(followLinks: false)) {

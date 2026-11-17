@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../../core/storage/temporary_files.dart';
 import 'motion_reference.dart';
 import 'master_video_cache.dart';
 
@@ -35,6 +36,7 @@ class ReferenceCache {
     // Parse and verify before publishing to disk, outside the UI isolate.
     await compute(_verify, (bytes, metadata));
     await directory.create(recursive: true);
+    await removeStaleTemporaries(directory);
     var used = 0;
     await for (final entry in directory.list(followLinks: false)) {
       if (entry is File && entry.uri.pathSegments.last != _name(metadata)) {
