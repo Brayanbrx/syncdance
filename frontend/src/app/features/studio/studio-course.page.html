@@ -27,12 +27,24 @@
   </p>
   @if (course()?.routines?.length === 0) {
     <p>Este curso todavía no tiene rutinas publicadas ni asignadas.</p>
+  } @else if (danceRoutines().length === 0) {
+    <p>
+      El mapa es para las rutinas de baile. Las de canto de este curso todavía no envían resultados
+      al servidor: cada alumno ve los suyos en su teléfono.
+    </p>
   } @else {
+    @if (singingRoutines()) {
+      <p class="field-hint">
+        No incluye
+        {{ singingRoutines() === 1 ? 'la rutina' : 'las ' + singingRoutines() + ' rutinas' }}
+        de canto: el canto todavía no envía resultados al servidor.
+      </p>
+    }
     <div class="filters">
       <label>
         Rutina
         <select (change)="chooseRoutine($any($event.target).value)">
-          @for (r of course()?.routines ?? []; track r.id) {
+          @for (r of danceRoutines(); track r.id) {
             <option [value]="r.id" [selected]="r.id === routine()">
               {{ r.name }} ({{ r.steps }} {{ r.steps === 1 ? 'paso' : 'pasos' }})
             </option>

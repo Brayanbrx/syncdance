@@ -52,6 +52,14 @@ export class StudioCoursePage implements OnInit {
   readonly message = signal('');
   readonly error = signal('');
 
+  /** The map is for dance: singing sends no results to the server yet. */
+  readonly danceRoutines = computed(
+    () => this.course()?.routines.filter((r) => r.kind !== 'SING') ?? [],
+  );
+  readonly singingRoutines = computed(
+    () => (this.course()?.routines.length ?? 0) - this.danceRoutines().length,
+  );
+
   /** Steps that have frequent errors to list under the map. */
   readonly withErrors = computed(
     () => this.map()?.steps.filter((step) => step.frequent_errors.length) ?? [],
@@ -62,7 +70,8 @@ export class StudioCoursePage implements OnInit {
       next: (course) => {
         this.course.set(course);
         // Start on a routine that has steps: the map needs them.
-        const first = course.routines.find((r) => r.steps) ?? course.routines[0];
+        const dance = this.danceRoutines();
+        const first = dance.find((r) => r.steps) ?? dance[0];
         if (first) this.chooseRoutine(first.id);
       },
       error: (error: unknown) => this.error.set(apiError(error, 'No se encontró el curso.')),

@@ -260,7 +260,7 @@ export interface StudioCourse {
 
 export interface StudioCourseDetail extends StudioCourse {
   /** Routines published in or assigned to the course; steps students have. */
-  routines: { id: number; name: string; steps: number }[];
+  routines: { id: number; name: string; kind: RoutineKind; steps: number }[];
 }
 
 export type FollowModeCode = 'mirror' | 'same-side';

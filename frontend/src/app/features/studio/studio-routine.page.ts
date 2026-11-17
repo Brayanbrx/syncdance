@@ -12,7 +12,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Observable, filter, switchMap, timer } from 'rxjs';
+import { EMPTY, Observable, catchError, filter, switchMap, timer } from 'rxjs';
 
 import {
   DIFFICULTY_LABELS,
@@ -100,18 +100,17 @@ export class StudioRoutinePage implements OnInit {
     });
     this.studio.courses().subscribe((courses) => this.courses.set(courses));
     // While the worker processes the video, check again every 5 seconds.
+    // A failed check waits for the next one instead of ending the polling.
     timer(5000, 5000)
       .pipe(
         filter(() => this.processing()),
-        switchMap(() => this.studio.routine(this.id)),
+        switchMap(() => this.studio.routine(this.id).pipe(catchError(() => EMPTY))),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((routine) => this.show(routine));
+      .subscribe((routine) => this.showProcessing(routine));
   }
 
   private show(routine: StudioRoutine): void {
-    const wasReady = this.ready();
-    this.routine.set(routine);
     this.form.setValue({
       name: routine.name,
       difficulty: routine.difficulty,
@@ -120,6 +119,14 @@ export class StudioRoutinePage implements OnInit {
     });
     this.rights.set(routine.music_rights);
     this.chosen.set(new Set(routine.courses));
+    this.showProcessing(routine);
+  }
+
+  /** A check while processing: the instructor is usually filling in the
+   *  data meanwhile, so the form, the courses and the rights are kept. */
+  private showProcessing(routine: StudioRoutine): void {
+    const wasReady = this.ready();
+    this.routine.set(routine);
     // A melody has no pose to report on.
     if (
       routine.kind !== 'SING' &&
