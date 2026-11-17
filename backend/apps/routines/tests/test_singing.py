@@ -195,3 +195,21 @@ def test_a_recording_without_voice_fails_with_a_clear_message(media, tmp_path, m
     assert reference.status == "FAILED"
     assert reference.processing_error == "No se encontró una voz cantando en la grabación."
     assert reference.playback_video.name == ""
+
+
+def test_a_singing_routine_is_not_a_task_until_its_practices_sync(media):
+    from django.core.exceptions import ValidationError
+
+    from apps.coaching.models import Assignment, Course
+
+    teacher = User.objects.create_user(
+        username="profe", email="profe@example.com", role="INSTRUCTOR"
+    )
+    course = Course.objects.create(name="Coro", instructor=teacher, join_code="CORO2345")
+    song = Routine.objects.create(
+        name="Canción", kind=Routine.Kind.SING, instructor=teacher, difficulty="BEGINNER"
+    )
+    dance = Routine.objects.create(name="Paso", instructor=teacher, difficulty="BEGINNER")
+    with pytest.raises(ValidationError, match="canto"):
+        Assignment(course=course, routine=song).full_clean()
+    Assignment(course=course, routine=dance).full_clean()

@@ -133,6 +133,15 @@ def test_retry_after_routine_deactivation_returns_stored_copy(mobile_upload):
     assert DanceSession.objects.get().feedback_counts.count() == 1
 
 
+def test_a_singing_routine_is_never_stored_as_a_dance_practice(mobile_upload):
+    client, routine, payload = mobile_upload
+    Routine.objects.filter(pk=routine.pk).update(kind=Routine.Kind.SING)
+    response = client.post(URL, payload, format="json")
+    assert response.status_code == 400
+    assert "canto" in response.json()["routine"][0]
+    assert not DanceSession.objects.exists()
+
+
 def test_new_upload_for_deactivated_routine_is_rejected(mobile_upload):
     client, routine, payload = mobile_upload
     routine.is_active = False

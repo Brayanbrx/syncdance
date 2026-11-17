@@ -115,6 +115,18 @@ class Assignment(models.Model):
     def __str__(self):
         return f"{self.routine} ({self.course})"
 
+    def clean(self):
+        super().clean()
+        # Progress comes from synced dance games; singing practices stay on
+        # the phone for now, so a singing task could never be completed.
+        if self.routine_id and self.routine.is_singing:
+            raise ValidationError(
+                {
+                    "routine": "Las rutinas de canto todavía no se asignan como tarea: "
+                    "publícala en el curso para que la practiquen."
+                }
+            )
+
 
 class SessionNote(models.Model):
     """Instructor observation on one synced practice; the student reads it."""

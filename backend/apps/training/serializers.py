@@ -256,6 +256,10 @@ class DanceSessionSerializer(serializers.ModelSerializer):
             ).exclude(reference_asset="")
 
     def validate(self, attrs):
+        if attrs["routine"].is_singing:
+            raise serializers.ValidationError(
+                {"routine": "Es una rutina de canto: no se registra como práctica de baile."}
+            )
         attrs["reference"] = self._resolve_reference(attrs)
         attrs.pop("reference_version", None)
         finished = attrs.get("finished_at")
