@@ -4,6 +4,8 @@ import uuid
 from datetime import timedelta
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -154,7 +156,42 @@ def test_the_map_is_only_for_the_course_and_its_routines(course):
     )
     assert elsewhere.status_code == 404
     detail = client_for(course["teacher"]).get(f"/api/studio/courses/{course['course'].pk}/")
-    assert detail.json()["routines"] == [{"id": course["routine"].pk, "name": "Salsa", "steps": 2}]
+    assert detail.json()["routines"] == [
+        {"id": course["routine"].pk, "name": "Salsa", "kind": "DANCE", "steps": 2}
+    ]
+
+
+def test_the_course_detail_reads_its_routines_in_fixed_queries(course):
+    client = client_for(course["teacher"])
+    url = f"/api/studio/courses/{course['course'].pk}/"
+    with CaptureQueriesContext(connection) as one_routine:
+        assert client.get(url).status_code == 200
+    for index in range(5):
+        routine = Routine.objects.create(
+            name=f"Rutina {index}",
+            instructor=course["teacher"],
+            difficulty="BEGINNER",
+            master_video=f"masters/r{index}.mp4",
+        )
+        course["course"].published_routines.add(routine)
+        # The newest version of an older master never counts: only the current one.
+        for version, master, steps in (
+            (1, f"masters/r{index}.mp4", STEPS[:1]),
+            (2, "masters/viejo.mp4", STEPS),
+        ):
+            RoutineReference.objects.create(
+                routine=routine,
+                version=version,
+                status="READY",
+                source_video=master,
+                reference_asset=f"references/r{index}-{version}.json.gz",
+                checksum_sha256="b" * 64,
+                scoring_profile={"steps": {"items": steps}},
+            )
+    with CaptureQueriesContext(connection) as six_routines:
+        routines = client.get(url).json()["routines"]
+    assert len(six_routines) == len(one_routine)
+    assert [r["steps"] for r in routines] == [1, 1, 1, 1, 1, 2]
 
 
 def test_the_instructor_rates_practices_and_sees_the_concordance(course):

@@ -35,14 +35,27 @@ def course_routines(course):
     )
 
 
+def _ready_references():
+    return RoutineReference.objects.filter(status=RoutineReference.Status.READY).exclude(
+        reference_asset=""
+    )
+
+
 def published_reference(routine):
     """The version students download now (as `GET /routines/{id}/reference/`)."""
-    return (
-        routine.references.filter(
-            status=RoutineReference.Status.READY, source_video=routine.master_video.name
-        )
-        .exclude(reference_asset="")
-        .first()
+    ready = getattr(routine, "ready_references", None)
+    if ready is not None:  # loaded by course_routine_options, newest first
+        master = routine.master_video.name or ""
+        return next((r for r in ready if (r.source_video.name or "") == master), None)
+    current = _ready_references().filter(routine=routine, source_video=routine.master_video.name)
+    return current.first()
+
+
+def course_routine_options(course):
+    """The course's routines with their ready versions: two queries, however
+    many routines the course has."""
+    return course_routines(course).prefetch_related(
+        Prefetch("references", queryset=_ready_references(), to_attr="ready_references")
     )
 
 

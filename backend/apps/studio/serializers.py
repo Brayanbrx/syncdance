@@ -187,6 +187,8 @@ class QualityReportSerializer(serializers.Serializer):
 class CourseRoutineOptionSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
+    # The map has steps for dance only: singing sends no results yet.
+    kind = serializers.ChoiceField(choices=Routine.Kind.choices)
     steps = serializers.IntegerField(help_text="Steps students have in the published version.")
 
 
@@ -199,11 +201,16 @@ class StudioCourseDetailSerializer(StudioCourseSerializer):
 
     @extend_schema_field(CourseRoutineOptionSerializer(many=True))
     def get_routines(self, obj):
-        from .progress import _steps_of, course_routines, published_reference
+        from .progress import _steps_of, course_routine_options, published_reference
 
         return [
-            {"id": r.pk, "name": r.name, "steps": len(_steps_of(published_reference(r)))}
-            for r in course_routines(obj)
+            {
+                "id": r.pk,
+                "name": r.name,
+                "kind": r.kind,
+                "steps": len(_steps_of(published_reference(r))),
+            }
+            for r in course_routine_options(obj)
         ]
 
 
