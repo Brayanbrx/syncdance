@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../coaching/course.dart';
+import '../../singing/reference/pitch_reference.dart';
 import 'motion_reference.dart';
 
 class Account {
@@ -45,6 +46,7 @@ class RoutineItem {
   const RoutineItem(
     this.id,
     this.name, {
+    this.kind = dance,
     this.style = '',
     this.difficulty = '',
     this.durationMs = 0,
@@ -54,6 +56,11 @@ class RoutineItem {
   });
   final int id;
   final String name, style, difficulty, credit;
+
+  /// `DANCE` or `SING`: each one has its own section and practice.
+  final String kind;
+  static const dance = 'DANCE', sing = 'SING';
+  bool get isSinging => kind == sing;
 
   /// How the step is done, for the learner (may be empty).
   final String description;
@@ -69,6 +76,8 @@ class RoutineItem {
   factory RoutineItem.fromJson(Map<String, dynamic> json) => RoutineItem(
     positiveInt(json['id']),
     json['name'] as String,
+    // Servers from before singing only had dance.
+    kind: json['kind'] == sing ? sing : dance,
     style: _text(json['style']),
     difficulty: _text(json['difficulty']),
     durationMs: json['duration_ms'] is int && (json['duration_ms'] as int) > 0
@@ -116,7 +125,7 @@ class RoutineItem {
     if (difficultyLabel.isNotEmpty) difficultyLabel,
     if (durationMs > 0)
       '${(durationMs / 1000).toStringAsFixed(durationMs < 10000 ? 1 : 0)} s',
-    if (credit.isNotEmpty) 'Video: $credit',
+    if (credit.isNotEmpty) '${isSinging ? 'Audio' : 'Video'}: $credit',
   ].join(' · ');
 }
 
@@ -389,8 +398,12 @@ class CatalogApi {
         : 'Revisa tu correo para cambiar la contraseña.';
   }
 
-  Future<List<RoutineItem>> routines(Account account) async {
-    String? next = 'routines/';
+  /// The routines of one section: dance by default, or singing.
+  Future<List<RoutineItem>> routines(
+    Account account, {
+    String kind = RoutineItem.dance,
+  }) async {
+    String? next = 'routines/?kind=$kind';
     final visited = <String>{};
     final routines = <int, RoutineItem>{};
     while (next != null) {
@@ -400,7 +413,8 @@ class CatalogApi {
       final data = await _json(next, account: account);
       for (final raw in data['results'] as List) {
         final item = RoutineItem.fromJson(object(raw));
-        routines[item.id] = item;
+        // An older server ignores the filter: never mix the sections.
+        if (item.kind == kind) routines[item.id] = item;
       }
       next = data['next'] as String?;
     }
@@ -441,6 +455,45 @@ class CatalogApi {
         account: account,
         maxBytes: maxReferenceBytes,
       );
+
+  /// The melody of a singing routine (`pitch-reference-v1`).
+  Future<PitchReferenceMetadata> pitchMetadata(
+    Account account,
+    int routineId,
+  ) async {
+    final metadata = PitchReferenceMetadata.fromJson(
+      await _json('routines/$routineId/reference/', account: account),
+    );
+    if (metadata.routineId != routineId) {
+      throw const FormatException('Rutina no coincidente.');
+    }
+    return metadata;
+  }
+
+  Future<List<int>> downloadPitch(
+    Account account,
+    PitchReferenceMetadata metadata,
+  ) => _request(
+    metadata.downloadUrl,
+    account: account,
+    maxBytes: maxPitchReferenceBytes,
+  );
+
+  /// The guide audio of a singing routine, streamed like a master video.
+  Stream<List<int>> audio(
+    Account account,
+    PitchReferenceMetadata metadata, {
+    required Future<void> cancelled,
+    void Function(int received, int? total)? onProgress,
+  }) => _media(
+    account,
+    metadata.routineId,
+    metadata.version,
+    cancelled: cancelled,
+    onProgress: onProgress,
+    limit: 50 * 1024 * 1024,
+    what: 'Audio',
+  );
 
   /// 201 new and 200 already stored are both success (idempotent per UUID).
   /// Rejections are permanent; network, 5xx and other errors throw to retry later.
@@ -531,6 +584,24 @@ class CatalogApi {
     ReferenceMetadata metadata, {
     required Future<void> cancelled,
     void Function(int received, int? total)? onProgress,
+  }) => _media(
+    account,
+    metadata.routineId,
+    metadata.version,
+    cancelled: cancelled,
+    onProgress: onProgress,
+    limit: 200 * 1024 * 1024,
+    what: 'Video',
+  );
+
+  Stream<List<int>> _media(
+    Account account,
+    int routineId,
+    int version, {
+    required Future<void> cancelled,
+    required int limit,
+    required String what,
+    void Function(int received, int? total)? onProgress,
   }) async* {
     final abort = Completer<void>();
     void stop() {
@@ -542,19 +613,16 @@ class CatalogApi {
     try {
       final request = http.AbortableRequest(
         'GET',
-        _trusted(
-          'routines/${metadata.routineId}/references/${metadata.version}/video/',
-        ),
+        _trusted('routines/$routineId/references/$version/video/'),
         abortTrigger: abort.future,
       )..followRedirects = false;
       request.headers['Authorization'] = 'Bearer ${account.accessToken}';
       request.headers['Accept-Encoding'] = 'identity';
       final response = await _client.send(request);
-      if (response.statusCode != 200 ||
-          (response.contentLength ?? 0) > 200 * 1024 * 1024) {
+      if (response.statusCode != 200 || (response.contentLength ?? 0) > limit) {
         await response.stream.listen(null).cancel();
-        throw const ReferenceException(
-          'Video no disponible. Comprueba tu sesión y que el video no supere 200 MiB.',
+        throw ReferenceException(
+          '$what no disponible. Comprueba tu sesión y vuelve a intentar.',
         );
       }
       final total = response.contentLength;
@@ -562,8 +630,10 @@ class CatalogApi {
       onProgress?.call(0, total);
       await for (final chunk in response.stream) {
         received += chunk.length;
-        if (received > 200 * 1024 * 1024) {
-          throw const ReferenceException('El video supera 200 MiB.');
+        if (received > limit) {
+          throw ReferenceException(
+            '$what demasiado grande (más de ${limit ~/ (1024 * 1024)} MiB).',
+          );
         }
         yield chunk;
         onProgress?.call(received, total);

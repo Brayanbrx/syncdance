@@ -24,39 +24,25 @@ class HomeScreen extends StatelessWidget {
         children: [
           // Outside Google Play this is how a student learns of a new APK.
           const UpdateBanner(),
-          // The main path: the catalog has one-tap Bailar and the best stars.
-          Card(
+          // The two sections: same account, courses and history underneath.
+          _Section(
+            icon: Icons.directions_run,
+            title: 'Bailar',
+            text:
+                'Elige una rutina y baila frente al teléfono: empieza sola '
+                'cuando te ve de cuerpo entero. Si es tu primera vez, empieza '
+                'por el Nivel 1.',
             color: Theme.of(context).colorScheme.primaryContainer,
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => context.push('/routines'),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    const Icon(Icons.music_note, size: 48),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Bailar',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          const Text(
-                            'Elige una rutina y baila frente al teléfono: '
-                            'empieza sola cuando te ve de cuerpo entero. '
-                            'Si es tu primera vez, empieza por el Nivel 1.',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-              ),
-            ),
+            onTap: () => context.push('/routines'),
+          ),
+          _Section(
+            icon: Icons.mic,
+            title: 'Cantar',
+            text:
+                'Canta con la guía usando audífonos y mira en vivo si tu nota '
+                'está arriba o abajo de la melodía. Empieza por «Notas largas».',
+            color: Theme.of(context).colorScheme.tertiaryContainer,
+            onTap: () => context.push('/singing'),
           ),
           ListTile(
             leading: const Icon(Icons.school_outlined),
@@ -80,7 +66,7 @@ class HomeScreen extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.library_music_outlined),
-            title: const Text('Rutinas'),
+            title: const Text('Rutinas de baile'),
             subtitle: const Text('Catálogo, referencias guardadas y maestro'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/routines'),
@@ -103,4 +89,48 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A big entry to one of the sections.
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title, text;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    color: color,
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Icon(icon, size: 48),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.headlineSmall),
+                  Text(text),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right),
+          ],
+        ),
+      ),
+    ),
+  );
 }

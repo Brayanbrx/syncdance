@@ -9,6 +9,7 @@ import '../../features/performances/performance_detail_screen.dart';
 import '../../features/performances/performances_screen.dart';
 import '../../features/performances/record_performance_screen.dart';
 import '../../features/routines/routines_screen.dart';
+import '../../features/singing/presentation/singing_screen.dart';
 import '../../features/training/presentation/camera_training_screen.dart';
 import '../../features/training/presentation/session_history_screen.dart';
 import '../../features/training/pose/adapters/mlkit_pose_estimator.dart';
@@ -43,6 +44,12 @@ GoRouter createAppRouter({String initialLocation = '/login'}) => GoRouter(
     GoRoute(
       path: '/routines',
       builder: (context, state) => RoutinesScreen(
+        startRoutineId: int.tryParse(state.uri.queryParameters['start'] ?? ''),
+      ),
+    ),
+    GoRoute(
+      path: '/singing',
+      builder: (context, state) => SingingScreen(
         startRoutineId: int.tryParse(state.uri.queryParameters['start'] ?? ''),
       ),
     ),

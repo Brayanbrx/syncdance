@@ -25,6 +25,7 @@ class CourseAssignment {
     required this.routineId,
     required this.routineName,
     required this.targetStars,
+    this.singing = false,
     this.available = true,
     this.dueDate,
     this.instructions = '',
@@ -37,6 +38,9 @@ class CourseAssignment {
 
   final int id, routineId, targetStars, practices;
   final String routineName, instructions;
+
+  /// A singing routine: opens the singing practice, has no dance stars.
+  final bool singing;
 
   /// False when the routine left the catalog: it cannot be danced.
   final bool available;
@@ -51,6 +55,7 @@ class CourseAssignment {
         id: positiveInt(json['id']),
         routineId: positiveInt(json['routine']),
         routineName: _text(json['routine_name']),
+        singing: json['routine_kind'] == 'SING',
         targetStars: _stars(json['target_stars']) ?? 3,
         available: json['routine_available'] != false,
         dueDate: _day(json['due_date']),
@@ -65,15 +70,22 @@ class CourseAssignment {
 
 /// A routine the instructor published for the course, besides its tasks.
 class CourseRoutine {
-  const CourseRoutine({required this.id, required this.name, this.style = ''});
+  const CourseRoutine({
+    required this.id,
+    required this.name,
+    this.style = '',
+    this.singing = false,
+  });
 
   final int id;
   final String name, style;
+  final bool singing;
 
   factory CourseRoutine.fromJson(Map<String, dynamic> json) => CourseRoutine(
     id: positiveInt(json['id']),
     name: _text(json['name']),
     style: _text(json['style']),
+    singing: json['kind'] == 'SING',
   );
 }
 

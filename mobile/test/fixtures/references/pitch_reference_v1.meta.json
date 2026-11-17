@@ -1,0 +1,21 @@
+{
+  "algorithm_version": "voice-pitch-v1+voice-notes-v1",
+  "checksum_sha256": "3a60ff20cf1ffe6d738c97359addd9b4903b33f4cf4c95f478f0f11b59757e2a",
+  "download_url": "http://localhost:8000/api/routines/41/references/3/download/",
+  "duration_ms": 11872,
+  "engine_name": "notes-syncdance-voice-v1",
+  "feature_schema": "pitch-reference-v1",
+  "routine": 41,
+  "sample_rate_hz": 31,
+  "scoring_profile": {
+    "beat_grid": {
+      "beats_per_move": 1,
+      "bpm": 76,
+      "first_beat_ms": 0,
+      "version": "beat-grid-v1"
+    }
+  },
+  "source_sha256": "abababababababababababababababababababababababababababababababab",
+  "status": "READY",
+  "version": 3
+}

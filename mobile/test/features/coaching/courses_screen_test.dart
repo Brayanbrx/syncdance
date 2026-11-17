@@ -61,6 +61,7 @@ Future<void> tapAndWait(WidgetTester tester, Finder finder) async {
 void main() {
   const account = Account(1, 'ana', 'token');
   courseRoutinesTests();
+  singingCourseTests();
 
   test('assignments parse leniently: no evidence stays null', () {
     final course = Course.fromJson(
@@ -306,5 +307,82 @@ void courseRoutinesTests() {
     await tester.tap(find.byTooltip('Bailar «Urbano del curso»'));
     await tester.pumpAndSettle();
     expect(find.text('Bailar 12'), findsOneWidget);
+  });
+}
+
+void singingCourseTests() {
+  testWidgets('singing tasks and routines open the singing practice', (
+    tester,
+  ) async {
+    final json = courseJson()
+      ..['assignments'] = [
+        {
+          ...(courseJson()['assignments']! as List).single as Map,
+          'routine': 41,
+          'routine_name': 'Arpegio de Do',
+          'routine_kind': 'SING',
+        },
+      ]
+      ..['routines'] = [
+        {'id': 41, 'name': 'Arpegio de Do', 'kind': 'SING'},
+        {'id': 44, 'name': 'Notas largas', 'kind': 'SING', 'style': 'Canto'},
+      ];
+    final api = CatalogApi(
+      'http://localhost:8000/api',
+      client: MockClient((request) async {
+        final path = request.url.path;
+        if (path.endsWith('coaching/courses/')) return reply(page([json]));
+        if (path.endsWith('coaching/notes/')) return reply(page([]));
+        return reply('', 404);
+      }),
+    );
+    addTearDown(api.close);
+    final router = GoRouter(
+      initialLocation: '/courses',
+      routes: [
+        GoRoute(
+          path: '/courses',
+          builder: (_, _) => CoursesScreen(
+            session: CatalogSession(api)
+              ..account = const Account(1, 'ana', 'token'),
+            syncPractices: () async {},
+          ),
+        ),
+        for (final (path, verb) in [
+          ('/routines', 'Bailar'),
+          ('/singing', 'Cantar'),
+        ])
+          GoRoute(
+            path: path,
+            builder: (_, state) => Scaffold(
+              body: Text('$verb ${state.uri.queryParameters['start']}'),
+            ),
+          ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+
+    // No dance stars for a singing task.
+    expect(find.textContaining('Objetivo'), findsNothing);
+    expect(
+      find.textContaining('Ejercicio de canto: practícalo con audífonos.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byTooltip('Cantar «Arpegio de Do»'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cantar 41'), findsOneWidget);
+    router.go('/courses');
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Cantar «Notas largas»'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cantar 44'), findsOneWidget);
   });
 }

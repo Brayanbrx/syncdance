@@ -148,21 +148,26 @@ class _CoursesScreenState extends State<CoursesScreen> {
     }
   }
 
-  Future<void> _dance(int routineId) async {
-    // The catalog's one-tap Bailar: reference, video and game.
-    await context.push('/routines?start=$routineId');
+  /// The one-tap practice of its section: dance (reference, video and game)
+  /// or singing (melody, guide and microphone).
+  Future<void> _practice(int routineId, {required bool singing}) async {
+    await context.push(
+      singing ? '/singing?start=$routineId' : '/routines?start=$routineId',
+    );
     if (mounted) await _load(sync: true);
   }
 
   Widget _routineTile(CourseRoutine routine) => ListTile(
     contentPadding: EdgeInsets.zero,
-    leading: const Icon(Icons.music_note_outlined),
+    leading: Icon(routine.singing ? Icons.mic_none : Icons.music_note_outlined),
     title: Text(routine.name),
     subtitle: routine.style.isEmpty ? null : Text(routine.style),
     trailing: IconButton(
-      tooltip: 'Bailar «${routine.name}»',
+      tooltip: '${routine.singing ? 'Cantar' : 'Bailar'} «${routine.name}»',
       icon: const Icon(Icons.play_circle_fill),
-      onPressed: _busy ? null : () => _dance(routine.id),
+      onPressed: _busy
+          ? null
+          : () => _practice(routine.id, singing: routine.singing),
     ),
   );
 
@@ -171,9 +176,14 @@ class _CoursesScreenState extends State<CoursesScreen> {
     final best = assignment.bestStars;
     final due = assignment.dueDate;
     final lines = [
-      'Objetivo: ${stars(assignment.targetStars)}'
-          '${best == null ? '' : ' · Tu mejor: ${stars(best)}'}',
-      if (best == null) 'Todavía sin partidas enviadas.',
+      // Stars come from the dance game; singing practices stay on the phone.
+      if (assignment.singing)
+        'Ejercicio de canto: practícalo con audífonos.'
+      else ...[
+        'Objetivo: ${stars(assignment.targetStars)}'
+            '${best == null ? '' : ' · Tu mejor: ${stars(best)}'}',
+        if (best == null) 'Todavía sin partidas enviadas.',
+      ],
       if (due != null)
         assignment.overdue
             ? 'Venció el ${_date(due)}'
@@ -204,11 +214,14 @@ class _CoursesScreenState extends State<CoursesScreen> {
       subtitle: Text(lines.join('\n')),
       isThreeLine: lines.length > 1,
       trailing: IconButton(
-        tooltip: 'Bailar «${assignment.routineName}»',
+        tooltip:
+            '${assignment.singing ? 'Cantar' : 'Bailar'} '
+            '«${assignment.routineName}»',
         icon: const Icon(Icons.play_circle_fill),
         onPressed: _busy || !assignment.available
             ? null
-            : () => _dance(assignment.routineId),
+            : () =>
+                  _practice(assignment.routineId, singing: assignment.singing),
       ),
     );
   }
