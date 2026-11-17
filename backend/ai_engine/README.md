@@ -9,7 +9,9 @@ posterior. El loop live y su scoring se ejecutan en Flutter.
 - `features/`: normalización y características canónicas de referencia.
 - `alignment/`: alineamiento temporal y DTW offline.
 - `scoring/`: análisis determinista posterior.
-- `voice/`: reservado para una fase posterior.
+- `voice/`: canto. Referencia de melodía de la voz del instructor
+  (`pitch-reference-v1`) y calificación de una grabación contra ella. Ver
+  [voice/README.md](voice/README.md).
 
 Las funciones matemáticas no importan modelos Django. `features/body.py` replica
 la normalización y seis ángulos de Flutter; `pose/reference.py` procesa video con

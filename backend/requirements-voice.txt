@@ -1,0 +1,4 @@
+-r requirements.txt
+# Singing analysis (ai_engine/voice): pyin pitch tracking and FFmpeg decoding.
+librosa==1.0.1
+imageio-ffmpeg==0.6.0

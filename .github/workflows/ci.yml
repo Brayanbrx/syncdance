@@ -16,8 +16,12 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: backend/requirements.txt
-      - run: pip install -r requirements.txt
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-voice.txt
+      # Voice dependencies too, so the singing analysis is tested; the pose
+      # engine (MediaPipe) stays out and its tests skip.
+      - run: pip install -r requirements-voice.txt
       - run: ruff check .
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run

@@ -14,6 +14,10 @@ COPY requirements.txt requirements-pose.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements-pose.txt
 
+# Singing analysis, in its own layer so the pose dependencies stay cached.
+COPY requirements-voice.txt ./
+RUN pip install --no-cache-dir -r requirements-voice.txt
+
 COPY . .
 
 # Outside /app: the development bind mount must not hide the installed model.
