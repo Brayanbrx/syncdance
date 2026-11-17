@@ -11,6 +11,7 @@ import {
   PanelRelease,
   PanelRoutine,
   PanelUser,
+  PilotMetrics,
   PlatformSummary,
   PublicRelease,
   Role,
@@ -29,6 +30,10 @@ export class PanelService {
 
   summary(): Observable<PlatformSummary> {
     return this.http.get<PlatformSummary>(`${api}/panel/summary/`);
+  }
+
+  pilot(): Observable<PilotMetrics> {
+    return this.http.get<PilotMetrics>(`${api}/panel/pilot/`);
   }
 
   users(filters: {

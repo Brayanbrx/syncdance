@@ -165,9 +165,13 @@ def pilot_metrics(*, now=None):
         for times in cohort
     )
 
+    # The account that owns the default catalog is not a pilot instructor.
+    from apps.routines.catalog import CATALOG_USERNAME
+
     instructors = (
         get_user_model()
         .objects.filter(role=get_user_model().Role.INSTRUCTOR)
+        .exclude(username=CATALOG_USERNAME)
         .annotate(
             published=Count(
                 "routines",

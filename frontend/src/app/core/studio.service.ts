@@ -5,9 +5,13 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   Choreography,
+  CoursePractices,
+  DifficultyMap,
+  FollowModeCode,
   MusicRights,
   QualityReport,
   StudioCourse,
+  StudioCourseDetail,
   StudioRoutine,
 } from './api.models';
 
@@ -92,5 +96,36 @@ export class StudioService {
 
   courses(): Observable<StudioCourse[]> {
     return this.http.get<StudioCourse[]>(`${this.base}/courses/`);
+  }
+
+  course(id: number): Observable<StudioCourseDetail> {
+    return this.http.get<StudioCourseDetail>(`${this.base}/courses/${id}/`);
+  }
+
+  difficultyMap(
+    course: number,
+    routine: number,
+    followMode: FollowModeCode,
+    speed: number,
+  ): Observable<DifficultyMap> {
+    return this.http.get<DifficultyMap>(`${this.base}/courses/${course}/map/`, {
+      params: { routine, follow_mode: followMode, speed },
+    });
+  }
+
+  practices(course: number): Observable<CoursePractices> {
+    return this.http.get<CoursePractices>(`${this.base}/courses/${course}/practices/`);
+  }
+
+  /** The comment, when given, is saved as an observation the student reads. */
+  rate(practice: string, rating: number, comment = ''): Observable<{ rating: number }> {
+    return this.http.put<{ rating: number }>(`${this.base}/practices/${practice}/rating/`, {
+      rating,
+      comment,
+    });
+  }
+
+  unrate(practice: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/practices/${practice}/rating/`);
   }
 }

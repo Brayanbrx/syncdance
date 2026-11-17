@@ -16,7 +16,8 @@ import { AuthService } from '../../core/auth/auth.service';
           >Mis rutinas</a
         >
         <a routerLink="/estudio/nueva" routerLinkActive="on">Subir rutina</a>
-        <a href="/admin/coaching/course/">Cursos y progreso</a>
+        <a routerLink="/estudio/cursos" routerLinkActive="on">Mis cursos</a>
+        <a href="/admin/coaching/course/">Administrar cursos</a>
       </nav>
       <div class="who">
         <span>{{ auth.me()?.username }}</span>

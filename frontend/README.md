@@ -8,8 +8,8 @@ nginx también es la entrada única a Django: reenvía `/api`, `/admin` y
 | --- | --- | --- |
 | `/` | Alumnos e instructores | Landing: cómo funciona, privacidad y descarga del APK publicado |
 | `/ingresar` | Instructores y administración | Un solo ingreso: lleva al panel o al estudio según el rol |
-| `/panel` | Superusuarios y rol Administrador | Resumen, usuarios, rutinas, revisión del catálogo, cursos y versiones de la app |
-| `/estudio` | Instructores | Subir rutinas, ver el informe de calidad, publicarlas en sus cursos y proponerlas al catálogo |
+| `/panel` | Superusuarios y rol Administrador | Resumen, usuarios, rutinas, revisión del catálogo, piloto, cursos y versiones de la app |
+| `/estudio` | Instructores | Subir rutinas, marcar compás y pasos, publicarlas, proponerlas al catálogo y ver el progreso de sus cursos |
 | `/admin/` | Instructores (y administración avanzada) | Django Admin: cursos, tareas, progreso y observaciones |
 | `/privacidad`, `/terminos` | Todos | Textos legales (responsable y contacto desde `/api/auth/legal/`) |
 | `/cuenta/recuperar`, `/cuenta/restablecer`, `/cuenta/borrar` | Alumnos e instructores | Recuperar la contraseña y borrar la cuenta |
@@ -34,6 +34,23 @@ nginx también es la entrada única a Django: reenvía `/api`, `/admin` y
   - retirar, editar, reemplazar el video o borrar
 
   API en `backend/apps/studio/README.md`.
+
+## Progreso del curso (`/estudio/cursos/:id`)
+
+- **Dónde les cuesta:** el mapa de dificultad de una rutina del curso, por
+  modo y velocidad: el último resultado de cada alumno en cada paso (en verde
+  desde 70, ámbar desde 50, rojo debajo; «—» sin datos) y, con 3 alumnos o
+  más, la mediana, la proporción bajo 50 y los errores que más se repiten.
+- **Prácticas recientes:** el instructor califica cada una de 1 a 5 (solo él
+  la ve) y puede dejar un comentario que el alumno lee en la app. Con 5
+  calificaciones a velocidad normal aparece cuánto coincide con la app.
+
+## Piloto (`/panel/piloto`)
+
+Las cifras de la puerta del piloto contra su meta provisional: encuadre
+logrado, coincidencia app–instructor, retención a 4 semanas y rutinas por
+instructor (sin la cuenta del catálogo), más la actividad de las últimas 8
+semanas.
 
 ## Revisión del catálogo (`/panel/revision`)
 

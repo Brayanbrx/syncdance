@@ -18,6 +18,7 @@ import { AuthService } from '../../core/auth/auth.service';
           <a routerLink="/panel/usuarios" routerLinkActive="on">Usuarios</a>
           <a routerLink="/panel/rutinas" routerLinkActive="on">Rutinas</a>
           <a routerLink="/panel/revision" routerLinkActive="on">Revisión del catálogo</a>
+          <a routerLink="/panel/piloto" routerLinkActive="on">Piloto</a>
           <a routerLink="/panel/cursos" routerLinkActive="on">Cursos</a>
           <a routerLink="/panel/app" routerLinkActive="on">App Android</a>
         </nav>

@@ -70,6 +70,18 @@ export const routes: Routes = [
           import('./features/studio/studio-routine.page').then((m) => m.StudioRoutinePage),
       },
       {
+        path: 'cursos',
+        title: 'Mis cursos | Estudio SyncDance',
+        loadComponent: () =>
+          import('./features/studio/studio-courses.page').then((m) => m.StudioCoursesPage),
+      },
+      {
+        path: 'cursos/:id',
+        title: 'Curso | Estudio SyncDance',
+        loadComponent: () =>
+          import('./features/studio/studio-course.page').then((m) => m.StudioCoursePage),
+      },
+      {
         path: 'rutinas/:id/pasos',
         title: 'Compás y pasos | Estudio SyncDance',
         loadComponent: () =>
@@ -99,6 +111,11 @@ export const routes: Routes = [
         path: 'rutinas',
         title: 'Rutinas | Panel SyncDance',
         loadComponent: () => import('./features/panel/routines.page').then((m) => m.RoutinesPage),
+      },
+      {
+        path: 'piloto',
+        title: 'Piloto | Panel SyncDance',
+        loadComponent: () => import('./features/panel/pilot.page').then((m) => m.PilotPage),
       },
       {
         path: 'revision',

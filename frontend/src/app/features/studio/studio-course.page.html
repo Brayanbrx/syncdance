@@ -1,0 +1,248 @@
+<a class="back" routerLink="/estudio/cursos">Mis cursos</a>
+
+@if (course(); as c) {
+  <div class="page-head">
+    <div>
+      <h1>{{ c.name }}</h1>
+      <p>
+        {{ c.students }} {{ c.students === 1 ? 'alumno' : 'alumnos' }} · código para unirse
+        <strong>{{ c.join_code }}</strong>
+      </p>
+    </div>
+  </div>
+}
+
+@if (message()) {
+  <p class="notice" role="status">{{ message() }}</p>
+}
+@if (error()) {
+  <p class="alert" role="alert">{{ error() }}</p>
+}
+
+<section class="card">
+  <h2>Dónde les cuesta</h2>
+  <p>
+    El último resultado de cada alumno en cada paso de la rutina. Con 3 alumnos o más se ven la
+    mediana del grupo y los errores que más se repiten.
+  </p>
+  @if (course()?.routines?.length === 0) {
+    <p>Este curso todavía no tiene rutinas publicadas ni asignadas.</p>
+  } @else {
+    <div class="filters">
+      <label>
+        Rutina
+        <select (change)="chooseRoutine($any($event.target).value)">
+          @for (r of course()?.routines ?? []; track r.id) {
+            <option [value]="r.id" [selected]="r.id === routine()">
+              {{ r.name }} ({{ r.steps }} {{ r.steps === 1 ? 'paso' : 'pasos' }})
+            </option>
+          }
+        </select>
+      </label>
+      <label>
+        Modo
+        <select (change)="chooseMode($any($event.target).value)">
+          <option value="mirror" [selected]="followMode() === 'mirror'">Espejo</option>
+          <option value="same-side" [selected]="followMode() === 'same-side'">Mismos lados</option>
+        </select>
+      </label>
+      <label>
+        Velocidad
+        <select (change)="chooseSpeed($any($event.target).value)">
+          <option value="1" [selected]="speed() === '1'">1×</option>
+          <option value="0.75" [selected]="speed() === '0.75'">0,75×</option>
+          <option value="0.5" [selected]="speed() === '0.5'">0,5×</option>
+        </select>
+      </label>
+    </div>
+
+    @if (map(); as m) {
+      @if (!m.steps.length) {
+        <p>
+          Esta rutina no tiene pasos marcados. El mapa aparece cuando su instructor marca el compás
+          y los pasos y la publica.
+        </p>
+      } @else {
+        <div class="table-scroll">
+          <table class="table map">
+            <caption class="visually-hidden">
+              Último resultado por alumno y paso, de 0 a 100
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Alumno</th>
+                @for (step of m.steps; track step.index) {
+                  <th scope="col">
+                    {{ step.index + 1 }}. {{ step.name }}
+                    <span class="muted">{{ step.counts }} tiempos</span>
+                  </th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (student of m.students; track student.id) {
+                <tr>
+                  <th scope="row">
+                    {{ student.name }}
+                    <span class="muted">
+                      {{ student.practices }}
+                      {{ student.practices === 1 ? 'práctica' : 'prácticas' }}
+                    </span>
+                  </th>
+                  @for (score of student.scores; track $index) {
+                    <td class="score score--{{ tone(score) }}">{{ round(score) }}</td>
+                  }
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row">Mediana del grupo</th>
+                @for (step of m.steps; track step.index) {
+                  <td class="score">{{ round(step.median) }}</td>
+                }
+              </tr>
+              <tr>
+                <th scope="row">Bajo {{ m.threshold }}</th>
+                @for (step of m.steps; track step.index) {
+                  <td class="score">{{ percent(step.below_threshold) }}</td>
+                }
+              </tr>
+              <tr>
+                <th scope="row">Alumnos con datos</th>
+                @for (step of m.steps; track step.index) {
+                  <td class="score">{{ step.students }}</td>
+                }
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="field-hint">
+          Versión {{ m.reference_version }} de la rutina, en {{ modes[m.follow_mode] }} y
+          {{ speedLabel(m.speed) }}. Un paso cuenta si se midió al menos la mitad; «—» es sin datos,
+          nunca cero. Las cifras del grupo aparecen con {{ m.min_group }} alumnos o más. El umbral
+          de {{ m.threshold }} es provisional.
+        </p>
+
+        @if (withErrors().length) {
+          <h3>Errores frecuentes por paso</h3>
+          <ul class="errors">
+            @for (step of withErrors(); track step.index) {
+              <li>
+                <strong>{{ step.index + 1 }}. {{ step.name }}:</strong>
+                @for (error of step.frequent_errors; track error.code; let last = $last) {
+                  «{{ error.message }}» ({{ error.students }}
+                  {{ error.students === 1 ? 'alumno' : 'alumnos' }}){{ last ? '' : ';' }}
+                }
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+  }
+</section>
+
+<section class="card">
+  <h2>Prácticas recientes</h2>
+  <p>
+    Califica de 1 a 5 cómo bailó cada alumno, según tu criterio. Solo la ves tú: sirve para
+    comprobar si la app coincide contigo. Si agregas un comentario, el alumno lo lee en la app.
+  </p>
+  @if (practices(); as p) {
+    @if (p.concordance.spearman !== null) {
+      <p class="notice">
+        Coincidencia entre tus calificaciones y la app:
+        <strong>{{ rho(p.concordance.spearman) }}</strong> en {{ p.concordance.pairs }} prácticas (1
+        es acuerdo total; la meta del piloto es 0,6).
+      </p>
+    } @else {
+      <p class="field-hint">
+        Califica al menos 5 prácticas a velocidad normal para ver si la app coincide contigo (llevas
+        {{ p.concordance.pairs }}).
+      </p>
+    }
+
+    @if (!p.practices.length) {
+      <p>Tus alumnos todavía no sincronizaron prácticas.</p>
+    } @else {
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Alumno</th>
+              <th>Rutina</th>
+              <th>Fecha</th>
+              <th>Modo</th>
+              <th class="num">Similitud</th>
+              <th class="num">Medido</th>
+              <th>Estrellas</th>
+              <th>Tu calificación</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (practice of p.practices; track practice.id) {
+              <tr>
+                <td>{{ practice.student }}</td>
+                <td>{{ practice.routine_name }}</td>
+                <td>{{ practice.started_at | date: 'd MMM, HH:mm' }}</td>
+                <td>
+                  {{ modes[practice.follow_mode] }}, {{ speedLabel(practice.playback_speed) }}
+                </td>
+                <td class="num">{{ round(practice.score) }}</td>
+                <td class="num">{{ percent(practice.coverage) }}</td>
+                <td class="stars">{{ stars(practice.stars) }}</td>
+                <td>
+                  <div
+                    class="rating"
+                    role="group"
+                    [attr.aria-label]="'Calificar a ' + practice.student"
+                  >
+                    @for (n of ratings; track n) {
+                      <button
+                        type="button"
+                        class="rate"
+                        [class.on]="practice.rating === n"
+                        [attr.aria-pressed]="practice.rating === n"
+                        [disabled]="busy()"
+                        (click)="rate(practice, n)"
+                      >
+                        {{ n }}
+                      </button>
+                    }
+                  </div>
+                  @if (practice.rating !== null) {
+                    @if (commenting() === practice.id) {
+                      <div class="comment">
+                        <textarea
+                          rows="2"
+                          maxlength="1000"
+                          placeholder="Lo leerá en la app"
+                          [attr.aria-label]="'Comentario para ' + practice.student"
+                          [value]="comment()"
+                          (input)="comment.set($any($event.target).value)"
+                        ></textarea>
+                        <button
+                          class="button button--small"
+                          type="button"
+                          [disabled]="busy() || !comment().trim()"
+                          (click)="sendComment(practice)"
+                        >
+                          Enviar
+                        </button>
+                      </div>
+                    } @else {
+                      <button class="link" type="button" (click)="openComment(practice)">
+                        Comentar
+                      </button>
+                    }
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>

@@ -208,6 +208,7 @@ def test_pilot_metrics(course):
     recent = practice(course, carla, [(4000, 50.0), (2000, 50.0)])
     recent.calibration_attempts, recent.calibration_successes = 5, 4
     recent.save()
+    User.objects.create_user(username="catalogo", email="c@e.com", role="INSTRUCTOR")
 
     metrics = pilot_metrics()
 

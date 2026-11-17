@@ -252,6 +252,97 @@ export interface StudioCourse {
   students: number;
 }
 
+export interface StudioCourseDetail extends StudioCourse {
+  /** Routines published in or assigned to the course; steps students have. */
+  routines: { id: number; name: string; steps: number }[];
+}
+
+export type FollowModeCode = 'mirror' | 'same-side';
+
+export interface StepError {
+  code: string;
+  message: string;
+  region: string;
+  /** Students who saw this cue in the step. */
+  students: number;
+  count: number;
+}
+
+export interface StepSummary {
+  index: number;
+  name: string;
+  counts: number;
+  start_ms: number;
+  end_ms: number;
+  /** Students with evidence on this step. */
+  students: number;
+  /** Null below `min_group` students: never a guess. */
+  median: number | null;
+  below_threshold: number | null;
+  frequent_errors: StepError[];
+}
+
+export interface MapStudent {
+  id: number;
+  name: string;
+  practices: number;
+  last_practice_at: string | null;
+  /** Latest comparable score per step; null is "—", never 0. */
+  scores: (number | null)[];
+}
+
+/** `difficulty-map-v1`: where the course struggles, step by step. */
+export interface DifficultyMap {
+  version: string;
+  routine: { id: number; name: string };
+  reference_version: number | null;
+  follow_mode: FollowModeCode;
+  speed: number;
+  min_group: number;
+  threshold: number;
+  steps: StepSummary[];
+  students: MapStudent[];
+}
+
+export interface Concordance {
+  pairs: number;
+  spearman: number | null;
+}
+
+export interface PracticeRow {
+  id: string;
+  student: string;
+  routine_name: string;
+  started_at: string;
+  follow_mode: FollowModeCode;
+  playback_speed: number;
+  score: number | null;
+  coverage: number | null;
+  stars: number | null;
+  /** This instructor's 1-5 rating; students do not see it. */
+  rating: number | null;
+}
+
+export interface CoursePractices {
+  concordance: Concordance;
+  practices: PracticeRow[];
+}
+
+/** The pilot's gate figures (`/api/panel/pilot/`). */
+export interface PilotMetrics {
+  weeks: { week_start: string; active_students: number; evaluated_practices: number }[];
+  retention_week4: { cohort: number; retained: number; ratio: number | null };
+  instructors: { username: string; published: number; drafts: number }[];
+  concordance: Concordance;
+  calibration: { attempts: number; calibrated: number; ratio: number | null };
+  targets: {
+    calibration: number;
+    concordance: number;
+    retention_week4: number;
+    routines_per_instructor: number;
+  };
+}
+
 export interface QualityReport {
   version: string;
   samples: number;
