@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/update/update_banner.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -20,6 +22,8 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Outside Google Play this is how a student learns of a new APK.
+          const UpdateBanner(),
           // The main path: the catalog has one-tap Bailar and the best stars.
           Card(
             color: Theme.of(context).colorScheme.primaryContainer,

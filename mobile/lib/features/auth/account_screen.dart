@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/config/web_links.dart';
 import '../../core/network/catalog_session.dart';
+import '../../core/update/app_update.dart';
 import '../routines/reference/catalog_api.dart';
 import '../routines/reference/motion_reference.dart';
 import 'account_data.dart';
@@ -14,9 +15,13 @@ class AccountScreen extends StatelessWidget {
     this.session,
     this.eraseLocal,
     this.openPage,
+    this.version,
     super.key,
   });
   final CatalogSession? session;
+
+  /// The installed version, shown for support; defaults to [InstalledVersion.read].
+  final Future<InstalledVersion?> Function()? version;
 
   /// Opens a web page (privacy, terms) in the browser; defaults to [openWebPage].
   final Future<bool> Function(String path)? openPage;
@@ -51,6 +56,22 @@ class AccountScreen extends StatelessWidget {
             }
           },
         ),
+      // Support asks for it first: which APK is this phone running?
+      FutureBuilder<InstalledVersion?>(
+        future: (version ?? InstalledVersion.read)(),
+        builder: (context, snapshot) {
+          final installed = snapshot.data;
+          if (installed == null) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'SyncDance ${installed.name} (${installed.code})',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          );
+        },
+      ),
     ];
     return Scaffold(
       appBar: AppBar(title: const Text('Mi cuenta')),

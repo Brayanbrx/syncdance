@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 abstract final class ApiConfig {
@@ -16,6 +17,16 @@ abstract final class ApiConfig {
     if (override.isNotEmpty) return override;
     final configured = dotenv.isInitialized ? dotenv.env['WEB_BASE_URL'] : null;
     return configured ?? webFromApi(baseUrl);
+  }
+
+  /// Why this build cannot reach its server, or null. A release APK must
+  /// use HTTPS: Android blocks plain HTTP outside debug builds, so a missing
+  /// or wrong `--dart-define=API_BASE_URL` would only show network errors.
+  static String? releaseProblem({bool release = kReleaseMode, String? url}) {
+    final api = url ?? baseUrl;
+    if (!release || api.startsWith('https://')) return null;
+    return 'Esta copia de la app no tiene configurado el servidor. '
+        'Descarga la versión oficial desde la página de SyncDance.';
   }
 
   /// `https://host/api` -> `https://host`.

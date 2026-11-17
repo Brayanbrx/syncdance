@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A dancer facing you: her left side (your right) orange, her right
+     side light blue, as the app colours anatomical sides. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M54,46 L44,40 L38,29" android:strokeColor="#4CC3F1"
+        android:strokeWidth="5.5" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000" />
+    <path android:pathData="M54,46 L64,50 L72,44" android:strokeColor="#FF8A3D"
+        android:strokeWidth="5.5" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000" />
+    <path android:pathData="M54,62 L46,71 L44,80" android:strokeColor="#4CC3F1"
+        android:strokeWidth="5.5" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000" />
+    <path android:pathData="M54,62 L63,70 L69,79" android:strokeColor="#FF8A3D"
+        android:strokeWidth="5.5" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000" />
+    <path android:pathData="M54,43 L54,62" android:strokeColor="#FFFFFF"
+        android:strokeWidth="5.5" android:strokeLineCap="round"
+        android:strokeLineJoin="round" android:fillColor="#00000000" />
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M47.5,33 a6.5,6.5 0 1,0 13.0,0 a6.5,6.5 0 1,0 -13.0,0" />
+</vector>

@@ -13,7 +13,7 @@ void main() {
   testWidgets('shows the base login screen', (WidgetTester tester) async {
     await tester.pumpWidget(const SyncDanceApp());
 
-    expect(find.text('SyncDance AI'), findsOneWidget);
+    expect(find.text('SyncDance'), findsOneWidget);
     expect(find.text('Ingresar'), findsOneWidget);
   });
 }

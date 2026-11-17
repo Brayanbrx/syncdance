@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:syncdance_mobile/core/update/app_update.dart';
 import 'package:syncdance_mobile/core/network/catalog_session.dart';
 import 'package:syncdance_mobile/features/auth/account_data.dart';
 import 'package:syncdance_mobile/features/auth/account_screen.dart';
@@ -36,6 +37,7 @@ void main() {
           builder: (_, _) => AccountScreen(
             session: session,
             eraseLocal: (scope) async => erased.add(scope),
+            version: () async => const InstalledVersion('1.2.0', 3),
           ),
         ),
         GoRoute(
@@ -62,6 +64,13 @@ void main() {
     });
     await tester.pumpAndSettle();
   }
+
+  testWidgets('shows the installed version for support', (tester) async {
+    await mount(tester, http.Response('{}', 200));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('SyncDance 1.2.0 (3)'), 100);
+    expect(find.text('SyncDance 1.2.0 (3)'), findsOneWidget);
+  });
 
   testWidgets('deletes the account here and on the server', (tester) async {
     await mount(tester, http.Response('', 204));
