@@ -73,8 +73,9 @@ def queue_reference(*, routine_id):
     # Serialize version allocation for this routine under PostgreSQL.
     routine = Routine.objects.select_for_update().get(pk=routine_id)
     if routine.generator:
+        command = "generate_singing_catalog" if routine.is_singing else "generate_standard_catalog"
         raise ValidationError(
-            "Rutina generada desde su coreografía: se actualiza con generate_standard_catalog."
+            f"Rutina generada desde sus notas o coreografía: se actualiza con {command}."
         )
     if not routine.master_video:
         raise ValidationError("La rutina requiere un video maestro.")

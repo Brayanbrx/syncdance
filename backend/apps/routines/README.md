@@ -73,6 +73,29 @@ de instalación descarga explícitamente el modelo Lite float16/v1 oficial, comp
 su checksum y no reemplaza un archivo existente. La inferencia no descarga modelos.
 `POSE_MODEL_PATH` permite configurar el archivo. Los binarios no se versionan en Git.
 
+## Rutinas de canto
+
+`Routine.kind` es `DANCE` (por defecto) o `SING`. En una rutina de canto,
+`master_video` guarda la voz sola del instructor, en audio o video. El worker:
+
+1. hace el audio que reproduce el teléfono (`app-audio-v1`, AAC en `.m4a`)
+2. saca de ese mismo audio la melodía (`pitch-reference-v1`, con
+   `ai_engine/voice`)
+3. guarda en `scoring_profile.voice_quality` el aviso `NOT_VOICE_ONLY` si
+   parece haber música o ruido detrás de la voz
+
+No hay miniatura, informe de pose ni compás y pasos. La app lista cada sección
+con `GET /api/routines/?kind=SING` o `?kind=DANCE`. Las tareas y rutinas de los
+cursos traen `routine_kind` y `kind` para abrir la práctica correcta.
+
+Ejercicios de canto generados (originales, con cuenta de entrada y referencia
+exacta desde sus notas):
+
+```powershell
+docker compose exec backend python manage.py generate_singing_catalog
+docker compose exec backend python manage.py generate_singing_catalog --refresh
+```
+
 ## API
 
 Todas las rutas llevan `/api/routines/{id}/` y autenticación JWT:

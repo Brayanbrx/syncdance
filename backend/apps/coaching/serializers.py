@@ -20,6 +20,8 @@ class StudentAssignmentSerializer(serializers.ModelSerializer):
     from the practices already synced; missing evidence is null, not zero."""
 
     routine_name = serializers.CharField(source="routine.name", read_only=True)
+    # DANCE or SING: the app opens the matching practice.
+    routine_kind = serializers.CharField(source="routine.kind", read_only=True)
     # False when the routine left the catalog or went back to draft.
     routine_available = serializers.SerializerMethodField()
     best_stars = serializers.SerializerMethodField()
@@ -38,6 +40,7 @@ class StudentAssignmentSerializer(serializers.ModelSerializer):
             "id",
             "routine",
             "routine_name",
+            "routine_kind",
             "routine_available",
             "target_stars",
             "due_date",
@@ -81,7 +84,7 @@ class StudentAssignmentSerializer(serializers.ModelSerializer):
 class CourseRoutineSerializer(serializers.ModelSerializer):
     class Meta:
         model = Routine
-        fields = ("id", "name", "difficulty", "style", "duration_ms")
+        fields = ("id", "name", "kind", "difficulty", "style", "duration_ms")
         read_only_fields = fields
 
 

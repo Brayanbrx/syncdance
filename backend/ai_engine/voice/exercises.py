@@ -57,12 +57,13 @@ class Exercise:
         return round(beats * self.beat_ms) + TAIL_MS
 
     def beat_grid(self):
-        """Same shape as the dance `beat-grid-v1`: the app can show the count."""
+        """The dance `beat-grid-v1`, as the app reads it: the first click is
+        beat 0 and the count-in lasts `COUNT_IN_BEATS`."""
         return {
             "version": "beat-grid-v1",
             "bpm": self.bpm,
             "first_beat_ms": 0,
-            "beats_per_bar": 4,
+            "beats_per_move": 1,
         }
 
 

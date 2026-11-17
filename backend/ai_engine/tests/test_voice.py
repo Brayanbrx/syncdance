@@ -469,3 +469,56 @@ def test_the_reference_of_a_voice_file_is_deterministic(ffmpeg, pyin, tmp_path):
     silent = _wav(tmp_path / "silencio.wav", np.zeros(SR * 2, dtype=np.float32))
     with pytest.raises(VoiceError):
         build_pitch_reference(silent)
+
+
+# --- exercises and the phone fixture ----------------------------------------------
+
+
+def test_every_exercise_fits_its_audio_and_never_overlaps():
+    from ai_engine.voice.exercises import COUNT_IN_BEATS, EXERCISES
+
+    keys = [exercise.key for exercise in EXERCISES]
+    assert len(set(keys)) == len(keys)
+    for exercise in EXERCISES:
+        sung = exercise.notes()
+        assert sung, exercise.key
+        assert sung[0].start_ms == round(COUNT_IN_BEATS * exercise.beat_ms)
+        assert all(a.end_ms < b.start_ms for a, b in zip(sung, sung[1:], strict=False))
+        assert sung[-1].end_ms < exercise.duration_ms <= 300_000
+        assert 60 <= exercise.bpm <= 180
+        assert exercise.difficulty in {"BEGINNER", "INTERMEDIATE", "ADVANCED"}
+
+
+def test_a_guide_is_the_same_every_time_and_sings_its_notes(pyin):
+    from ai_engine.voice.exercises import EXERCISES, render_samples
+
+    exercise = EXERCISES[2]
+    first = render_samples(exercise)
+    assert np.array_equal(first, render_samples(exercise))
+    import librosa
+
+    heard = segment_notes(
+        pyin(librosa.resample(first.astype(np.float32), orig_sr=44100, target_sr=SR))
+    )
+    # The count-in clicks have no pitch: only the sung notes are heard.
+    assert [note.name for note in heard] == [note.name for note in exercise.notes()]
+
+
+def test_the_phone_fixture_is_what_the_server_writes():
+    from pathlib import Path
+
+    from ai_engine.voice.exercises import EXERCISES
+    from ai_engine.voice.reference import ALGORITHM_VERSION
+
+    root = Path(__file__).resolve().parents[3] / "mobile/test/fixtures/references"
+    payload = (root / "pitch_reference_v1.json.gz").read_bytes()
+    metadata = json.loads((root / "pitch_reference_v1.meta.json").read_text())
+    exercise = EXERCISES[2]
+    built = exercise_reference(
+        exercise.notes(), duration_ms=exercise.duration_ms, source_sha256="ab" * 32
+    )
+    assert built.payload == payload, "regenerate the fixture (see the Dart test)"
+    assert metadata["checksum_sha256"] == built.sha256
+    assert metadata["duration_ms"] == built.metadata["duration_ms"]
+    assert metadata["algorithm_version"] == ALGORITHM_VERSION
+    assert metadata["scoring_profile"] == {"beat_grid": exercise.beat_grid()}
