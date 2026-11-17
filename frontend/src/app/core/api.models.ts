@@ -167,6 +167,9 @@ export const MUSIC_RIGHTS_LABELS: Record<MusicRights, string> = {
 /** The SyncDance catalog review of an instructor's routine ('' = never proposed). */
 export type CatalogReview = '' | 'PENDING' | 'APPROVED' | 'REJECTED';
 
+/** Dance (a video and the body pose) or singing (the voice and its melody). */
+export type RoutineKind = 'DANCE' | 'SING';
+
 /** The reference of the current master video. */
 export interface RoutineProcessing {
   status: ReferenceStatus;
@@ -176,6 +179,8 @@ export interface RoutineProcessing {
   /** Students download the 720p version made for the app. */
   light_video: boolean;
   poster: boolean;
+  /** Singing: NOT_VOICE_ONLY when music or noise seem to be behind the voice. */
+  warnings: string[];
 }
 
 /** A routine an instructor proposed for the catalog, as the panel reviews it. */
@@ -200,6 +205,7 @@ export interface CatalogProposal {
 export interface StudioRoutine {
   id: number;
   name: string;
+  kind: RoutineKind;
   description: string;
   difficulty: Difficulty;
   style: string;

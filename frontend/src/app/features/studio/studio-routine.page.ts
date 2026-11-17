@@ -56,6 +56,7 @@ export class StudioRoutinePage implements OnInit {
 
   readonly routine = signal<StudioRoutine | null>(null);
   readonly quality = signal<QualityReport | null>(null);
+  readonly videoAccept = 'video/mp4,video/quicktime,video/webm,video/x-matroska,.mkv';
   readonly courses = signal<StudioCourse[]>([]);
   readonly chosen = signal<Set<number>>(new Set());
   readonly rights = signal<MusicRights | ''>('');
@@ -119,7 +120,12 @@ export class StudioRoutinePage implements OnInit {
     });
     this.rights.set(routine.music_rights);
     this.chosen.set(new Set(routine.courses));
-    if (routine.processing?.status === 'READY' && (!wasReady || !this.quality())) {
+    // A melody has no pose to report on.
+    if (
+      routine.kind !== 'SING' &&
+      routine.processing?.status === 'READY' &&
+      (!wasReady || !this.quality())
+    ) {
       this.studio.quality(routine.id).subscribe({
         next: (report) => this.quality.set(report),
         error: () => this.quality.set(null),
@@ -203,14 +209,16 @@ export class StudioRoutinePage implements OnInit {
           this.progress.set(null);
           this.quality.set(null);
           this.show(httpEvent.body);
-          this.message.set('Video reemplazado: se está procesando y la rutina volvió a borrador.');
+          this.message.set(
+            'Archivo reemplazado: se está procesando y la rutina volvió a borrador.',
+          );
         }
       },
       error: (error: unknown) => {
         this.busy.set(false);
         this.progress.set(null);
         input.value = '';
-        this.error.set(apiError(error, 'No se pudo subir el video.'));
+        this.error.set(apiError(error, 'No se pudo subir el archivo.'));
       },
     });
   }

@@ -16,7 +16,7 @@
   }
 
   <section class="card">
-    <h2>Video</h2>
+    <h2>{{ r.kind === 'SING' ? 'Voz' : 'Video' }}</h2>
     @switch (r.processing?.status) {
       @case ('READY') {
         <sd-routine-preview
@@ -31,7 +31,20 @@
             Listo el {{ r.processing!.finished_at | date: 'd MMM y, HH:mm' }}.
           }
         </p>
-        @if (r.processing!.light_video) {
+        @for (warning of r.processing!.warnings; track warning) {
+          @if (warning === 'NOT_VOICE_ONLY') {
+            <p class="alert">
+              Se oye música o ruido detrás de tu voz. La melodía puede salir mal: graba otra vez
+              solo tu voz, en un lugar callado, y reemplaza el archivo.
+            </p>
+          }
+        }
+        @if (r.kind === 'SING') {
+          <p class="field-hint">
+            Esto es lo que escuchan tus alumnos mientras cantan, con audífonos. La melodía se sacó
+            de tu voz.
+          </p>
+        } @else if (r.processing!.light_video) {
           <p class="field-hint">
             Esto es lo que ven tus alumnos: una versión de 720p que ocupa menos datos en su
             teléfono. Tu archivo original queda guardado.
@@ -40,23 +53,33 @@
       }
       @case ('FAILED') {
         <p class="alert">{{ r.processing!.error || 'El procesamiento falló.' }}</p>
-        <p>Sube el video de nuevo, de frente y de cuerpo entero.</p>
+        @if (r.kind === 'SING') {
+          <p>Sube tu voz de nuevo, sola y en un lugar callado.</p>
+        } @else {
+          <p>Sube el video de nuevo, de frente y de cuerpo entero.</p>
+        }
       }
       @case (undefined) {
         <p>Todavía no se procesó. Sube el video otra vez si no cambia en unos minutos.</p>
       }
       @default {
-        <p class="working" role="status">
-          Analizando cada momento del video. Suele tardar menos que la duración del video; esta
-          página se actualiza sola.
-        </p>
+        @if (r.kind === 'SING') {
+          <p class="working" role="status">
+            Sacando la melodía de tu voz. Tarda unos segundos; esta página se actualiza sola.
+          </p>
+        } @else {
+          <p class="working" role="status">
+            Analizando cada momento del video. Suele tardar menos que la duración del video; esta
+            página se actualiza sola.
+          </p>
+        }
       }
     }
     <label class="replace">
-      Reemplazar el video
+      {{ r.kind === 'SING' ? 'Reemplazar la voz' : 'Reemplazar el video' }}
       <input
         type="file"
-        accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mkv"
+        [accept]="r.kind === 'SING' ? 'audio/*,' + videoAccept : videoAccept"
         (change)="replace($event)"
         [disabled]="busy()"
       />
@@ -67,7 +90,7 @@
     }
   </section>
 
-  @if (ready()) {
+  @if (ready() && r.kind !== 'SING') {
     <section class="card">
       <h2>Compás y pasos</h2>
       @if (r.choreography.stale) {

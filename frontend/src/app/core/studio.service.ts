@@ -17,6 +17,7 @@ import {
 
 export interface RoutineFields {
   name?: string;
+  kind?: string;
   description?: string;
   difficulty?: string;
   style?: string;

@@ -58,6 +58,9 @@ import { RoutinePosterComponent } from '../../shared/routine-poster.component';
               <span class="text">
                 <strong>{{ routine.name }}</strong>
                 <span class="muted">
+                  @if (routine.kind === 'SING') {
+                    Canto ·
+                  }
                   {{ levels[routine.difficulty] }}{{ routine.style ? ', ' + routine.style : '' }}
                   @if (routine.duration_ms) {
                     — {{ clock(routine.duration_ms) }}

@@ -32,6 +32,15 @@ import { LegalFrameComponent, LegalInfoService } from './legal-frame.component';
         en nuestros servidores. La app no graba tu práctica.
       </p>
 
+      <h2>El micrófono</h2>
+      <p>
+        En la sección Cantar, la app usa el micrófono solo mientras cantas y lo cierra al terminar o
+        al salir de la app. Tu voz se analiza dentro de tu teléfono para saber qué nota cantas: el
+        audio no se graba, no se guarda y no sale del teléfono. Solo queda en tu teléfono un resumen
+        de cada práctica (cuántas notas afinaste y cuántas cantaste). Tu instructor no escucha tu
+        voz.
+      </p>
+
       <h2>Qué datos guardamos</h2>
       <ul>
         <li>
