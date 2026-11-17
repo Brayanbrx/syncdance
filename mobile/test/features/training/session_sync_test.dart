@@ -9,13 +9,13 @@ import 'package:syncdance_mobile/core/network/catalog_session.dart';
 import 'package:syncdance_mobile/core/network/credential_store.dart';
 import 'package:syncdance_mobile/features/routines/reference/catalog_api.dart';
 import 'package:syncdance_mobile/features/training/game/dance_game.dart';
+import 'package:syncdance_mobile/features/training/history/calibration_log.dart';
 import 'package:syncdance_mobile/features/training/history/saved_session.dart';
 import 'package:syncdance_mobile/features/training/history/session_store.dart';
 import 'package:syncdance_mobile/features/training/history/session_sync.dart';
 
 import '../../core/catalog_session_test.dart' show MemoryCredentialStore;
-import '../routines/reference_test_samples.dart';
-import 'session_store_test.dart' show savedPractice;
+import 'session_store_test.dart' show savedPractice, stepProfile;
 
 /// [record] as `GET training/sessions/` returns it: La Paz offsets, read-only
 /// context fields and the server's stars.
@@ -31,7 +31,7 @@ Map<String, dynamic> asServer(SavedSession record) {
     'started_at': laPaz(record.startedAt),
     'finished_at': laPaz(record.finishedAt),
     'routine_name': record.routineName,
-    'reference_metadata': metadataJson(),
+    'reference_metadata': record.reference.toJson(),
     'quality_ratio': record.summary.coverage,
     if (record.game != null)
       'game': {...record.game!.toJson(), 'stars': record.game!.stars},
@@ -118,9 +118,33 @@ void main() {
     );
   });
 
+  test('steps and calibration upload as the shared fixture', () {
+    final record = savedPractice(
+      id: '5b1d3c2a-7e4f-4a8b-9c6d-0e1f2a3b4c5d',
+      withSteps: true,
+      calibration: const CalibrationCount(3, 2),
+    );
+    // The backend test sets the reference's steps from this key.
+    final expected = jsonDecode(
+      jsonEncode({
+        '_reference_scoring_profile': stepProfile,
+        ...record.toUpload(),
+      }),
+    );
+    final file = File('test/fixtures/sessions/upload_steps_v1.json');
+    if (Platform.environment['UPDATE_FIXTURES'] == '1') {
+      file.writeAsStringSync(
+        '${const JsonEncoder.withIndent('  ').convert(expected)}\n',
+      );
+    }
+    expect(jsonDecode(file.readAsStringSync()), expected);
+    expect(record.toUpload()['step_summary_version'], 'step-summary-v1');
+  });
+
   test('a server record rebuilds the same local practice', () {
     for (final record in [
       savedPractice(),
+      savedPractice(withSteps: true, calibration: const CalibrationCount(3, 2)),
       savedPractice(evidence: false),
       savedPractice(
         game: const GameSummary(

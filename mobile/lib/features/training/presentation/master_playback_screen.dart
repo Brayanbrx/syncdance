@@ -11,6 +11,7 @@ import '../../routines/reference/reference_cache.dart';
 import '../playback/reference_timeline.dart';
 import '../comparison/follow_mode.dart';
 import '../comparison/session_summary.dart';
+import '../history/calibration_log.dart';
 import '../history/saved_session.dart';
 import '../game/dance_game.dart';
 import '../history/session_store.dart';
@@ -34,6 +35,7 @@ class MasterPlaybackScreen extends StatefulWidget {
     this.sessionStore,
     this.onSessionSaved,
     this.openStepDrill,
+    this.calibrationLog,
     super.key,
   });
   final SavedReference saved;
@@ -51,6 +53,9 @@ class MasterPlaybackScreen extends StatefulWidget {
 
   /// Replaces the step drill (tests).
   final Widget Function(RoutineStep step)? openStepDrill;
+
+  /// Framing tries of the step drills; defaults to this account's log.
+  final CalibrationLog? calibrationLog;
 
   @override
   State<MasterPlaybackScreen> createState() => _MasterPlaybackScreenState();
@@ -198,6 +203,7 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
         _metadata.durationMs,
         followMode: _followMode,
         playbackSpeed: _speed,
+        steps: _metadata.steps,
       );
       _practiceReference = referenceFor(widget.saved.reference, _followMode);
       _summary = null;
@@ -232,6 +238,24 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
     unawaited(_saveSummary());
   }
 
+  String get _scope => '${widget.api.base}|${widget.account.id}';
+
+  /// The account's log beside the default store; an injected store (tests)
+  /// gets only an injected log.
+  late final Future<CalibrationLog?> _calibrationLog = () async {
+    if (widget.calibrationLog != null || widget.sessionStore != null) {
+      return widget.calibrationLog;
+    }
+    try {
+      return await CalibrationLog.open(_scope);
+    } catch (_) {
+      return null; // telemetry never blocks the practice
+    }
+  }();
+
+  Future<void> _recordCalibration(bool calibrated) async =>
+      (await _calibrationLog)?.record(calibrated: calibrated);
+
   Future<void> _saveSummary() async {
     if (_saving || _saved || _record == null) return;
     setState(() {
@@ -239,10 +263,12 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
       _saveError = null;
     });
     try {
-      _store ??=
-          widget.sessionStore ??
-          await SessionStore.open('${widget.api.base}|${widget.account.id}');
+      _store ??= widget.sessionStore ?? await SessionStore.open(_scope);
+      final log = await _calibrationLog;
+      final tries = await log?.pending() ?? CalibrationCount.none;
+      _record = _record!.withCalibration(tries);
       await _store!.save(_record!);
+      await log?.clear(tries);
       if (mounted) setState(() => _saved = true);
       unawaited(
         widget.onSessionSaved?.call().then((_) {}, onError: (Object _) {}),
@@ -337,6 +363,8 @@ class _MasterPlaybackScreenState extends State<MasterPlaybackScreen>
               followMode: _followMode,
               initialSpeed: _speed < 1 ? _speed : 0.5,
               createController: widget.createController,
+              onCalibration: (calibrated) =>
+                  unawaited(_recordCalibration(calibrated)),
             ),
       ),
     );

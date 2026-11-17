@@ -4,6 +4,7 @@ import '../../routines/reference/motion_reference.dart';
 import '../comparison/follow_mode.dart';
 import '../comparison/session_summary.dart';
 import '../game/dance_game.dart';
+import 'calibration_log.dart';
 
 String newSessionId() {
   final random = Random.secure();
@@ -24,7 +25,9 @@ class SavedSession {
     required this.finishedAt,
     required this.summary,
     this.game,
+    this.calibration,
   });
+  static const schema = 'local-session-v3';
   final String id, routineName;
   final ReferenceMetadata reference;
   final DateTime startedAt, finishedAt;
@@ -32,12 +35,35 @@ class SavedSession {
 
   /// Present when the practice was played in dance (game) mode.
   final GameSummary? game;
+
+  /// Framing tries logged since the previous saved practice (pilot metric).
+  final CalibrationCount? calibration;
+
+  SavedSession withCalibration(CalibrationCount? value) => SavedSession(
+    id: id,
+    routineName: routineName,
+    reference: reference,
+    startedAt: startedAt,
+    finishedAt: finishedAt,
+    summary: summary,
+    game: game,
+    calibration: value == null || value.isEmpty ? null : value,
+  );
+
+  static Map<String, Object?> _step(StepSummary step) => {
+    'index': step.index,
+    'start_ms': step.startMs,
+    'end_ms': step.endMs,
+    'evaluated_ms': step.evaluatedMs,
+    'score': step.score,
+    'feedback': step.feedback,
+  };
   static final validId = RegExp(
     r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$',
   );
 
   Map<String, dynamic> toJson() => {
-    'schema': 'local-session-v2',
+    'schema': schema,
     'id': id,
     'routine_name': routineName,
     'reference': reference.toJson(),
@@ -76,8 +102,13 @@ class SavedSession {
             'max_severity': f.maxSeverity,
           },
       ],
+      if (summary.stepsVersion != null) ...{
+        'steps_version': summary.stepsVersion,
+        'steps': [for (final step in summary.steps) _step(step)],
+      },
     },
     if (game != null) 'game': game!.toJson(),
+    if (calibration != null) 'calibration': calibration!.toJson(),
   };
 
   /// Payload for `POST training/sessions/` (backend/apps/training/README.md).
@@ -125,6 +156,11 @@ class SavedSession {
         },
     ],
     if (game != null) 'game': game!.toJson(),
+    if (summary.stepsVersion != null) ...{
+      'step_summary_version': summary.stepsVersion,
+      'step_results': [for (final step in summary.steps) _step(step)],
+    },
+    if (calibration != null) 'calibration': calibration!.toJson(),
   };
 
   /// Rebuilds a practice from `GET training/sessions/` (another phone or a
@@ -143,7 +179,7 @@ class SavedSession {
       throw const FormatException('Práctica del servidor incompleta.');
     }
     return SavedSession.fromJson({
-      'schema': 'local-session-v2',
+      'schema': schema,
       'id': data['id'],
       'routine_name': data['routine_name'],
       'reference': reference,
@@ -165,8 +201,13 @@ class SavedSession {
         'playback_speed': data['playback_speed'],
         'segments': data['timeline_segments'],
         'feedback': data['feedback_counts'],
+        if (data['step_summary_version'] != null) ...{
+          'steps_version': data['step_summary_version'],
+          'steps': data['step_results'],
+        },
       },
       if (data['game'] != null) 'game': data['game'],
+      if (data['calibration'] != null) 'calibration': data['calibration'],
     });
   }
 
@@ -196,7 +237,11 @@ class SavedSession {
 
     // v1 predates follow modes: it always compared the same anatomical sides.
     final schema = data['schema'];
-    require(schema == 'local-session-v1' || schema == 'local-session-v2');
+    require(
+      schema == 'local-session-v1' ||
+          schema == 'local-session-v2' ||
+          schema == SavedSession.schema,
+    );
     final id = label(data['id']);
     require(validId.hasMatch(id));
     final reference = ReferenceMetadata.fromJson(object(data['reference']));
@@ -274,9 +319,69 @@ class SavedSession {
     // v1 files never contain a game; a game needs evidence of the follow mode.
     final game = data['game'] == null
         ? null
-        : schema == 'local-session-v2'
+        : schema != 'local-session-v1'
         ? GameSummary.fromJson(data['game'])
         : throw const FormatException('Resumen local inválido.');
+    // Steps and calibration exist only from v3, and only the published steps.
+    String? stepsVersion;
+    final steps = <StepSummary>[];
+    if (s['steps_version'] != null) {
+      require(schema == SavedSession.schema);
+      stepsVersion = label(s['steps_version'], 40);
+      require(stepsVersion == SessionAccumulator.stepsVersion);
+      final rawSteps = s['steps'];
+      final published = reference.steps;
+      require(
+        rawSteps is List &&
+            published.isNotEmpty &&
+            rawSteps.length == published.length,
+      );
+      final totals = {for (final f in feedback) f.code: f.count};
+      final shown = <String, int>{};
+      var stepEvidence = 0;
+      for (final (index, value) in (rawSteps as List).indexed) {
+        final step = object(value);
+        final window = published[index];
+        require(
+          step['index'] == index &&
+              step['start_ms'] == window.startMs &&
+              step['end_ms'] == window.endMs,
+        );
+        final evidence = integer(
+          step['evaluated_ms'],
+          0,
+          window.endMs - window.startMs,
+        );
+        final rawCues = step['feedback'] ?? const <String, dynamic>{};
+        require(rawCues is Map<String, dynamic>);
+        final cues = <String, int>{};
+        for (final MapEntry(:key, :value) in (rawCues as Map).entries) {
+          final code = label(key, 100);
+          require(totals.containsKey(code) && evidence > 0);
+          cues[code] = integer(value, 1, 3000);
+          shown[code] = (shown[code] ?? 0) + cues[code]!;
+        }
+        steps.add(
+          StepSummary(
+            index: index,
+            startMs: window.startMs,
+            endMs: window.endMs,
+            evaluatedMs: evidence,
+            score: metric(step['score'], evidence > 0, 100),
+            feedback: cues,
+          ),
+        );
+        stepEvidence += evidence;
+      }
+      require(stepEvidence <= evaluated);
+      require(shown.entries.every((e) => e.value <= totals[e.key]!));
+    }
+    CalibrationCount? calibration;
+    if (data['calibration'] != null) {
+      require(schema == SavedSession.schema);
+      calibration = CalibrationCount.tryParse(data['calibration']);
+      require(calibration != null);
+    }
     return SavedSession(
       id: id,
       routineName: label(data['routine_name']),
@@ -284,6 +389,7 @@ class SavedSession {
       startedAt: startedAt,
       finishedAt: finishedAt,
       game: game,
+      calibration: calibration,
       summary: SessionSummary(
         durationMs: duration,
         evaluatedMs: evaluated,
@@ -304,6 +410,8 @@ class SavedSession {
         feedbackVersion: label(s['feedback_version'], 100),
         followMode: followMode!,
         playbackSpeed: playbackSpeed,
+        steps: steps,
+        stepsVersion: stepsVersion,
       ),
     );
   }

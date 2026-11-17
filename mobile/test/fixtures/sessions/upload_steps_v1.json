@@ -1,0 +1,93 @@
+{
+  "_reference_scoring_profile": {
+    "beat_grid": {
+      "version": "beat-grid-v1",
+      "bpm": 120,
+      "first_beat_ms": 0,
+      "beats_per_move": 2
+    },
+    "steps": {
+      "version": "routine-steps-v1",
+      "items": [
+        {
+          "name": "Uno",
+          "start_ms": 0,
+          "end_ms": 125,
+          "counts": 1,
+          "tip": ""
+        },
+        {
+          "name": "Dos",
+          "start_ms": 125,
+          "end_ms": 250,
+          "counts": 1,
+          "tip": "Arriba."
+        }
+      ]
+    }
+  },
+  "id": "5b1d3c2a-7e4f-4a8b-9c6d-0e1f2a3b4c5d",
+  "routine": 7,
+  "reference_version": 1,
+  "started_at": "2026-10-05T12:00:00.000Z",
+  "finished_at": "2026-10-05T12:00:10.000Z",
+  "status": "COMPLETED",
+  "mode": "LIVE",
+  "overall_score": 8.333333333333334,
+  "pose_score": 8.333333333333334,
+  "timing_score": null,
+  "angle_score": 16.666666666666668,
+  "position_score": 0.0,
+  "mean_error_degrees": 75.0,
+  "mean_position_error": 1.0,
+  "duration_ms": 250,
+  "evaluated_ms": 200,
+  "reached_video_end": false,
+  "scoring_version": "pose-window-v1",
+  "summary_version": "pose-summary-v1",
+  "feedback_version": "geometric-feedback-v2",
+  "follow_mode": "same-side",
+  "playback_speed": 1.0,
+  "timeline_segments": [
+    {
+      "start_ms": 0,
+      "end_ms": 250,
+      "evaluated_ms": 200,
+      "score": 8.333333333333334
+    }
+  ],
+  "feedback_counts": [
+    {
+      "code": "leftElbow_extend",
+      "region": "arm",
+      "message": "leftElbow_extend",
+      "count": 1,
+      "max_severity": 1.5
+    }
+  ],
+  "step_summary_version": "step-summary-v1",
+  "step_results": [
+    {
+      "index": 0,
+      "start_ms": 0,
+      "end_ms": 125,
+      "evaluated_ms": 125,
+      "score": 3.3333333333333335,
+      "feedback": {
+        "leftElbow_extend": 1
+      }
+    },
+    {
+      "index": 1,
+      "start_ms": 125,
+      "end_ms": 250,
+      "evaluated_ms": 75,
+      "score": 16.666666666666668,
+      "feedback": {}
+    }
+  ],
+  "calibration": {
+    "attempts": 3,
+    "calibrated": 2
+  }
+}

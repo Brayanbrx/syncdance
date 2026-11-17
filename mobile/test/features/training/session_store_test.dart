@@ -5,12 +5,42 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:syncdance_mobile/features/training/comparison/follow_mode.dart';
 import 'package:syncdance_mobile/features/training/comparison/pose_matcher.dart';
 import 'package:syncdance_mobile/features/training/comparison/session_summary.dart';
+import 'package:syncdance_mobile/features/routines/reference/motion_reference.dart';
 import 'package:syncdance_mobile/features/training/game/dance_game.dart';
+import 'package:syncdance_mobile/features/training/history/calibration_log.dart';
 import 'package:syncdance_mobile/features/training/history/saved_session.dart';
 import 'package:syncdance_mobile/features/training/history/session_store.dart';
 
 import '../routines/reference_test_samples.dart';
 import 'feedback_test.dart' show cue;
+
+/// Two instructor steps over the 250 ms fixture reference.
+const stepProfile = {
+  'beat_grid': {
+    'version': 'beat-grid-v1',
+    'bpm': 120,
+    'first_beat_ms': 0,
+    'beats_per_move': 2,
+  },
+  'steps': {
+    'version': 'routine-steps-v1',
+    'items': [
+      {'name': 'Uno', 'start_ms': 0, 'end_ms': 125, 'counts': 1, 'tip': ''},
+      {
+        'name': 'Dos',
+        'start_ms': 125,
+        'end_ms': 250,
+        'counts': 1,
+        'tip': 'Arriba.',
+      },
+    ],
+  },
+};
+
+ReferenceMetadata stepsMetadata() => ReferenceMetadata.fromJson({
+  ...metadataJson(),
+  'scoring_profile': stepProfile,
+});
 
 SavedSession savedPractice({
   bool evidence = true,
@@ -18,22 +48,30 @@ SavedSession savedPractice({
   String? id,
   FollowMode followMode = FollowMode.sameSide,
   GameSummary? game,
+  bool withSteps = false,
+  CalibrationCount? calibration,
 }) {
-  final accumulator = SessionAccumulator(250, followMode: followMode);
+  final reference = withSteps ? stepsMetadata() : metadata();
+  final accumulator = SessionAccumulator(
+    250,
+    followMode: followMode,
+    steps: reference.steps,
+  );
   if (evidence) {
     accumulator.record(0, const PoseMatch(90, 1, 0));
     accumulator.recordFeedback(0, cue('leftElbow_extend'));
+    if (withSteps) accumulator.record(150, const PoseMatch(60, 1, 0));
   }
   final start = at ?? DateTime.utc(2026, 10, 5, 12);
   return SavedSession(
     id: id ?? newSessionId(),
     routineName: 'Mi rutina',
-    reference: metadata(),
+    reference: reference,
     startedAt: start,
     finishedAt: start.add(const Duration(seconds: 10)),
     summary: accumulator.finish(reachedVideoEnd: false),
     game: game,
-  );
+  ).withCalibration(calibration);
 }
 
 void main() {
@@ -141,7 +179,7 @@ void main() {
   test('follow mode round trips and v1 files read as same sides', () {
     final mirror = savedPractice(followMode: FollowMode.mirror);
     final json = mirror.toJson();
-    expect(json['schema'], 'local-session-v2');
+    expect(json['schema'], 'local-session-v3');
     expect(SavedSession.fromJson(json).summary.followMode, FollowMode.mirror);
     final legacy =
         jsonDecode(jsonEncode(savedPractice().toJson()))

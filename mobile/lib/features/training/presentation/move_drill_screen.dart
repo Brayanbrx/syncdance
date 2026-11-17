@@ -14,6 +14,7 @@ import '../comparison/follow_mode.dart';
 import '../comparison/live_practice.dart';
 import '../comparison/session_summary.dart';
 import '../game/dance_game.dart';
+import '../history/calibration_log.dart';
 import '../pose/adapters/mlkit_pose_estimator.dart';
 import '../pose/pose_estimator.dart';
 import '../pose/pose_frame.dart';
@@ -42,6 +43,7 @@ class MoveDrillScreen extends StatefulWidget {
     this.createPoseEstimator,
     this.nowMs,
     this.sounds,
+    this.onCalibration,
     super.key,
   });
 
@@ -60,6 +62,9 @@ class MoveDrillScreen extends StatefulWidget {
 
   /// Countdown and per-pass cues; defaults to [GameSounds] (injectable).
   final GameSounds? sounds;
+
+  /// One framing try, reported to the screen that keeps the account's log.
+  final void Function(bool calibrated)? onCalibration;
 
   @override
   State<MoveDrillScreen> createState() => _MoveDrillScreenState();
@@ -125,10 +130,15 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
     playbackSpeed: _speed,
   );
 
+  late final _attempt = CalibrationAttempt(
+    (calibrated) => widget.onCalibration?.call(calibrated),
+  );
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _attempt.start(); // getting into position is a framing try
     unawaited(lockPortrait());
     unawaited(_openVideo());
     unawaited(_sounds.load());
@@ -194,6 +204,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
 
   void _startCountdown() {
     if (_player?.value.isInitialized != true) return;
+    _attempt.calibrated();
     _countdown = 3;
     _phase = _Phase.countdown;
     _sounds.play(GameSound.tick);
@@ -292,6 +303,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _attempt.abandoned();
     _countdownTimer?.cancel();
     _ratingTimer?.cancel();
     _player?.removeListener(_videoChanged);

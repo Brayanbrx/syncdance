@@ -13,8 +13,8 @@ cuenta como máximo una vez por intervalo de 100 ms del video para evitar contar
 de nuevo el mismo intervalo al repetirlo. No mide duración del error ni representa
 todas las desviaciones; ausencia de avisos no certifica ejecución correcta.
 
-Los archivos `local-session-v2` (desde el modo espejo; los `v1` siguen leyéndose
-como mismos lados) están en el directorio privado de soporte de la
+Los archivos `local-session-v3` (los `v2` y `v1` siguen leyéndose; `v1` como
+mismos lados) están en el directorio privado de soporte de la
 app, bajo `sessions-v1/<hash de servidor|cuenta>`. Son independientes de los
 videos y referencias descargados. Se valida al escribir y al leer, con límite
 de 256 KiB por archivo y 32 MiB por cuenta/servidor. La publicación usa temporal,
@@ -31,6 +31,32 @@ El historial lista prácticas recientes con cobertura y permite abrir detalles
 y eliminar un resumen con confirmación. Funciona sin red con la cuenta ya
 autenticada. Los archivos sobreviven al reinicio y, desde el paso 2, la sesión
 guardada reabre el historial sin red.
+
+## Resultados por paso e intentos de encuadre (E5, `local-session-v3`)
+
+Implementado el 2026-11-16. Si la referencia trae pasos del instructor,
+`SessionAccumulator` resume cada uno (`step-summary-v1`) con las mismas
+casillas de 100 ms que los tramos: una casilla que cruza dos pasos reparte su
+tiempo entre ellos, así que la evidencia de los pasos nunca supera la de la
+práctica. Los avisos se atribuyen al paso en cuyo tiempo salieron. Sin pasos
+no se envía el bloque (una lista vacía podría contradecir a un servidor con
+pasos que el teléfono no pudo leer). Es aparte de `summary_version`, que el
+progreso compara: agregar pasos no reinicia ninguna mejor marca.
+
+`CalibrationLog` (`calibration-v1/<hash de servidor|cuenta>.json`) cuenta los
+intentos de encuadre de la partida y del modo aprender: cada vez que la
+pantalla espera a que el alumno se ubique es un intento, logrado si empieza la
+cuenta regresiva y fallido si sale antes. La siguiente práctica guardada se
+lleva los pendientes al servidor y solo entonces se descuentan, así que
+cuentan también los de quien se rindió. Un error del registro nunca impide
+bailar ni guardar. La práctica con cámara del reproductor no tiene fase de
+encuadre propia y no se cuenta.
+
+`toUpload()` añade `step_summary_version`, `step_results` y `calibration`
+solo cuando existen; la fixture compartida es
+`test/fixtures/sessions/upload_steps_v1.json` (se regenera con
+`UPDATE_FIXTURES=1 flutter test test/features/training/session_sync_test.dart`)
+y Django la acepta tal cual.
 
 ## Verificación
 

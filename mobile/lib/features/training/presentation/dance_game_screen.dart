@@ -13,6 +13,7 @@ import '../comparison/follow_mode.dart';
 import '../comparison/live_practice.dart';
 import '../comparison/session_summary.dart';
 import '../game/dance_game.dart';
+import '../history/calibration_log.dart';
 import '../history/saved_session.dart';
 import '../history/session_store.dart';
 import '../pose/adapters/mlkit_pose_estimator.dart';
@@ -45,6 +46,7 @@ class DanceGameScreen extends StatefulWidget {
     this.openDrill,
     this.sounds,
     this.instructions = '',
+    this.calibrationLog,
     super.key,
   });
 
@@ -70,6 +72,9 @@ class DanceGameScreen extends StatefulWidget {
 
   /// How the routine's step is done, read while getting into position.
   final String instructions;
+
+  /// Framing tries for the pilot; defaults to this account's log (tests inject).
+  final CalibrationLog? calibrationLog;
 
   static const countdownSeconds = 3;
 
@@ -149,10 +154,37 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     }
   }
 
+  /// Every round starts getting into position: one framing try.
+  late final _attempt = CalibrationAttempt(
+    (calibrated) => unawaited(_recordCalibration(calibrated)),
+  );
+  late final Future<CalibrationLog?> _calibrationLog = _openCalibrationLog();
+
+  /// The account's log beside the default store; an injected store (tests)
+  /// gets only an injected log.
+  Future<CalibrationLog?> _openCalibrationLog() async {
+    if (widget.calibrationLog != null || widget.sessionStore != null) {
+      return widget.calibrationLog;
+    }
+    try {
+      return await CalibrationLog.open(widget.storeScope);
+    } catch (_) {
+      return null; // telemetry never blocks the game
+    }
+  }
+
+  Future<void> _recordCalibration(bool calibrated) async =>
+      (await _calibrationLog)?.record(calibrated: calibrated);
+
   void _newRound() {
     _practice?.removeListener(_redraw);
     _practice?.dispose();
-    _session = SessionAccumulator(_durationMs, followMode: widget.followMode);
+    _attempt.start();
+    _session = SessionAccumulator(
+      _durationMs,
+      followMode: widget.followMode,
+      steps: widget.saved.reference.metadata.steps,
+    );
     _game = DanceGame(reference: _reference, session: _session!);
     _practice = LivePractice(
       reference: _reference,
@@ -209,6 +241,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
 
   void _startCountdown() {
     if (_player?.value.isInitialized != true) return;
+    _attempt.calibrated();
     _countdown = DanceGameScreen.countdownSeconds;
     _phase = _Phase.countdown;
     _sounds.play(GameSound.tick);
@@ -280,6 +313,8 @@ class _DanceGameScreenState extends State<DanceGameScreen>
       _saveMessage = 'Guardando resultado…';
     });
     final now = DateTime.now().toUtc();
+    final log = await _calibrationLog;
+    final tries = await log?.pending() ?? CalibrationCount.none;
     final record = SavedSession(
       id: _sessionId!,
       routineName: widget.saved.name,
@@ -288,11 +323,12 @@ class _DanceGameScreenState extends State<DanceGameScreen>
       finishedAt: now.isBefore(_startedAt!) ? _startedAt! : now,
       summary: summary,
       game: GameSummary.of(result),
-    );
+    ).withCalibration(tries);
     try {
       final store =
           widget.sessionStore ?? await SessionStore.open(widget.storeScope);
       await store.save(record);
+      await log?.clear(tries);
       unawaited(
         widget.onSessionSaved?.call().then((_) {}, onError: (Object _) {}),
       );
@@ -326,6 +362,8 @@ class _DanceGameScreenState extends State<DanceGameScreen>
               capture: widget.capture,
               createPoseEstimator: widget.createPoseEstimator,
               nowMs: widget.nowMs,
+              onCalibration: (calibrated) =>
+                  unawaited(_recordCalibration(calibrated)),
             ),
       ),
     );
@@ -357,6 +395,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _attempt.abandoned();
     _countdownTimer?.cancel();
     _ratingTimer?.cancel();
     _player?.removeListener(_videoChanged);

@@ -10,6 +10,7 @@ import 'package:syncdance_mobile/features/routines/reference/reference_cache.dar
 import 'package:syncdance_mobile/features/training/camera/camera_frame.dart';
 import 'package:syncdance_mobile/features/training/comparison/follow_mode.dart';
 import 'package:syncdance_mobile/features/training/game/dance_game.dart';
+import 'package:syncdance_mobile/features/training/history/calibration_log.dart';
 import 'package:syncdance_mobile/features/training/pose/body_features.dart';
 import 'package:syncdance_mobile/features/training/pose/pose_frame.dart';
 import 'package:syncdance_mobile/features/training/presentation/dance_game_screen.dart';
@@ -49,6 +50,7 @@ class GameHarness {
 
   /// Set before mounting: the reference reads it once.
   Map<String, dynamic>? scoringProfile;
+  CalibrationLog? calibrationLog;
   late final MotionReference reference = _reference();
 
   MotionReference _reference() {
@@ -93,6 +95,7 @@ class GameHarness {
       nowMs: () => now,
       openDrill: openDrill,
       sounds: sounds,
+      calibrationLog: calibrationLog,
     ),
   );
 
@@ -194,8 +197,67 @@ class GameHarness {
   }
 }
 
+/// Framing tries kept in memory (the real log writes a file).
+class MemoryCalibrationLog extends CalibrationLog {
+  MemoryCalibrationLog([this.count = CalibrationCount.none])
+    : super(File('unused'));
+  CalibrationCount count;
+  final tries = <bool>[];
+
+  @override
+  Future<CalibrationCount> pending() async => count;
+
+  @override
+  Future<void> record({required bool calibrated}) async {
+    tries.add(calibrated);
+    count = CalibrationCount(
+      count.attempts + 1,
+      count.calibrated + (calibrated ? 1 : 0),
+    );
+  }
+
+  @override
+  Future<void> clear(CalibrationCount sent) async => count = CalibrationCount(
+    count.attempts - sent.attempts,
+    count.calibrated - sent.calibrated,
+  );
+}
+
 void main() {
   tearDown(() => GameSounds.enabled = true);
+
+  testWidgets('framing tries travel with the saved game and leave the log', (
+    tester,
+  ) async {
+    // One try given up on before this game.
+    final log = MemoryCalibrationLog(const CalibrationCount(1, 0));
+    final game = GameHarness(tester)..calibrationLog = log;
+    await game.mount();
+    await game.calibrate();
+    await game.countdown();
+    for (var position = 0; position <= 2900; position += 100) {
+      await game.playAt(position);
+    }
+    await game.complete();
+    final saved = game.store.records.values.single;
+    expect(
+      (saved.calibration!.attempts, saved.calibration!.calibrated),
+      (2, 1),
+    );
+    expect(log.tries, [true]);
+    expect(log.count.isEmpty, isTrue);
+  });
+
+  testWidgets('leaving before getting into position is a failed try', (
+    tester,
+  ) async {
+    final log = MemoryCalibrationLog();
+    final game = GameHarness(tester)..calibrationLog = log;
+    await game.mount();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    expect(log.tries, [false]);
+  });
 
   testWidgets(
     'hands-free countdown, PERFECT moves, stars and a saved game summary',

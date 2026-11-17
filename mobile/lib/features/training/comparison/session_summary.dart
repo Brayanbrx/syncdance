@@ -1,3 +1,4 @@
+import '../../routines/reference/motion_reference.dart';
 import 'follow_mode.dart';
 import 'pose_matcher.dart';
 import '../feedback/feedback_rules.dart';
@@ -27,6 +28,25 @@ class SegmentSummary {
   double get coverage => evaluatedMs / (endMs - startMs);
 }
 
+/// One instructor step of the practice (`step-summary-v1`): the same 100 ms
+/// evidence as the segments, over the step's window, and the cues shown in it.
+class StepSummary {
+  StepSummary({
+    required this.index,
+    required this.startMs,
+    required this.endMs,
+    required this.evaluatedMs,
+    required this.score,
+    Map<String, int> feedback = const {},
+  }) : feedback = Map.unmodifiable(feedback);
+  final int index, startMs, endMs, evaluatedMs;
+  final double? score;
+
+  /// Times each cue code was shown inside the step.
+  final Map<String, int> feedback;
+  double get coverage => evaluatedMs / (endMs - startMs);
+}
+
 class SessionSummary {
   SessionSummary({
     required this.durationMs,
@@ -44,8 +64,11 @@ class SessionSummary {
     this.feedbackVersion = FeedbackRules.version,
     this.followMode = FollowMode.sameSide,
     this.playbackSpeed = 1.0,
+    List<StepSummary> steps = const [],
+    this.stepsVersion,
   }) : segments = List.unmodifiable(segments),
-       feedback = List.unmodifiable(feedback);
+       feedback = List.unmodifiable(feedback),
+       steps = List.unmodifiable(steps);
   final int durationMs, evaluatedMs;
   final double? score, meanErrorDegrees;
   final double? meanPositionError, angleScore, positionScore;
@@ -60,6 +83,14 @@ class SessionSummary {
   final List<FeedbackSummary> feedback;
   final bool reachedVideoEnd;
   final List<SegmentSummary> segments;
+
+  /// Results per instructor step; empty for references without steps.
+  final List<StepSummary> steps;
+
+  /// [SessionAccumulator.stepsVersion] when steps were summarized, else null
+  /// (practices from before steps existed). Apart from [summaryVersion], which
+  /// the routine progress compares: adding steps never resets a progress.
+  final String? stepsVersion;
   double get coverage => evaluatedMs / durationMs;
 }
 
@@ -70,7 +101,8 @@ class SessionAccumulator {
     this.durationMs, {
     this.followMode = FollowMode.sameSide,
     this.playbackSpeed = 1.0,
-  }) {
+    List<RoutineStep> steps = const [],
+  }) : steps = List.unmodifiable(steps) {
     if (!SessionAccumulator.speeds.contains(playbackSpeed)) {
       throw ArgumentError.value(playbackSpeed, 'playbackSpeed');
     }
@@ -79,15 +111,20 @@ class SessionAccumulator {
     }
   }
   static const version = 'pose-summary-v1';
+  static const stepsVersion = 'step-summary-v1';
   static const binMs = 100;
   static const segmentMs = 5000;
   final int durationMs;
   final FollowMode followMode;
   final double playbackSpeed;
+
+  /// The instructor's steps of the reference, summarized one by one.
+  final List<RoutineStep> steps;
   static const speeds = [0.5, 0.75, 1.0];
   final _bins = <int, PoseMatch>{};
   final _feedbackBins = <String>{};
   final _feedback = <String, FeedbackSummary>{};
+  final _stepFeedback = <int, Map<String, int>>{};
   SessionSummary? _finished;
 
   /// Count only newly displayed persistent cues, once per code/video bin.
@@ -101,6 +138,12 @@ class SessionAccumulator {
         cue.severity < 1 ||
         !_feedbackBins.add('${videoMs ~/ binMs}:${cue.code}')) {
       return;
+    }
+    for (final step in steps) {
+      if (videoMs >= step.startMs && videoMs < step.endMs) {
+        final shown = _stepFeedback.putIfAbsent(step.index, () => {});
+        shown[cue.code] = (shown[cue.code] ?? 0) + 1;
+      }
     }
     final previous = _feedback[cue.code];
     _feedback[cue.code] = FeedbackSummary(
@@ -195,6 +238,37 @@ class SessionAccumulator {
       feedback: feedback,
       followMode: followMode,
       playbackSpeed: playbackSpeed,
+      steps: [for (final step in steps) _stepSummary(step)],
+      // Nothing to send without steps: an empty list could disagree with a
+      // server that has steps the phone could not read.
+      stepsVersion: steps.isEmpty ? null : SessionAccumulator.stepsVersion,
+    );
+  }
+
+  /// Bins overlapping the step, clipped to it: a bin across two steps splits
+  /// its time between them, so step evidence never exceeds the session's.
+  StepSummary _stepSummary(RoutineStep step) {
+    var covered = 0;
+    var score = 0.0;
+    for (var bin = step.startMs ~/ binMs; bin * binMs < step.endMs; bin++) {
+      final match = _bins[bin];
+      if (match == null) continue;
+      final start = bin * binMs;
+      final end = start + _width(bin);
+      final overlap =
+          (end < step.endMs ? end : step.endMs) -
+          (start > step.startMs ? start : step.startMs);
+      if (overlap <= 0) continue;
+      covered += overlap;
+      score += match.score * overlap;
+    }
+    return StepSummary(
+      index: step.index,
+      startMs: step.startMs,
+      endMs: step.endMs,
+      evaluatedMs: covered,
+      score: covered == 0 ? null : score / covered,
+      feedback: _stepFeedback[step.index] ?? const {},
     );
   }
 }
