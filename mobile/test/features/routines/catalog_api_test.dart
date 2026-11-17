@@ -355,6 +355,57 @@ void main() {
     );
   });
 
+  testWidgets('a slow reference download finishes; a silent one stops', (
+    tester,
+  ) async {
+    late StreamController<List<int>> body;
+    final api = CatalogApi(
+      'http://localhost:8000/api',
+      client: MockClient.streaming((request, _) async {
+        body = StreamController<List<int>>();
+        unawaited(
+          (request as http.Abortable).abortTrigger!.then((_) {
+            body.addError(http.RequestAbortedException(request.url));
+            unawaited(body.close());
+          }),
+        );
+        return http.StreamedResponse(body.stream, 200);
+      }),
+    );
+    addTearDown(api.close);
+
+    Future<Object?> fetch(List<Duration> gaps) async {
+      Object? outcome;
+      unawaited(
+        api
+            .download(account, metadata())
+            .then<void>(
+              (bytes) => outcome = bytes,
+              onError: (Object e) => outcome = e,
+            ),
+      );
+      await tester.pump();
+      for (final gap in gaps) {
+        await tester.pump(gap);
+        if (outcome != null) return outcome;
+        body.add([1]);
+      }
+      await body.close();
+      await tester.pump();
+      return outcome;
+    }
+
+    // Two and a half minutes in all, never 30 s without data.
+    expect(
+      await fetch(List.filled(6, const Duration(seconds: 25))),
+      List.filled(6, 1),
+    );
+    expect(
+      await fetch([const Duration(seconds: 5), CatalogApi.requestIdleTimeout]),
+      isA<ReferenceException>(),
+    );
+  });
+
   test('a failed TLS handshake is "no connection", so saved copies are used '
       'and pending practices wait', () async {
     // http's client only wraps socket errors; a captive portal or a phone

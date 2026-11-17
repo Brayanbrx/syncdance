@@ -163,7 +163,13 @@ class CatalogApi {
     Map<int, String> errors = const {},
   }) async {
     final abort = Completer<void>();
-    final timeout = Timer(const Duration(seconds: 30), () => abort.complete());
+    void stop() {
+      if (!abort.isCompleted) abort.complete();
+    }
+
+    // A limit on silence: a 2 MB reference on a slow network takes longer
+    // than 30 s and still arrives; a server that stops answering does not.
+    var timeout = Timer(requestIdleTimeout, stop);
     try {
       final request = http.AbortableRequest(
         body == null ? 'GET' : 'POST',
@@ -201,6 +207,8 @@ class CatalogApi {
       }
       final bytes = <int>[];
       await for (final chunk in response.stream) {
+        timeout.cancel();
+        timeout = Timer(requestIdleTimeout, stop);
         if (bytes.length + chunk.length > maxBytes) {
           throw const ReferenceException('La respuesta es demasiado grande.');
         }
@@ -663,6 +671,9 @@ class CatalogApi {
       stop();
     }
   }
+
+  /// A request or a reference download stops after this long without data.
+  static const requestIdleTimeout = Duration(seconds: 30);
 
   /// A media download stops after this long without receiving data.
   static const mediaIdleTimeout = Duration(minutes: 1);
