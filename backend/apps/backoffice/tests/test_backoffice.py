@@ -1,17 +1,39 @@
 import hashlib
+import io
+import struct
+import zipfile
+from pathlib import Path
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.backoffice.apk import manifest_attributes
 from apps.backoffice.models import AppRelease
 from apps.coaching.models import Course
 from apps.routines.models import Routine
 
 pytestmark = pytest.mark.django_db
 
-APK = b"PK\x03\x04" + b"fake android package" * 10
+# The compiled manifest of a real Flutter release build (1.0.0+1).
+MANIFEST = (Path(__file__).parent / "fixtures" / "AndroidManifest-1.0.0+1.axml").read_bytes()
+_, _, _, CODE_AT = manifest_attributes(MANIFEST)[0]["versionCode"]
+
+
+def apk_bytes(code=1, name="1.0.0", extra=b""):
+    """A real APK zip whose manifest declares `code` and `name` (5 characters)."""
+    assert len(name) == 5
+    manifest = MANIFEST[:CODE_AT] + struct.pack("<I", code) + MANIFEST[CODE_AT + 4 :]
+    manifest = manifest.replace("1.0.0".encode("utf-16-le"), name.encode("utf-16-le"))
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as apk:
+        apk.writestr("AndroidManifest.xml", manifest)
+        apk.writestr("classes.dex", b"dex\n035" + extra)
+    return buffer.getvalue()
+
+
+APK = apk_bytes()
 
 
 @pytest.fixture(autouse=True)
@@ -40,7 +62,8 @@ def client_for(user=None):
     return client
 
 
-def upload(client, code=1, name="1.0.0", publish=True, content=APK, filename="app.apk"):
+def upload(client, code=1, name="1.0.0", publish=True, content=None, filename="app.apk"):
+    content = apk_bytes(code, name) if content is None else content
     return client.post(
         "/api/panel/releases/",
         {
@@ -62,14 +85,15 @@ def test_landing_offers_the_newest_published_apk(people):
     admin = client_for(people["admin"])
     assert upload(admin, code=1, name="1.0.0").status_code == 201
     assert upload(admin, code=3, name="1.2.0", publish=False).status_code == 201
-    assert upload(admin, code=2, name="1.1.0", content=APK + b"v2").status_code == 201
+    second = apk_bytes(2, "1.1.0", extra=b"v2")
+    assert upload(admin, code=2, name="1.1.0", content=second).status_code == 201
 
     latest = anonymous.get("/api/app/latest/")
     assert latest.status_code == 200
     # 1.2.0 is not published: 1.1.0 is the newest one people can get.
     assert latest.data["version_name"] == "1.1.0"
-    assert latest.data["size_bytes"] == len(APK) + 2
-    assert latest.data["sha256"] == hashlib.sha256(APK + b"v2").hexdigest()
+    assert latest.data["size_bytes"] == len(second)
+    assert latest.data["sha256"] == hashlib.sha256(second).hexdigest()
     assert latest.data["download_url"] == "/api/app/download/"
     assert "uploaded_by" not in latest.data
 
@@ -77,7 +101,7 @@ def test_landing_offers_the_newest_published_apk(people):
     assert download.status_code == 200
     assert download["Content-Type"] == "application/vnd.android.package-archive"
     assert 'filename="SyncDance-1.1.0.apk"' in download["Content-Disposition"]
-    assert b"".join(download.streaming_content) == APK + b"v2"
+    assert b"".join(download.streaming_content) == second
     download.close()
 
 
@@ -90,6 +114,28 @@ def test_only_real_apks_are_accepted(people):
     assert wrong_name.status_code == 400
     assert upload(admin, code=1).status_code == 201
     assert upload(admin, code=1).status_code == 400  # version codes are unique
+    assert AppRelease.objects.count() == 1
+
+
+def test_the_version_is_read_from_the_apk_itself(people):
+    admin = client_for(people["admin"])
+    blank = admin.post(
+        "/api/panel/releases/",
+        {"apk": SimpleUploadedFile("app.apk", apk_bytes(7, "1.6.0"))},
+        format="multipart",
+    )
+    assert blank.status_code == 201, blank.data
+    assert (blank.data["version_code"], blank.data["version_name"]) == (7, "1.6.0")
+    typo = upload(admin, code=9, name="1.8.0", content=apk_bytes(8, "1.8.0"))
+    assert typo.status_code == 400
+    assert "código 8" in str(typo.data["version_code"])
+    renamed = upload(admin, code=8, name="2.0.0", content=apk_bytes(8, "1.8.0"))
+    assert "version_name" in renamed.data
+    no_manifest = io.BytesIO()
+    with zipfile.ZipFile(no_manifest, "w") as apk:
+        apk.writestr("classes.dex", b"dex")
+    unreadable = upload(admin, content=no_manifest.getvalue())
+    assert "apk" in unreadable.data
     assert AppRelease.objects.count() == 1
 
 

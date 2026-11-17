@@ -15,22 +15,15 @@ import { PanelService } from '../../core/panel.service';
       <div>
         <h1>App Android</h1>
         <p>
-          La landing ofrece la versión publicada con el código más alto. Genera el APK con
-          <code>flutter build apk --release</code> y súbelo aquí.
+          La landing ofrece la versión publicada con el código más alto, y la app avisa a cada
+          alumno que tiene una versión anterior. Genera el APK con
+          <code>mobile/scripts/build_release.ps1</code> y súbelo aquí: la versión y su código se
+          leen del propio APK.
         </p>
       </div>
     </div>
 
     <form class="upload" [formGroup]="form" (ngSubmit)="upload()">
-      <label>
-        Versión
-        <input formControlName="version_name" placeholder="1.0.0" />
-      </label>
-      <label>
-        Código de versión
-        <input formControlName="version_code" type="number" min="1" placeholder="1" />
-        <span class="field-hint">El número tras el «+» en pubspec.yaml.</span>
-      </label>
       <label>
         Android mínimo
         <input formControlName="min_android" />
@@ -185,8 +178,6 @@ export class ReleasesPage implements OnInit {
   readonly size = formatSize;
 
   readonly form = inject(FormBuilder).nonNullable.group({
-    version_name: ['', Validators.required],
-    version_code: [1, [Validators.required, Validators.min(1)]],
     min_android: ['7.0', Validators.required],
     notes: [''],
     is_published: [true],
@@ -200,8 +191,6 @@ export class ReleasesPage implements OnInit {
     this.panel.releases().subscribe({
       next: (page) => {
         this.releases.set(page.results);
-        const next = Math.max(0, ...page.results.map((r) => r.version_code)) + 1;
-        if (!this.form.dirty) this.form.patchValue({ version_code: next });
       },
       error: (error: unknown) => this.error.set(apiError(error, 'No se pudieron cargar.')),
     });
@@ -217,8 +206,6 @@ export class ReleasesPage implements OnInit {
     if (!file) return;
     const values = this.form.getRawValue();
     const data = new FormData();
-    data.append('version_name', values.version_name.trim());
-    data.append('version_code', String(values.version_code));
     data.append('min_android', values.min_android.trim());
     data.append('notes', values.notes.trim());
     data.append('is_published', String(values.is_published));

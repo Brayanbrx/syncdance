@@ -11,6 +11,7 @@ from rest_framework.exceptions import APIException, PermissionDenied, Validation
 
 from apps.routines.models import Routine
 
+from .apk import apk_versions
 from .models import AppRelease
 
 logger = logging.getLogger(__name__)
@@ -41,10 +42,39 @@ def _check_apk(upload):
     return digest.hexdigest()
 
 
+def _declared_versions(apk, version_code, version_name):
+    """The versions the APK itself declares; typed values must agree: a wrong
+    code would make every phone see an update forever, or never."""
+    declared = apk_versions(apk)
+    if declared is None:
+        raise ValidationError(
+            {"apk": "No se pudo leer la versión del APK. Súbelo tal como lo genera Flutter."}
+        )
+    code, name = declared
+    if version_code is not None and version_code != code:
+        raise ValidationError(
+            {"version_code": f"El APK es la versión {name} con código {code}, no {version_code}."}
+        )
+    if version_name and name and version_name != name:
+        raise ValidationError({"version_name": f"El APK es la versión {name}, no {version_name}."})
+    if AppRelease.objects.filter(version_code=code).exists():
+        message = f"Ya hay un APK con el código {code}: compila uno con un código mayor."
+        raise ValidationError({"version_code": message})
+    return code, version_name or name or str(code)
+
+
 def create_release(
-    *, actor, apk, version_name, version_code, notes="", min_android="7.0", is_published=False
+    *,
+    actor,
+    apk,
+    version_name=None,
+    version_code=None,
+    notes="",
+    min_android="7.0",
+    is_published=False,
 ):
     sha256 = _check_apk(apk)
+    version_code, version_name = _declared_versions(apk, version_code, version_name)
     release = AppRelease(
         version_name=version_name,
         version_code=version_code,

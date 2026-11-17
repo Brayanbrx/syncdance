@@ -59,6 +59,11 @@ class PanelReleaseSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = ("size_bytes", "sha256", "published_at", "uploaded_by", "created_at")
+        # Read from the APK itself when left out (apk.py); if typed, they must match.
+        extra_kwargs = {
+            "version_name": {"required": False, "allow_blank": True},
+            "version_code": {"required": False},
+        }
 
 
 class PanelReleaseUpdateSerializer(serializers.ModelSerializer):
