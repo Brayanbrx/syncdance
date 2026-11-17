@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HandshakeException;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -307,5 +308,81 @@ void main() {
       'Zeta',
       'Sin nivel',
     ]);
+  });
+
+  testWidgets('a slow media download is cut only after a minute of silence', (
+    tester,
+  ) async {
+    final body = StreamController<List<int>>();
+    final api = CatalogApi(
+      'http://localhost:8000/api',
+      client: MockClient.streaming((request, _) async {
+        // MockClient leaves aborting to the handler, like a real socket.
+        unawaited(
+          (request as http.Abortable).abortTrigger!.then((_) {
+            body.addError(http.RequestAbortedException(request.url));
+            unawaited(body.close());
+          }),
+        );
+        return http.StreamedResponse(body.stream, 200);
+      }),
+    );
+    addTearDown(api.close);
+    final cancelled = Completer<void>();
+    addTearDown(cancelled.complete);
+    final received = <int>[];
+    Object? failure;
+    api
+        .video(account, metadata(), cancelled: cancelled.future)
+        .listen(received.addAll, onError: (Object e) => failure = e);
+    // Seven minutes in all, never a minute without data.
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(seconds: 50));
+      body.add([i]);
+    }
+    await tester.pump();
+    expect(failure, isNull);
+    expect(received, [0, 1, 2, 3, 4, 5, 6, 7]);
+    await tester.pump(CatalogApi.mediaIdleTimeout);
+    await tester.pump();
+    expect(
+      failure,
+      isA<ReferenceException>().having(
+        (e) => e.message,
+        'message',
+        contains('interrumpida'),
+      ),
+    );
+  });
+
+  test('a failed TLS handshake is "no connection", so saved copies are used '
+      'and pending practices wait', () async {
+    // http's client only wraps socket errors; a captive portal or a phone
+    // with the wrong date fails the handshake instead.
+    final api = CatalogApi(
+      'https://syncdance.example/api',
+      client: MockClient(
+        (_) async =>
+            throw const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
+      ),
+    );
+    addTearDown(api.close);
+    final offline = isA<ReferenceException>().having(
+      (e) => e.message,
+      'message',
+      contains('conex'),
+    );
+    await expectLater(api.routines(account), throwsA(offline));
+    await expectLater(api.uploadSession(account, const {}), throwsA(offline));
+    await expectLater(
+      api.register('ana', 'ana@example.com', 'x', acceptTerms: true),
+      throwsA(offline),
+    );
+    final cancelled = Completer<void>();
+    addTearDown(cancelled.complete);
+    await expectLater(
+      api.video(account, metadata(), cancelled: cancelled.future).toList(),
+      throwsA(offline),
+    );
   });
 }

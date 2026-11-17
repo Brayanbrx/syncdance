@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+// The http client turns socket errors into ClientException but lets a failed
+// TLS handshake through (a captive portal, a phone with the wrong date): every
+// network call below treats both as "no connection".
+import 'dart:io' show IOException;
 
 import 'package:http/http.dart' as http;
 
@@ -204,9 +208,9 @@ class CatalogApi {
       }
       return bytes;
     } on http.ClientException {
-      throw const ReferenceException(
-        'No se pudo conectar. Comprueba la conexión y vuelve a intentar.',
-      );
+      throw const ReferenceException(_offline);
+    } on IOException {
+      throw const ReferenceException(_offline);
     } finally {
       timeout.cancel();
     }
@@ -321,9 +325,9 @@ class CatalogApi {
         fields,
       );
     } on http.ClientException {
-      throw const ReferenceException(
-        'No se pudo conectar. Comprueba la conexión y vuelve a intentar.',
-      );
+      throw const ReferenceException(_offline);
+    } on IOException {
+      throw const ReferenceException(_offline);
     } finally {
       timeout.cancel();
     }
@@ -533,9 +537,9 @@ class CatalogApi {
         ),
       };
     } on http.ClientException {
-      throw const ReferenceException(
-        'Sin conexión. Los resúmenes se enviarán más tarde.',
-      );
+      throw const ReferenceException(_offlineUpload);
+    } on IOException {
+      throw const ReferenceException(_offlineUpload);
     } finally {
       timeout.cancel();
     }
@@ -612,7 +616,15 @@ class CatalogApi {
     }
 
     unawaited(cancelled.then((_) => stop()));
-    final timeout = Timer(const Duration(minutes: 5), stop);
+    // A limit on silence, not on the whole download: a 100 MB master needs
+    // more than five minutes on a slow mobile network, and cutting it there
+    // would fail on every retry.
+    var timeout = Timer(mediaIdleTimeout, stop);
+    void stillReceiving() {
+      timeout.cancel();
+      timeout = Timer(mediaIdleTimeout, stop);
+    }
+
     try {
       final request = http.AbortableRequest(
         'GET',
@@ -632,6 +644,7 @@ class CatalogApi {
       var received = 0;
       onProgress?.call(0, total);
       await for (final chunk in response.stream) {
+        stillReceiving();
         received += chunk.length;
         if (received > limit) {
           throw ReferenceException(
@@ -642,14 +655,24 @@ class CatalogApi {
         onProgress?.call(received, total);
       }
     } on http.ClientException {
-      throw const ReferenceException(
-        'Descarga interrumpida. Vuelve a intentar con conexión.',
-      );
+      throw const ReferenceException(_interrupted);
+    } on IOException {
+      throw const ReferenceException(_interrupted);
     } finally {
       timeout.cancel();
       stop();
     }
   }
+
+  /// A media download stops after this long without receiving data.
+  static const mediaIdleTimeout = Duration(minutes: 1);
+
+  static const _offline =
+      'No se pudo conectar. Comprueba la conexión y vuelve a intentar.';
+  static const _offlineUpload =
+      'Sin conexión. Los resúmenes se enviarán más tarde.';
+  static const _interrupted =
+      'Descarga interrumpida. Vuelve a intentar con conexión.';
 
   void close() => _client.close();
 }
