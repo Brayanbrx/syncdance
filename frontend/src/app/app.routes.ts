@@ -21,6 +21,24 @@ export const routes: Routes = [
     loadComponent: () => import('./features/legal/terms.page').then((m) => m.TermsPage),
   },
   {
+    path: 'guia/alumnos',
+    title: 'Cómo empezar | SyncDance',
+    loadComponent: () =>
+      import('./features/guides/student-guide.page').then((m) => m.StudentGuidePage),
+  },
+  {
+    path: 'guia/instructores',
+    title: 'Guía para instructores | SyncDance',
+    loadComponent: () =>
+      import('./features/guides/instructor-guide.page').then((m) => m.InstructorGuidePage),
+  },
+  {
+    path: 'piloto/consentimiento',
+    title: 'Consentimiento del piloto | SyncDance',
+    loadComponent: () =>
+      import('./features/guides/pilot-consent.page').then((m) => m.PilotConsentPage),
+  },
+  {
     path: 'cuenta/recuperar',
     title: 'Recuperar contraseña | SyncDance',
     loadComponent: () =>
