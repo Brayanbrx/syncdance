@@ -410,6 +410,8 @@ void main() {
               .text,
           isEmpty,
         );
+        // Below the error, past the fold of the test's small screen.
+        await tester.ensureVisible(find.text('Continuar sin cuenta'));
         await tester.tap(find.text('Continuar sin cuenta'));
         await tester.pumpAndSettle();
         expect(find.text('Inicio de prueba'), findsOneWidget);

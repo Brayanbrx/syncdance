@@ -49,6 +49,7 @@ class MisconfiguredApp extends StatelessWidget {
     title: 'SyncDance',
     debugShowCheckedModeBanner: false,
     theme: AppTheme.light,
+    darkTheme: AppTheme.dark,
     home: Scaffold(
       body: Center(
         child: Padding(
@@ -83,6 +84,7 @@ class _SyncDanceAppState extends State<SyncDanceApp> {
       title: 'SyncDance',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
       routerConfig: _router,
     );
   }

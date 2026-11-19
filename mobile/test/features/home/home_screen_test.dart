@@ -22,6 +22,10 @@ void main() {
       ],
     );
     addTearDown(router.dispose);
+    // A tall phone, so the whole list is laid out and its order can be read.
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     final tools = tester.getTopLeft(find.text('Herramientas')).dy;
     final dance = tester.getTopLeft(find.text('Bailar')).dy;
