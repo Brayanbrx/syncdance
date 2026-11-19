@@ -57,6 +57,12 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+            // Flutter shrinks release builds with R8; these rules keep what
+            // libraries create by reflection (see proguard-rules.pro).
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
