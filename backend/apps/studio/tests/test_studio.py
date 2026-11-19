@@ -284,6 +284,108 @@ def test_deleting_a_routine_removes_its_light_video_and_poster(
 
 
 @pytest.mark.django_db
+def test_an_administrator_publishes_straight_to_the_catalog(school):
+    admin = User.objects.create_user(
+        username="jefa", email="jefa@example.com", password="x", role="ADMIN"
+    )
+    stranger = User.objects.create_user(
+        username="luis", email="luis@example.com", password="x"
+    )  # in no course
+    client = client_for(admin)
+    routine = Routine.objects.get(pk=upload(client, name="Base 1").json()["id"])
+
+    def attempt(catalog, courses=()):
+        return client.post(
+            f"/api/studio/routines/{routine.pk}/publish/",
+            {"courses": list(courses), "music_rights": "FREE", "catalog": catalog},
+            format="json",
+        )
+
+    assert attempt(True).status_code == 409  # still processing: never before the analysis
+    reference = ready_reference(routine, ["SINGLE_PERSON"] * 12 + ["NO_USABLE_POSE"] * 12)
+    assert "80 %" in attempt(True).json()["detail"]  # the same quality bar as courses
+    reference.delete()
+    ready_reference(routine, ["SINGLE_PERSON"] * 24)
+    assert seen_by(stranger) == []
+
+    response = attempt(True)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["is_published"] is True
+    assert body["visibility"] == "CATALOG"
+    assert body["catalog_review"] == "APPROVED"
+    assert body["catalog_reviewed_at"] is not None
+    assert body["courses"] == []
+    routine.refresh_from_db()
+    assert routine.catalog_reviewed_by == admin
+    assert routine.instructor == admin
+    assert seen_by(stranger) == ["Base 1"]
+    assert seen_by(school["ana"]) == ["Base 1"]
+    # Nothing to review: the panel queue stays empty.
+    assert client.get("/api/panel/proposals/").json() == []
+
+    assert "courses" in attempt(False).json()  # out of the catalog and in no course
+    assert client.post(f"/api/studio/routines/{routine.pk}/unpublish/").status_code == 200
+    assert seen_by(stranger) == []
+    assert attempt(True).json()["visibility"] == "CATALOG"
+
+
+@pytest.mark.django_db
+def test_an_administrator_takes_a_routine_out_of_the_catalog_into_a_course(school):
+    admin = User.objects.create_user(
+        username="jefa", email="jefa@example.com", password="x", role="ADMIN"
+    )
+    stranger = User.objects.create_user(username="luis", email="luis@example.com", password="x")
+    own = Course.objects.create(name="Taller", instructor=admin, join_code="JEFA2345")
+    Enrollment.objects.create(course=own, student=school["ana"])
+    client = client_for(admin)
+    routine = Routine.objects.get(pk=upload(client, name="Taller 1").json()["id"])
+    ready_reference(routine, ["SINGLE_PERSON"] * 24)
+    publish_url = f"/api/studio/routines/{routine.pk}/publish/"
+    payload = {"courses": [own.pk], "music_rights": "OWN"}
+    client.post(publish_url, {**payload, "catalog": True}, format="json")
+
+    # Without `catalog`, a republish keeps it where it is.
+    kept = client.post(publish_url, payload, format="json").json()
+    assert (kept["visibility"], kept["courses"]) == ("CATALOG", [own.pk])
+
+    response = client.post(publish_url, {**payload, "catalog": False}, format="json")
+
+    assert response.json()["visibility"] == "COURSES"
+    assert response.json()["catalog_review"] == ""
+    assert seen_by(stranger) == []
+    assert seen_by(school["ana"]) == ["Taller 1"]
+
+
+@pytest.mark.django_db
+def test_an_instructor_cannot_publish_in_the_catalog(school):
+    client = client_for(school["teacher"])
+    routine = Routine.objects.get(pk=upload(client).json()["id"])
+    ready_reference(routine, ["SINGLE_PERSON"] * 24)
+    publish_url = f"/api/studio/routines/{routine.pk}/publish/"
+
+    refused = client.post(
+        publish_url, {"courses": [], "music_rights": "OWN", "catalog": True}, format="json"
+    )
+
+    assert refused.status_code == 400
+    assert "administrador" in refused.json()["catalog"][0]
+    routine.refresh_from_db()
+    assert (routine.is_published, routine.visibility) == (False, "COURSES")
+
+    # Approved after review: `catalog: false` from an instructor changes nothing.
+    client.post(publish_url, {"courses": [school["course"].pk], "music_rights": "OWN"}, "json")
+    Routine.objects.filter(pk=routine.pk).update(visibility="CATALOG", catalog_review="APPROVED")
+    kept = client.post(
+        publish_url,
+        {"courses": [school["course"].pk], "music_rights": "OWN", "catalog": False},
+        format="json",
+    )
+    assert (kept.status_code, kept.json()["visibility"]) == (200, "CATALOG")
+
+
+@pytest.mark.django_db
 def test_the_course_list_offers_only_the_instructors_courses(school):
     courses = client_for(school["teacher"]).get("/api/studio/courses/").json()
 

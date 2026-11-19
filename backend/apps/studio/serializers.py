@@ -152,6 +152,15 @@ class PublishSerializer(serializers.Serializer):
     music_rights = serializers.ChoiceField(
         choices=Routine.MusicRights.choices, required=False, allow_blank=True
     )
+    catalog = serializers.BooleanField(
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text=(
+            "Administrators only: true puts it in the SyncDance catalog, false takes it "
+            "out; leave it out to keep it as it is."
+        ),
+    )
 
 
 class StudioCourseSerializer(serializers.ModelSerializer):

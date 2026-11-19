@@ -171,7 +171,19 @@ def update_studio_routine(*, routine, **fields) -> Routine:
 
 
 @transaction.atomic
-def publish(*, routine, user, course_ids, music_rights=None) -> Routine:
+def publish(*, routine, user, course_ids, music_rights=None, catalog=None) -> Routine:
+    """Publish in the user's courses and, for a platform administrator, in the
+    SyncDance catalog. `catalog` None leaves the catalog as it is; True or
+    False puts the routine in or takes it out (administrators only: an
+    instructor proposes it and an administrator reviews it)."""
+    if catalog and not user.manages_all_courses:
+        raise StudioError(
+            "Solo un administrador publica en el catálogo: propónla desde el estudio.",
+            field="catalog",
+        )
+    in_catalog = routine.visibility == Routine.Visibility.CATALOG
+    if catalog is None or not user.manages_all_courses:
+        catalog = in_catalog
     rights = music_rights or routine.music_rights
     if not rights:
         raise StudioError("Indica de dónde es la música antes de publicar.", field="music_rights")
@@ -190,7 +202,9 @@ def publish(*, routine, user, course_ids, music_rights=None) -> Routine:
         )
     own = Course.objects.filter(instructor=user)
     chosen = set(course_ids)
-    if not chosen:
+    if not chosen and not catalog:
+        if user.manages_all_courses:
+            raise StudioError("Elige el catálogo o al menos un curso.", field="courses")
         raise StudioError("Elige al menos un curso.", field="courses")
     if chosen - set(own.values_list("pk", flat=True)):
         raise StudioError("Solo puedes publicar en tus cursos.", field="courses")
@@ -199,14 +213,41 @@ def publish(*, routine, user, course_ids, music_rights=None) -> Routine:
         routine.music_rights = rights
         routine.rights_declared_at = timezone.now()
     routine.published_at = routine.published_at or timezone.now()
-    routine.save(update_fields=["music_rights", "rights_declared_at", "published_at"])
+    fields = ["music_rights", "rights_declared_at", "published_at"]
+    if catalog != in_catalog:
+        fields += set_in_catalog(routine, user=user, wanted=catalog)
+    routine.save(update_fields=fields)
     for course in own:
         if course.pk in chosen:
             course.published_routines.add(routine)
         else:
             course.published_routines.remove(routine)
-    logger.info("routine published", extra={"routine_id": routine.pk, "courses": sorted(chosen)})
+    logger.info(
+        "routine published",
+        extra={"routine_id": routine.pk, "courses": sorted(chosen), "catalog": catalog},
+    )
     return routine
+
+
+def set_in_catalog(routine, *, user, wanted) -> list[str]:
+    """An administrator's own decision: it counts as an approved review (it
+    also settles a proposal of theirs). Returns the changed fields."""
+    if not wanted:
+        routine.visibility = Routine.Visibility.COURSES
+        routine.catalog_review = ""
+        return ["visibility", "catalog_review"]
+    routine.visibility = Routine.Visibility.CATALOG
+    routine.catalog_review = Routine.CatalogReview.APPROVED
+    routine.catalog_reviewed_at = timezone.now()
+    routine.catalog_reviewed_by = user
+    routine.catalog_review_note = ""
+    return [
+        "visibility",
+        "catalog_review",
+        "catalog_reviewed_at",
+        "catalog_reviewed_by",
+        "catalog_review_note",
+    ]
 
 
 def choreography_is_stale(routine) -> bool:

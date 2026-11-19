@@ -8,7 +8,7 @@ administradores (`IsInstructorOrAdmin`), y cada uno ve únicamente sus rutinas.
 | --- | --- |
 | `GET/POST /api/studio/routines/` | Listar y subir (multipart, `master_video` obligatorio) |
 | `GET/PATCH/DELETE /api/studio/routines/{id}/` | Ver, editar (un video nuevo vuelve a borrador) y borrar |
-| `POST /api/studio/routines/{id}/publish/` | Publicar en sus cursos: `{"courses": [...], "music_rights": "OWN"}` |
+| `POST /api/studio/routines/{id}/publish/` | Publicar en sus cursos: `{"courses": [...], "music_rights": "OWN"}`; un administrador agrega `"catalog": true/false` |
 | `POST /api/studio/routines/{id}/unpublish/` | Volver a borrador (también sale del catálogo) |
 | `POST/DELETE /api/studio/routines/{id}/catalog/` | Proponer al catálogo SyncDance / retirar la propuesta o salir del catálogo |
 | `PUT /api/studio/routines/{id}/choreography/` | Guardar tempo y pasos: `{"bpm", "first_beat_ms", "steps": [{"name", "start_beat", "counts", "tip"}]}`; `bpm: null` los borra |
@@ -29,6 +29,13 @@ administradores (`IsInstructorOrAdmin`), y cada uno ve únicamente sus rutinas.
   de nuevo. Un video nuevo o retirarla de los cursos la saca del catálogo: para
   volver hay que revisarla otra vez. Las rutinas del catálogo que nunca pasaron
   por revisión (las de administradores) no cambian.
+- **Un administrador publica directo en el catálogo** desde el mismo estudio:
+  `"catalog": true` al publicar, sin necesidad de cursos. Pasa los mismos
+  controles (derechos, referencia lista y calidad), congela compás y pasos, y
+  queda `APPROVED` a su nombre, sin entrar en la cola de revisión.
+  `"catalog": false` la saca del catálogo (entonces necesita algún curso) y sin
+  el campo se queda como está. Un instructor que envía `"catalog": true`
+  recibe un 400; con `false` o sin el campo, su catálogo no cambia.
 - **El video se revisa al subirlo**, no minutos después en el worker:
   - formato: MP4, MOV, M4V, WEBM o MKV
   - tamaño: hasta 200 MB
@@ -42,7 +49,7 @@ administradores (`IsInstructorOrAdmin`), y cada uno ve únicamente sus rutinas.
     guardan con la fecha
   - una referencia lista del video actual
   - al menos un 80 % de muestras con una sola persona medible
-  - elegir al menos uno de sus cursos
+  - elegir al menos uno de sus cursos, o el catálogo si es administrador
 - **Informe de calidad** (`quality-report-v1`): porcentaje de muestras por
   calidad (`SINGLE_PERSON`, `NO_USABLE_POSE`, `MULTIPLE_PEOPLE`) y los tramos
   de 1 s o más sin una sola persona medible. El 80 % y el segundo son

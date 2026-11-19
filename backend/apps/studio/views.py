@@ -127,6 +127,7 @@ class StudioRoutineViewSet(
                 user=request.user,
                 course_ids=data.validated_data["courses"],
                 music_rights=data.validated_data.get("music_rights") or None,
+                catalog=data.validated_data.get("catalog"),
             )
         except StudioError as error:
             return refused(error)
