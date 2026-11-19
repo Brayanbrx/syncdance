@@ -69,10 +69,31 @@ Los textos son un borrador a revisar con asesoría legal antes del lanzamiento.
 
 ## Correo
 
-La recuperación de contraseña envía un enlace por SMTP. Variables en
-`.env.prod`: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`,
-`EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` y `DEFAULT_FROM_EMAIL`. El enlace apunta
-a `https://SYNCDANCE_DOMAIN` (o a `PUBLIC_WEB_URL`, si se define).
+La recuperación de contraseña envía un enlace desde el worker, que reintenta si
+falla la red. El enlace apunta a `https://SYNCDANCE_DOMAIN` (o a
+`PUBLIC_WEB_URL`, si se define). `MAIL_PROVIDER` en `.env.prod` elige cómo sale:
+
+- **`brevo`:** por la API de Brevo, por HTTPS, sin puerto SMTP. Variables:
+  `BREVO_API_KEY`, `MAIL_FROM` y `MAIL_FROM_NAME`. Sin la clave o sin
+  `MAIL_FROM`, el backend no arranca y lo dice en el log.
+  - En Brevo, el remitente o su dominio tiene que estar verificado (Senders &
+    IP → Domains, con los registros DNS que pide); si no, Brevo rechaza el
+    correo.
+  - Si Brevo protege la clave por IP («Authorised IPs»), agrega la IP pública
+    del servidor.
+  - Brevo rechaza el correo con 401 o 400: queda en el log de `celery` y no se
+    reintenta. Un 5xx o la red caída se reintentan solos.
+- **`smtp`:** `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`,
+  `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` y el remitente en `MAIL_FROM` o
+  `DEFAULT_FROM_EMAIL`.
+- **`console`:** no envía; el correo queda en el log del backend. Sirve mientras
+  no hay proveedor.
+
+Para probar el envío desde el servidor:
+
+```sh
+docker compose -f docker-compose.prod.yml exec backend python manage.py sendtestemail tu-correo@ejemplo.com
+```
 
 ## Copias de seguridad
 

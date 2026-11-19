@@ -2,6 +2,8 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
@@ -135,15 +137,42 @@ LEGAL_CONTROLLER = os.getenv("LEGAL_CONTROLLER", "el equipo de SyncDance")
 LEGAL_CONTACT_EMAIL = os.getenv("LEGAL_CONTACT_EMAIL", "")
 LEGAL_TERMS_VERSION = "2026-11-17"
 
-# Development prints mail in the backend log; production sends it by SMTP.
-EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+# How mail leaves. MAIL_PROVIDER chooses: "brevo" (Brevo's HTTPS API with
+# BREVO_API_KEY, common/mail.py), "smtp" (the EMAIL_* below) or "console" (the
+# backend log). Unset, DJANGO_EMAIL_BACKEND decides: the log in development,
+# SMTP in production (production.py).
+MAIL_BACKENDS = {
+    "brevo": "common.mail.BrevoEmailBackend",
+    "smtp": "django.core.mail.backends.smtp.EmailBackend",
+    "console": "django.core.mail.backends.console.EmailBackend",
+}
+MAIL_PROVIDER = os.getenv("MAIL_PROVIDER", "").strip().lower()
+if MAIL_PROVIDER and MAIL_PROVIDER not in MAIL_BACKENDS:
+    raise ImproperlyConfigured(
+        f"MAIL_PROVIDER={MAIL_PROVIDER} no existe: usa {', '.join(MAIL_BACKENDS)} o déjalo vacío."
+    )
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "").strip()
+MAIL_FROM = os.getenv("MAIL_FROM", "").strip()
+MAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "SyncDance").strip()
+if MAIL_PROVIDER == "brevo" and not (BREVO_API_KEY and MAIL_FROM):
+    raise ImproperlyConfigured(
+        "MAIL_PROVIDER=brevo necesita BREVO_API_KEY y MAIL_FROM (un remitente verificado en Brevo)."
+    )
+EMAIL_BACKEND = MAIL_BACKENDS.get(MAIL_PROVIDER) or os.getenv(
+    "DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+)
 EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
 EMAIL_TIMEOUT = 10
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "SyncDance <no-responder@localhost>")
+if MAIL_FROM:
+    # Quoted, so a name with commas or accents stays one display name.
+    _name = MAIL_FROM_NAME.replace("\\", "\\\\").replace('"', '\\"')
+    DEFAULT_FROM_EMAIL = f'"{_name}" <{MAIL_FROM}>' if _name else MAIL_FROM
+else:
+    DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "SyncDance <no-responder@localhost>")
 
 # The phone keeps only the refresh token (secure storage) to reopen offline and
 # renew later. Rotation + blacklist invalidate a refresh token once it is used.

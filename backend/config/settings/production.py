@@ -3,7 +3,7 @@ import os
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
-from .base import MIDDLEWARE, SECRET_KEY, env_list
+from .base import MAIL_BACKENDS, MAIL_PROVIDER, MIDDLEWARE, SECRET_KEY, env_list
 
 DEBUG = False
 
@@ -35,7 +35,9 @@ CSRF_COOKIE_SECURE = True
 # Django Admin forms over HTTPS: e.g. https://syncdance.example
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
-EMAIL_BACKEND = os.getenv("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_BACKEND = MAIL_BACKENDS.get(MAIL_PROVIDER) or os.getenv(
+    "DJANGO_EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+)
 PUBLIC_WEB_URL = os.getenv(
     "PUBLIC_WEB_URL", f"https://{os.getenv('SYNCDANCE_DOMAIN', 'localhost')}"
 ).rstrip("/")
