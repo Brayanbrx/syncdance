@@ -24,6 +24,7 @@ import 'camera_training_screen.dart';
 import 'game_sounds.dart';
 import 'game_widgets.dart';
 import 'move_pictogram.dart';
+import 'practice_stage.dart';
 
 enum _Phase { positioning, countdown, playing }
 
@@ -85,6 +86,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
   VideoPlayerController? _player;
   String? _error;
   _Phase _phase = _Phase.positioning;
+  PracticeView _view = PracticeStage.lastView;
   PoseMeasurements? _measurements;
   String? _poseError;
   int _countdown = 3;
@@ -421,16 +423,31 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
                     ),
                   ),
                   Expanded(
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        if (ready)
-                          AspectRatio(
-                            aspectRatio: player.value.aspectRatio,
-                            child: VideoPlayer(player),
-                          )
-                        else
-                          const CircularProgressIndicator(),
+                    child: PracticeStage(
+                      view: _view,
+                      onViewChanged: (view) => setState(() => _view = view),
+                      master: ready
+                          ? AspectRatio(
+                              aspectRatio: player.value.aspectRatio,
+                              child: VideoPlayer(player),
+                            )
+                          : const CircularProgressIndicator(),
+                      camera: CameraTrainingScreen(
+                        embedded: true,
+                        showDetails: false,
+                        capture: widget.capture,
+                        createPoseEstimator:
+                            widget.createPoseEstimator ??
+                            MlKitPoseEstimator.new,
+                        onFrameCaptured: _captured,
+                        onMeasurements: _measured,
+                        onInvalidated: _invalidated,
+                        onPoseError: (message) => setState(() {
+                          _stop();
+                          _poseError = message;
+                        }),
+                      ),
+                      overlays: [
                         if (_phase == _Phase.positioning)
                           GameBanner(
                             text: positioningGuidance(
@@ -474,23 +491,6 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
                             ),
                           ),
                       ],
-                    ),
-                  ),
-                  SizedBox(
-                    height: MediaQuery.sizeOf(context).height * 0.3,
-                    child: CameraTrainingScreen(
-                      embedded: true,
-                      showDetails: false,
-                      capture: widget.capture,
-                      createPoseEstimator:
-                          widget.createPoseEstimator ?? MlKitPoseEstimator.new,
-                      onFrameCaptured: _captured,
-                      onMeasurements: _measured,
-                      onInvalidated: _invalidated,
-                      onPoseError: (message) => setState(() {
-                        _stop();
-                        _poseError = message;
-                      }),
                     ),
                   ),
                 ],

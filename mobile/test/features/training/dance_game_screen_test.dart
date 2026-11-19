@@ -77,10 +77,13 @@ class GameHarness {
     );
   }
 
+  /// [pushed] opens the game over a home page, so it can be closed.
   Future<void> mount({
     Widget Function(DanceMove move)? openDrill,
     String instructions = '',
+    bool pushed = false,
   }) => _pump(
+    pushed: pushed,
     () => DanceGameScreen(
       instructions: instructions,
       saved: SavedReference('Guerrero II', reference),
@@ -115,7 +118,7 @@ class GameHarness {
   );
 
   /// [screen] is built once the fake camera exists.
-  Future<void> _pump(Widget Function() screen) async {
+  Future<void> _pump(Widget Function() screen, {bool pushed = false}) async {
     original = CameraPlatform.instance;
     platform = FakeCameraPlatform();
     CameraPlatform.instance = platform;
@@ -133,8 +136,26 @@ class GameHarness {
       await platform.close();
       CameraPlatform.instance = original;
     });
-    await tester.pumpWidget(MaterialApp(home: screen()));
+    if (!pushed) {
+      await tester.pumpWidget(MaterialApp(home: screen()));
+      await tester.pump();
+      return;
+    }
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => screen())),
+            child: const Text('Abrir clase'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Abrir clase'));
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
   }
 
   /// One captured camera frame and its inference result.
@@ -246,6 +267,51 @@ void main() {
     );
     expect(log.tries, [true]);
     expect(log.count.isEmpty, isTrue);
+  });
+
+  testWidgets('abandoning mid-song asks first and saves nothing', (
+    tester,
+  ) async {
+    final game = GameHarness(tester);
+    await game.mount(pushed: true);
+    await game.calibrate();
+    await game.countdown();
+    await game.playAt(500);
+    expect(game.player.value.isPlaying, isTrue);
+
+    await tester.tap(find.text('Abandonar clase'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(game.player.value.isPlaying, isFalse);
+    expect(find.text('¿Abandonar la clase?'), findsOneWidget);
+
+    // Changing one's mind resumes the song.
+    await tester.tap(find.text('Seguir bailando'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(game.player.value.isPlaying, isTrue);
+    expect(find.text('Abandonar clase'), findsOneWidget);
+
+    await tester.tap(find.text('Abandonar clase'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Abandonar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Abrir clase'), findsOneWidget);
+    expect(game.store.records, isEmpty);
+  });
+
+  testWidgets('before the song starts the class closes at once', (
+    tester,
+  ) async {
+    final game = GameHarness(tester);
+    await game.mount(pushed: true);
+    await tester.tap(find.text('Abandonar clase'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('¿Abandonar la clase?'), findsNothing);
+    expect(find.text('Abrir clase'), findsOneWidget);
   });
 
   testWidgets('leaving before getting into position is a failed try', (

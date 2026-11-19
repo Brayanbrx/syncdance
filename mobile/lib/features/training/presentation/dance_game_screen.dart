@@ -25,6 +25,7 @@ import 'game_sounds.dart';
 import 'game_widgets.dart';
 import 'move_drill_screen.dart';
 import 'move_pictogram.dart';
+import 'practice_stage.dart';
 
 enum _Phase { positioning, countdown, playing, finished }
 
@@ -92,6 +93,10 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   late final GameSounds _sounds = widget.sounds ?? GameSounds();
   String? _error;
   _Phase _phase = _Phase.positioning;
+  PracticeView _view = PracticeStage.lastView;
+
+  /// Set when the learner abandons: the screen closes without a result.
+  bool _leaving = false;
   PoseMeasurements? _measurements;
   String? _poseError;
   int _countdown = DanceGameScreen.countdownSeconds;
@@ -371,6 +376,48 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     if (mounted) unawaited(lockPortrait());
   }
 
+  /// Leaves the class at any moment. Mid-song the music pauses and it asks
+  /// first; an abandoned class is not saved to the history.
+  Future<void> _abandon() async {
+    final player = _player;
+    if (_phase == _Phase.playing) {
+      await player?.pause().catchError((Object _) {});
+      if (!mounted) return;
+      final leave = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('¿Abandonar la clase?'),
+          content: const Text(
+            'Lo que llevas bailado no se guardará en tu historial.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Seguir bailando'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Abandonar'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (leave != true) {
+        if (_phase == _Phase.playing) {
+          await player?.play().catchError((Object _) {});
+        }
+        return;
+      }
+    }
+    if (_phase == _Phase.countdown) _cancelCountdown();
+    _practice?.invalidate();
+    setState(() => _leaving = true);
+    // Wait for PopScope to publish the new pop disposition.
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) Navigator.of(context).pop();
+  }
+
   Future<void> _again() async {
     await _player?.pause();
     await _player?.seekTo(Duration.zero);
@@ -412,9 +459,11 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     final player = _player;
     final ready = player != null && player.value.isInitialized;
     return PopScope(
-      canPop: _phase != _Phase.playing,
+      canPop: _leaving || _phase != _Phase.playing,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_finish(reachedVideoEnd: false));
+        if (!didPop && !_leaving) {
+          unawaited(_finish(reachedVideoEnd: false));
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.black,
@@ -439,6 +488,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
               : Column(
                   children: [
                     _Hud(
+                      onAbandon: _leaving ? null : _abandon,
                       points: _game!.points,
                       combo: _game!.combo,
                       onToggleSound: () => setState(
@@ -458,16 +508,35 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                       ),
                     ),
                     Expanded(
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          if (ready)
-                            AspectRatio(
-                              aspectRatio: player.value.aspectRatio,
-                              child: VideoPlayer(player),
-                            )
-                          else
-                            const CircularProgressIndicator(),
+                      child: PracticeStage(
+                        view: _view,
+                        onViewChanged: (view) => setState(() => _view = view),
+                        master: ready
+                            ? AspectRatio(
+                                aspectRatio: player.value.aspectRatio,
+                                child: VideoPlayer(player),
+                              )
+                            : const CircularProgressIndicator(),
+                        camera: CameraTrainingScreen(
+                          embedded: true,
+                          showDetails: false,
+                          capture: widget.capture,
+                          createPoseEstimator:
+                              widget.createPoseEstimator ??
+                              MlKitPoseEstimator.new,
+                          onFrameCaptured: _captured,
+                          onMeasurements: _measured,
+                          onInvalidated: _invalidated,
+                          onPoseError: (message) {
+                            if (_phase == _Phase.playing) {
+                              unawaited(_finish(reachedVideoEnd: false));
+                            } else if (_phase == _Phase.countdown) {
+                              _cancelCountdown();
+                            }
+                            setState(() => _poseError = message);
+                          },
+                        ),
+                        overlays: [
                           if (_phase == _Phase.positioning)
                             SingleChildScrollView(
                               child: Column(
@@ -512,28 +581,6 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                         ],
                       ),
                     ),
-                    SizedBox(
-                      height: MediaQuery.sizeOf(context).height * 0.3,
-                      child: CameraTrainingScreen(
-                        embedded: true,
-                        showDetails: false,
-                        capture: widget.capture,
-                        createPoseEstimator:
-                            widget.createPoseEstimator ??
-                            MlKitPoseEstimator.new,
-                        onFrameCaptured: _captured,
-                        onMeasurements: _measured,
-                        onInvalidated: _invalidated,
-                        onPoseError: (message) {
-                          if (_phase == _Phase.playing) {
-                            unawaited(_finish(reachedVideoEnd: false));
-                          } else if (_phase == _Phase.countdown) {
-                            _cancelCountdown();
-                          }
-                          setState(() => _poseError = message);
-                        },
-                      ),
-                    ),
                   ],
                 ),
         ),
@@ -548,18 +595,33 @@ class _Hud extends StatelessWidget {
     required this.combo,
     required this.progress,
     required this.onToggleSound,
+    required this.onAbandon,
   });
   final int points, combo;
   final double progress;
   final VoidCallback onToggleSound;
+  final VoidCallback? onAbandon;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+    padding: const EdgeInsets.fromLTRB(8, 4, 16, 8),
     child: Column(
       children: [
         Row(
           children: [
+            TextButton.icon(
+              onPressed: onAbandon,
+              style: TextButton.styleFrom(foregroundColor: Colors.white),
+              icon: const Icon(Icons.close_rounded),
+              label: const Text('Abandonar clase'),
+            ),
+            const Spacer(),
+            SoundToggle(onPressed: onToggleSound),
+          ],
+        ),
+        Row(
+          children: [
+            const SizedBox(width: 8),
             Text(
               '$points',
               style: const TextStyle(
@@ -579,11 +641,13 @@ class _Hud extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            SoundToggle(onPressed: onToggleSound),
           ],
         ),
         const SizedBox(height: 6),
-        LinearProgressIndicator(value: progress.clamp(0, 1)),
+        Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: LinearProgressIndicator(value: progress.clamp(0, 1)),
+        ),
       ],
     ),
   );
