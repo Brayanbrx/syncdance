@@ -23,13 +23,28 @@ No crea la cuenta `admin/admin`: esa semilla solo corre con DEBUG.
 
 ```sh
 git clone https://github.com/Brayanbrx/syncdance.git && cd syncdance
-cp .env.prod.example .env.prod   # completar: dominio, secretos, correo
+cp .env.prod.example .env.prod   # completar: dominio, secretos, correo, SEED_ADMIN_*
 docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
 curl https://TU-DOMINIO/api/health/   # {"status":"ok", ..., "environment":"production"}
 ```
 
 Generar secretos: `python -c "import secrets; print(secrets.token_urlsafe(50))"`.
+
+## Semilla
+
+En cada arranque, el backend corre `python manage.py seed` después de las
+migraciones. Crea solo lo que falta y nunca deshace un cambio posterior:
+
+- **Superadministrador** de `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD`. Entra con
+  `SEED_ADMIN_USERNAME` o, si está vacío, con el correo. Se crea una vez; la
+  contraseña cambiada después desde la web se conserva. Una cuenta que ya
+  existe con ese correo y no es superadministrador no se promueve.
+- Sin `SEED_ADMIN_EMAIL` no crea ninguna cuenta. Con correo pero sin contraseña,
+  o con una contraseña débil, el backend no arranca y el log dice por qué.
+
+Para agregar pasos, ver `STEPS` en `backend/apps/backoffice/management/commands/seed.py`.
+Sin la semilla, un superusuario se crea a mano con
+`docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser`.
 
 Instalar el catálogo. Sin el último comando, la sección **Cantar** de la app
 queda vacía. Los tres crean solo lo que falta y se pueden repetir:

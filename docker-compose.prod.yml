@@ -52,9 +52,12 @@ services:
 
   backend:
     <<: *backend
-    # gunicorn is the image's CMD; migrations run first on every start.
+    # gunicorn is the image's CMD; migrations and the seed (only what is
+    # missing, e.g. the superadministrator of SEED_ADMIN_*) run first on
+    # every start.
     command: >-
       sh -c "python manage.py migrate --noinput &&
+      python manage.py seed &&
       exec gunicorn config.wsgi:application --bind 0.0.0.0:8000
       --workers $${GUNICORN_WORKERS:-3} --timeout 300 --forwarded-allow-ips '*'"
     healthcheck:

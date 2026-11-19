@@ -31,7 +31,8 @@ services:
     build: ./backend
     restart: unless-stopped
     # seed_admin: development account admin / admin, created only if missing.
-    command: sh -c "python manage.py migrate && (python manage.py seed_admin || true) && python manage.py runserver 0.0.0.0:8000"
+    # seed: the platform's seed, the same one production runs on every start.
+    command: sh -c "python manage.py migrate && (python manage.py seed_admin || true) && python manage.py seed && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./backend:/app
       - backend_media:/app/media

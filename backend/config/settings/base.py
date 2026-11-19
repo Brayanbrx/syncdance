@@ -174,6 +174,14 @@ if MAIL_FROM:
 else:
     DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "SyncDance <no-responder@localhost>")
 
+# The platform's first superadministrator, created by `manage.py seed` on the
+# first start (it logs in with SEED_ADMIN_USERNAME, or the email when empty).
+# The password is only read to create the account: changing it later in the
+# environment does nothing.
+SEED_ADMIN_EMAIL = os.getenv("SEED_ADMIN_EMAIL", "").strip()
+SEED_ADMIN_USERNAME = os.getenv("SEED_ADMIN_USERNAME", "").strip()
+SEED_ADMIN_PASSWORD = os.getenv("SEED_ADMIN_PASSWORD", "")
+
 # The phone keeps only the refresh token (secure storage) to reopen offline and
 # renew later. Rotation + blacklist invalidate a refresh token once it is used.
 SIMPLE_JWT = {
