@@ -3,7 +3,14 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed, discardPeriodicTasks, fakeAsync, tick } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 
-import { QualityReport, ReferenceStatus, StudioRoutine } from '../../core/api.models';
+import {
+  QualityReport,
+  ReferenceStatus,
+  Role,
+  StudioCourse,
+  StudioRoutine,
+} from '../../core/api.models';
+import { AuthService } from '../../core/auth/auth.service';
 import { StudioRoutinePage } from './studio-routine.page';
 
 const URL = '/api/studio/routines/7/';
@@ -109,4 +116,74 @@ describe('StudioRoutinePage while the video is processed', () => {
     http.expectNone(URL);
     discardPeriodicTasks();
   }));
+});
+
+describe('StudioRoutinePage publishing', () => {
+  function open(role: Role, courses: StudioCourse[]) {
+    TestBed.configureTestingModule({
+      imports: [StudioRoutinePage],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { paramMap: convertToParamMap({ id: '7' }) } },
+        },
+      ],
+    });
+    TestBed.inject(AuthService).me.set({
+      id: 1,
+      username: 'jefa',
+      email: 'jefa@example.com',
+      first_name: '',
+      last_name: '',
+      role,
+      is_platform_admin: role === 'ADMIN',
+    });
+    const http = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(StudioRoutinePage);
+    fixture.detectChanges();
+    http.expectOne(URL).flush(routine('READY'));
+    http.expectOne('/api/studio/courses/').flush(courses);
+    http.expectOne(`${URL}quality/`).flush(quality);
+    fixture.detectChanges();
+    return { http, fixture, page: fixture.componentInstance };
+  }
+
+  it('lets an administrator publish in the catalog without courses', () => {
+    const { http, fixture, page } = open('ADMIN', []);
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Catálogo de SyncDance');
+    expect(text).not.toContain('Todavía no tienes cursos');
+    expect(text).not.toContain('Proponer al catálogo');
+    expect(page.inCatalog()).toBeTrue();
+    expect(page.canPublish()).toBeFalse(); // the music still has to be declared
+
+    page.rights.set('FREE');
+    expect(page.canPublish()).toBeTrue();
+    page.publish();
+
+    const request = http.expectOne(`${URL}publish/`);
+    expect(request.request.body).toEqual({ courses: [], music_rights: 'FREE', catalog: true });
+    request.flush({ ...routine('READY'), is_published: true, visibility: 'CATALOG' });
+    expect(page.message()).toContain('catálogo');
+
+    page.inCatalog.set(false);
+    expect(page.canPublish()).toBeFalse(); // nowhere to publish
+  });
+
+  it('never sends the catalog for an instructor', () => {
+    const course = { id: 3, name: 'Danza', join_code: 'X', accepts_students: true, students: 1 };
+    const { http, fixture, page } = open('INSTRUCTOR', [course]);
+    expect(fixture.nativeElement.textContent).toContain('Proponer al catálogo');
+
+    page.rights.set('OWN');
+    expect(page.canPublish()).toBeFalse();
+    page.toggle(3, true);
+    page.publish();
+
+    const request = http.expectOne(`${URL}publish/`);
+    expect(request.request.body).toEqual({ courses: [3], music_rights: 'OWN' });
+  });
 });

@@ -27,6 +27,7 @@ import {
   percent,
   routineState,
 } from '../../core/api.models';
+import { AuthService } from '../../core/auth/auth.service';
 import { StudioService } from '../../core/studio.service';
 import { RoutinePreviewComponent } from '../../shared/routine-preview.component';
 
@@ -77,12 +78,16 @@ export class StudioRoutinePage implements OnInit {
     const ids = new Set(this.routine()?.courses ?? []);
     return this.courses().filter((course) => ids.has(course.id));
   });
+  /** A platform administrator publishes in the SyncDance catalog directly. */
+  readonly admin = inject(AuthService).isPlatformAdmin;
+  /** The administrator's choice: in the catalog or not. */
+  readonly inCatalog = signal(false);
   readonly canPublish = computed(
     () =>
       this.ready() &&
       this.quality()?.publishable !== false &&
       !!this.rights() &&
-      this.chosen().size > 0 &&
+      (this.chosen().size > 0 || (this.admin() && this.inCatalog())) &&
       !this.busy(),
   );
 
@@ -119,6 +124,9 @@ export class StudioRoutinePage implements OnInit {
     });
     this.rights.set(routine.music_rights);
     this.chosen.set(new Set(routine.courses));
+    // An administrator's upload is usually for the catalog: offered ticked
+    // until it is published somewhere.
+    this.inCatalog.set(routine.visibility === 'CATALOG' || !routine.is_published);
     this.showProcessing(routine);
   }
 
@@ -177,8 +185,12 @@ export class StudioRoutinePage implements OnInit {
   publish(): void {
     const rights = this.rights();
     if (!rights) return;
-    this.run('Publicada: tus alumnos ya la ven en la app.', () =>
-      this.studio.publish(this.id, [...this.chosen()], rights),
+    const catalog = this.admin() ? this.inCatalog() : undefined;
+    this.run(
+      catalog
+        ? 'Publicada en el catálogo: todos los alumnos de la app ya la ven.'
+        : 'Publicada: tus alumnos ya la ven en la app.',
+      () => this.studio.publish(this.id, [...this.chosen()], rights, catalog),
     );
   }
 

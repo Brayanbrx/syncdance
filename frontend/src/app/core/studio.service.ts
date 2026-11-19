@@ -61,10 +61,18 @@ export class StudioService {
     });
   }
 
-  publish(id: number, courses: number[], musicRights: MusicRights): Observable<StudioRoutine> {
+  /** `catalog` (administrators only) puts it in or takes it out of the
+   *  SyncDance catalog; left out, the catalog stays as it is. */
+  publish(
+    id: number,
+    courses: number[],
+    musicRights: MusicRights,
+    catalog?: boolean,
+  ): Observable<StudioRoutine> {
     return this.http.post<StudioRoutine>(`${this.base}/routines/${id}/publish/`, {
       courses,
       music_rights: musicRights,
+      ...(catalog === undefined ? {} : { catalog }),
     });
   }
 

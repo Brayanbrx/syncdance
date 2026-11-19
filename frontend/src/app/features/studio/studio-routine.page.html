@@ -166,28 +166,47 @@
   }
 
   <section class="card">
-    <h2>Publicar en tus cursos</h2>
+    <h2>{{ admin() ? 'Publicar' : 'Publicar en tus cursos' }}</h2>
     @if (r.is_published) {
       <p>
         Publicada
-        @if (publishedIn().length) {
+        @if (admin() && r.visibility === 'CATALOG') {
+          en el <strong>catálogo de SyncDance</strong>{{ publishedIn().length ? ' y en:' : '.' }}
+        } @else if (publishedIn().length) {
           en:
-          @for (course of publishedIn(); track course.id; let last = $last) {
-            <strong>{{ course.name }}</strong
-            >{{ last ? '.' : ', ' }}
-          }
         }
-        Para cambiar los cursos, marca otros y vuelve a publicar.
+        @for (course of publishedIn(); track course.id; let last = $last) {
+          <strong>{{ course.name }}</strong
+          >{{ last ? '.' : ', ' }}
+        }
+        {{
+          admin()
+            ? 'Para cambiar dónde se ve, marca otra opción y vuelve a publicar.'
+            : 'Para cambiar los cursos, marca otros y vuelve a publicar.'
+        }}
       </p>
     }
-    @if (!courses().length) {
+    @if (!courses().length && !admin()) {
       <p>
         Todavía no tienes cursos. Créalos en
         <a href="/admin/coaching/course/add/">Cursos y progreso</a> y vuelve aquí.
       </p>
     } @else {
       <fieldset>
-        <legend>Cursos</legend>
+        <legend>{{ admin() ? 'Dónde se publica' : 'Cursos' }}</legend>
+        @if (admin()) {
+          <label class="check">
+            <input
+              type="checkbox"
+              [checked]="inCatalog()"
+              (change)="inCatalog.set($any($event.target).checked)"
+            />
+            Catálogo de SyncDance
+          </label>
+          <span class="field-hint">
+            La ven todos los alumnos de la app, sin pasar por la revisión del catálogo.
+          </span>
+        }
         @for (course of courses(); track course.id) {
           <label class="check">
             <input
@@ -228,11 +247,11 @@
             [disabled]="busy()"
             (click)="unpublish()"
           >
-            Retirar de los cursos
+            {{ admin() ? 'Retirar de la app' : 'Retirar de los cursos' }}
           </button>
         }
       </div>
-      @if (r.catalog_review === 'APPROVED') {
+      @if (r.catalog_review === 'APPROVED' && !admin()) {
         <p class="field-hint">Retirarla de los cursos también la quita del catálogo.</p>
       }
       @if (!ready()) {
@@ -241,64 +260,67 @@
     }
   </section>
 
-  <section class="card">
-    <h2>Catálogo de SyncDance</h2>
-    @switch (r.catalog_review) {
-      @case ('PENDING') {
-        <p>
-          En revisión desde el {{ r.catalog_requested_at | date: 'd MMM y' }}. Un administrador la
-          revisa y el resultado aparecerá aquí.
-        </p>
-        <button
-          class="button button--quiet"
-          type="button"
-          [disabled]="busy()"
-          (click)="leaveCatalog()"
-        >
-          Retirar la propuesta
-        </button>
-      }
-      @case ('APPROVED') {
-        <p>
-          En el catálogo desde el {{ r.catalog_reviewed_at | date: 'd MMM y' }}: la ven todos los
-          alumnos de la app, con tu nombre.
-        </p>
-        <button
-          class="button button--quiet"
-          type="button"
-          [disabled]="busy()"
-          (click)="leaveCatalog()"
-        >
-          Quitar del catálogo
-        </button>
-        <span class="field-hint">Sigue publicada en tus cursos.</span>
-      }
-      @default {
-        @if (r.visibility === 'CATALOG') {
-          <p>Está en el catálogo de SyncDance.</p>
-        } @else {
-          @if (r.catalog_review === 'REJECTED') {
-            <p class="alert">No se aceptó para el catálogo: {{ r.catalog_review_note }}</p>
-          }
+  <!-- An administrator picks the catalog when publishing: nothing to propose. -->
+  @if (!admin()) {
+    <section class="card">
+      <h2>Catálogo de SyncDance</h2>
+      @switch (r.catalog_review) {
+        @case ('PENDING') {
           <p>
-            El catálogo es la colección gratuita que ven todos los alumnos de SyncDance, con tu
-            nombre. Un administrador revisa cada rutina antes de sumarla.
+            En revisión desde el {{ r.catalog_requested_at | date: 'd MMM y' }}. Un administrador la
+            revisa y el resultado aparecerá aquí.
           </p>
           <button
-            class="button"
+            class="button button--quiet"
             type="button"
-            [disabled]="!r.is_published || busy()"
-            (click)="proposeForCatalog()"
+            [disabled]="busy()"
+            (click)="leaveCatalog()"
           >
-            {{ r.catalog_review === 'REJECTED' ? 'Proponer de nuevo' : 'Proponer al catálogo' }}
+            Retirar la propuesta
           </button>
-          @if (!r.is_published) {
-            <span class="field-hint">Primero publícala en tus cursos.</span>
+        }
+        @case ('APPROVED') {
+          <p>
+            En el catálogo desde el {{ r.catalog_reviewed_at | date: 'd MMM y' }}: la ven todos los
+            alumnos de la app, con tu nombre.
+          </p>
+          <button
+            class="button button--quiet"
+            type="button"
+            [disabled]="busy()"
+            (click)="leaveCatalog()"
+          >
+            Quitar del catálogo
+          </button>
+          <span class="field-hint">Sigue publicada en tus cursos.</span>
+        }
+        @default {
+          @if (r.visibility === 'CATALOG') {
+            <p>Está en el catálogo de SyncDance.</p>
+          } @else {
+            @if (r.catalog_review === 'REJECTED') {
+              <p class="alert">No se aceptó para el catálogo: {{ r.catalog_review_note }}</p>
+            }
+            <p>
+              El catálogo es la colección gratuita que ven todos los alumnos de SyncDance, con tu
+              nombre. Un administrador revisa cada rutina antes de sumarla.
+            </p>
+            <button
+              class="button"
+              type="button"
+              [disabled]="!r.is_published || busy()"
+              (click)="proposeForCatalog()"
+            >
+              {{ r.catalog_review === 'REJECTED' ? 'Proponer de nuevo' : 'Proponer al catálogo' }}
+            </button>
+            @if (!r.is_published) {
+              <span class="field-hint">Primero publícala en tus cursos.</span>
+            }
           }
         }
       }
-    }
-  </section>
+    </section>
+  }
 
   <section class="card">
     <h2>Datos de la rutina</h2>

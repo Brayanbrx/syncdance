@@ -89,7 +89,8 @@ existentes.
   en desarrollo, la semilla `admin` / `admin`)
 - Panel de administración (superusuarios y rol Administrador): http://localhost:8085/panel
 - Estudio del instructor (subir, revisar y publicar rutinas en sus cursos, y
-  proponerlas al catálogo): http://localhost:8085/estudio
+  proponerlas al catálogo): http://localhost:8085/estudio. Un administrador usa el
+  mismo estudio para subir rutinas y publicarlas directo en el catálogo.
 - Revisión de las rutinas propuestas para el catálogo:
   http://localhost:8085/panel/revision
 - Cursos, tareas y progreso (Django Admin): http://localhost:8085/admin/

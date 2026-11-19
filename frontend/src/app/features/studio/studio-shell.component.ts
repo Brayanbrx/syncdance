@@ -19,6 +19,9 @@ import { AuthService } from '../../core/auth/auth.service';
         <a routerLink="/estudio/cursos" routerLinkActive="on">Mis cursos</a>
         <a href="/admin/coaching/course/">Administrar cursos</a>
         <a routerLink="/guia/instructores">Guía</a>
+        @if (auth.isPlatformAdmin()) {
+          <a routerLink="/panel">Panel</a>
+        }
       </nav>
       <div class="who">
         <span>{{ auth.me()?.username }}</span>

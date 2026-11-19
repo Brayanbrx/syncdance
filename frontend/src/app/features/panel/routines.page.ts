@@ -25,11 +25,12 @@ const REFERENCE: Record<ReferenceStatus, { label: string; tone: string }> = {
         <p>
           Una rutina oculta deja de aparecer en la app, en el catálogo y en los cursos; las
           prácticas guardadas se conservan. Las que proponen los instructores se aprueban en
-          <a routerLink="/panel/revision">Revisión del catálogo</a>. Videos y referencias se editan
-          en la administración avanzada.
+          <a routerLink="/panel/revision">Revisión del catálogo</a>. Las tuyas se suben, se marcan
+          con compás y pasos y se publican en el catálogo desde el
+          <a routerLink="/estudio">estudio</a>.
         </p>
       </div>
-      <a class="button button--quiet" href="/admin/routines/routine/add/">Nueva rutina</a>
+      <a class="button" routerLink="/estudio/nueva">Subir rutina al catálogo</a>
     </div>
 
     @if (error()) {
