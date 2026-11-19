@@ -12,7 +12,7 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <application
-        android:label="SyncDance"
+        android:label="${appName}"
         android:name="${applicationName}"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher">

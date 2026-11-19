@@ -34,6 +34,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appName"] = "SyncDance"
     }
 
     signingConfigs {
@@ -48,6 +49,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // A development build installs beside the published app (another
+            // id, "SyncDance Dev"), so trying a change never removes it.
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["appName"] = "SyncDance Dev"
+        }
         release {
             // Without key.properties the APK is signed with the debug key: fine
             // to try on a phone, but every computer has a different one and an
