@@ -8,6 +8,8 @@ import 'package:go_router/go_router.dart';
 import 'core/config/api_config.dart';
 import 'core/errors/error_reporter.dart';
 import 'core/network/catalog_session.dart';
+import 'core/notifications/local_notifications.dart';
+import 'core/notifications/push_messaging.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/training/history/session_sync.dart';
@@ -23,6 +25,12 @@ Future<void> main() async {
   // Outside Google Play nobody else tells us the app failed on a phone.
   if (kReleaseMode) ErrorReporter().install();
   final restored = await catalogSession.restore();
+  // Reminders and the "practices not sent" notice work without Firebase.
+  await LocalNotifications.instance.init();
+  SessionSync.onReport = (report) => unawaited(
+    LocalNotifications.instance.pendingPracticesChanged(report.pending),
+  );
+  await PushMessaging.instance.init(catalogSession);
   // Results saved offline go up on the next launch, before any practice.
   if (restored) {
     unawaited(
@@ -31,11 +39,28 @@ Future<void> main() async {
       ).then((_) {}, onError: (Object _) {}),
     );
   }
-  runApp(
-    SyncDanceApp(
-      router: createAppRouter(initialLocation: restored ? '/home' : '/login'),
-    ),
+  final router = createAppRouter(
+    initialLocation: restored ? '/home' : '/login',
   );
+  // A tapped notification opens its screen; signed out, the login stays.
+  void open(String route) {
+    if (catalogSession.account == null) return;
+    if (route == '/home') {
+      router.go(route);
+    } else {
+      unawaited(router.push(route));
+    }
+  }
+
+  LocalNotifications.instance.onOpen = open;
+  PushMessaging.instance.onOpen = open;
+  final launch =
+      LocalNotifications.instance.takeLaunchRoute() ??
+      await PushMessaging.instance.takeLaunchRoute();
+  runApp(SyncDanceApp(router: router));
+  if (launch != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => open(launch));
+  }
 }
 
 /// A release APK built without an HTTPS server: say so instead of failing

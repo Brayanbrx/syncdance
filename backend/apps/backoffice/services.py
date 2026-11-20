@@ -10,6 +10,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 
+from apps.notifications import events as notification_events
+from apps.notifications.signals import safely
 from apps.routines.models import Routine
 
 from .apk import apk_versions
@@ -89,6 +91,8 @@ def create_release(
     )
     release.apk.save(f"syncdance-{version_code}.apk", apk, save=False)
     release.save()
+    if release.is_published:
+        safely(notification_events.release_published, release)
     logger.info(
         "app release uploaded",
         extra={"release_id": release.pk, "version_code": version_code, "user_id": actor.pk},
@@ -97,11 +101,14 @@ def create_release(
 
 
 def update_release(*, release, **changes):
+    published_now = changes.get("is_published") and not release.is_published
     if "is_published" in changes and changes["is_published"] != release.is_published:
         release.published_at = timezone.now() if changes["is_published"] else None
     for field, value in changes.items():
         setattr(release, field, value)
     release.save()
+    if published_now:
+        safely(notification_events.release_published, release)
     return release
 
 
@@ -205,6 +212,8 @@ def approve_for_catalog(*, actor, routine):
         ]
     )
     logger.info("catalog proposal approved", extra={"routine_id": routine.pk, "user_id": actor.pk})
+    safely(notification_events.catalog_reviewed, routine)
+    safely(notification_events.routine_entered_catalog, routine)
     return routine
 
 
@@ -227,6 +236,7 @@ def reject_for_catalog(*, actor, routine, note):
         ]
     )
     logger.info("catalog proposal rejected", extra={"routine_id": routine.pk, "user_id": actor.pk})
+    safely(notification_events.catalog_reviewed, routine)
     return routine
 
 
@@ -243,7 +253,7 @@ def report_app_error(*, app_version, kind, message="", stack="", os_version=""):
         return
     try:
         with transaction.atomic():
-            AppErrorReport.objects.create(
+            report = AppErrorReport.objects.create(
                 fingerprint=fingerprint,
                 app_version=app_version,
                 os_version=os_version,
@@ -256,3 +266,5 @@ def report_app_error(*, app_version, kind, message="", stack="", os_version=""):
         AppErrorReport.objects.filter(fingerprint=fingerprint).update(
             count=F("count") + 1, last_seen=now
         )
+        return
+    safely(notification_events.app_error_reported, report)

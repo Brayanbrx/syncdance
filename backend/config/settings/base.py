@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.coaching",
     "apps.backoffice",
     "apps.studio",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -200,6 +201,8 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.2.0",
     "ENUM_NAME_OVERRIDES": {
         "BodySegmentEnum": "apps.training.models.SegmentScore.Segment",
+        "NotificationKindEnum": "apps.notifications.models.Notification.Kind",
+        "RoutineKindEnum": "apps.routines.models.Routine.Kind",
     },
 }
 
@@ -214,6 +217,13 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.routines.tasks.expire_stale_references",
         "schedule": timedelta(minutes=10),
         "options": {"expires": 9 * 60},
+    },
+    # Idempotent (one reminder per assignment and due date): hourly is enough
+    # and survives a stopped Beat.
+    "remind-due-assignments": {
+        "task": "apps.notifications.tasks.remind_due_assignments",
+        "schedule": timedelta(hours=1),
+        "options": {"expires": 50 * 60},
     },
 }
 # The worker logs through LOGGING below instead of replacing the root handlers.

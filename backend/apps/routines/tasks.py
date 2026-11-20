@@ -18,6 +18,8 @@ from ai_engine.pose.reference import (
     ReferenceError,
     build_reference,
 )
+from apps.notifications import events as notification_events
+from apps.notifications.signals import safely
 
 from .models import Routine, RoutineReference
 from .reference_services import expire_stale_references as _expire_stale_references
@@ -90,15 +92,20 @@ def generate_reference(self, reference_id):
         message = (
             str(exc) if isinstance(exc, ReferenceError) else "Falló el procesamiento del archivo."
         )
-        RoutineReference.objects.filter(pk=reference_id, status="PROCESSING").update(
+        failed = RoutineReference.objects.filter(pk=reference_id, status="PROCESSING").update(
             status="FAILED", processing_error=message, processing_finished_at=timezone.now()
         )
+        if failed:
+            reference.status = "FAILED"
+            reference.processing_error = message
+            safely(notification_events.reference_finished, reference)
         for name in saved:
             try:
                 reference.reference_asset.storage.delete(name)
             except Exception:
                 logger.exception("orphan reference file not removed", extra=log)
         return
+    safely(notification_events.reference_finished, reference)
     elapsed = reference.processing_finished_at - reference.processing_started_at
     logger.info(
         "reference ready",

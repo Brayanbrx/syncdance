@@ -81,3 +81,6 @@ coverage/
 SYNCDANCE_BASE.md
 
 /docs
+
+# Firebase service-account keys (push notifications)
+backend/secrets/

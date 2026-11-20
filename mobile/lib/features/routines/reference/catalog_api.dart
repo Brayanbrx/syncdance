@@ -8,6 +8,7 @@ import 'dart:io' show IOException;
 import 'package:http/http.dart' as http;
 
 import '../../coaching/course.dart';
+import '../../notifications/app_notification.dart';
 import '../../singing/reference/pitch_reference.dart';
 import 'motion_reference.dart';
 
@@ -582,6 +583,42 @@ class CatalogApi {
       body: const {},
       accept: const {204},
       errors: const {404: 'Ya no perteneces a este curso.'},
+    );
+  }
+
+  /// The newest notifications of this account and the unread count.
+  Future<NotificationInbox> notifications(Account account) async =>
+      NotificationInbox.fromJson(
+        await _json('notifications/', account: account),
+      );
+
+  /// Marks every unread notification as read.
+  Future<void> markNotificationsRead(Account account) async {
+    await _request('notifications/read/', account: account, body: const {});
+  }
+
+  /// This phone's push token for this account (after sign-in and rotations).
+  Future<void> registerPushDevice(
+    Account account, {
+    required String token,
+    required String platform,
+    String appVersion = '',
+  }) async {
+    await _request(
+      'notifications/devices/',
+      account: account,
+      body: {'token': token, 'platform': platform, 'app_version': appVersion},
+      accept: const {204},
+    );
+  }
+
+  /// Signing out: the phone stops receiving this account's messages.
+  Future<void> removePushDevice(Account account, String token) async {
+    await _request(
+      'notifications/devices/remove/',
+      account: account,
+      body: {'token': token},
+      accept: const {204},
     );
   }
 

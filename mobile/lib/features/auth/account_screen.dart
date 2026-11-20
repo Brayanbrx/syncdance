@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/web_links.dart';
 import '../../core/network/catalog_session.dart';
 import '../../core/update/app_update.dart';
+import '../notifications/practice_reminder_tile.dart';
 import '../routines/reference/catalog_api.dart';
 import '../routines/reference/motion_reference.dart';
 import 'account_data.dart';
@@ -88,6 +89,8 @@ class AccountScreen extends StatelessWidget {
                   onPressed: () => context.go('/login'),
                   child: const Text('Ingresar o crear cuenta'),
                 ),
+                const Divider(height: 32),
+                const PracticeReminderTile(),
                 ...legal,
               ]
             : [
@@ -107,6 +110,8 @@ class AccountScreen extends StatelessWidget {
                     if (context.mounted) context.go('/login');
                   },
                 ),
+                const Divider(height: 32),
+                const PracticeReminderTile(),
                 const Divider(height: 32),
                 ListTile(
                   leading: Icon(Icons.delete_forever_outlined, color: danger),

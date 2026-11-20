@@ -36,6 +36,10 @@ class SessionSync {
 
   static final _running = <String, Future<SessionSyncReport>>{};
 
+  /// Told after every run (the "practices not sent" reminder); its errors
+  /// never reach the queue.
+  static void Function(SessionSyncReport report)? onReport;
+
   /// Opens the account's store; null for guests.
   static Future<SessionSyncReport?> forSession(CatalogSession session) async {
     if (session.account == null) return null;
@@ -47,9 +51,18 @@ class SessionSync {
   Future<SessionSyncReport> run() {
     final key = store.directory.path;
     // Block body: returning the removed future would make it wait on itself.
-    return _running[key] ??= _run().whenComplete(() {
-      _running.remove(key);
-    });
+    return _running[key] ??= _run()
+        .then((report) {
+          try {
+            onReport?.call(report);
+          } catch (_) {
+            // A notification problem never fails the upload.
+          }
+          return report;
+        })
+        .whenComplete(() {
+          _running.remove(key);
+        });
   }
 
   /// Brings the account's synced practices that this phone lacks (another

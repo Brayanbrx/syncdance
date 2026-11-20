@@ -5,6 +5,7 @@ import '../../features/auth/login_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/coaching/courses_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/notifications/notifications_screen.dart';
 import '../../features/performances/performance_detail_screen.dart';
 import '../../features/performances/performances_screen.dart';
 import '../../features/performances/record_performance_screen.dart';
@@ -24,6 +25,10 @@ GoRouter createAppRouter({String initialLocation = '/login'}) => GoRouter(
       builder: (context, state) => const RegisterScreen(),
     ),
     GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+    GoRoute(
+      path: '/notifications',
+      builder: (context, state) => const NotificationsScreen(),
+    ),
     GoRoute(
       path: '/account',
       builder: (context, state) => const AccountScreen(),

@@ -16,6 +16,9 @@ class CatalogSession {
   String? _refreshToken;
   Future<Account>? _renewing;
 
+  /// Phone hooks (the push token). Their errors never block the session.
+  Future<void> Function(CatalogSession session)? onSignedIn, onSigningOut;
+
   String get _server => api.base.toString();
   String get cacheScope => '${api.base}|${account!.id}';
 
@@ -38,6 +41,8 @@ class CatalogSession {
     account = result.account;
     _refreshToken = result.refreshToken;
     await _persist();
+    final hook = onSignedIn;
+    if (hook != null) unawaited(hook(this).catchError((Object _) {}));
     return result.account;
   }
 
@@ -64,6 +69,14 @@ class CatalogSession {
   }
 
   Future<void> signOut() async {
+    final hook = onSigningOut;
+    if (account != null && hook != null) {
+      try {
+        await hook(this);
+      } catch (_) {
+        // Signing out always succeeds on the phone.
+      }
+    }
     final refresh = _refreshToken;
     account = null;
     _refreshToken = null;

@@ -5,6 +5,9 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Firebase Cloud Messaging; google-services.json must list both ids
+    // (ai.syncdance.syncdance_mobile and its .dev debug build).
+    id("com.google.gms.google-services")
 }
 
 // Release key outside git: android/key.properties (see mobile/android/README.md).
@@ -23,6 +26,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications schedules with java.time on Android 7.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -82,4 +87,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "1018857188040",
+    "project_id": "syncdance-d6457",
+    "storage_bucket": "syncdance-d6457.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1018857188040:android:44e665b5e1c04429ee93fd",
+        "android_client_info": {
+          "package_name": "ai.syncdance.syncdance_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASAB_J2bnQMzbTyd9doeyfL5j_7R6UF6Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1018857188040:android:afdfcec2bd4b2537ee93fd",
+        "android_client_info": {
+          "package_name": "ai.syncdance.syncdance_mobile.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASAB_J2bnQMzbTyd9doeyfL5j_7R6UF6Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1018857188040:android:f6ca72b17106bb60ee93fd",
+        "android_client_info": {
+          "package_name": "sync.dance"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyASAB_J2bnQMzbTyd9doeyfL5j_7R6UF6Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/brand_widgets.dart';
 import '../../core/update/update_banner.dart';
+import '../notifications/notifications_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -17,6 +18,7 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Inicio'),
         actions: [
+          const NotificationBell(),
           IconButton(
             tooltip: 'Mi cuenta',
             icon: const Icon(Icons.account_circle_outlined),

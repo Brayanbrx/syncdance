@@ -8,6 +8,8 @@ from django.utils import timezone
 
 from ai_engine.pose.reference import MAX_DURATION_SECONDS, MAX_SOURCE_BYTES
 from apps.coaching.models import Course
+from apps.notifications import events as notification_events
+from apps.notifications.signals import safely
 from apps.routines.models import Routine, RoutineReference
 from apps.routines.services import create_routine, update_routine
 
@@ -222,6 +224,8 @@ def publish(*, routine, user, course_ids, music_rights=None, catalog=None) -> Ro
             course.published_routines.add(routine)
         else:
             course.published_routines.remove(routine)
+    if catalog and not in_catalog:
+        safely(notification_events.routine_entered_catalog, routine)
     logger.info(
         "routine published",
         extra={"routine_id": routine.pk, "courses": sorted(chosen), "catalog": catalog},
