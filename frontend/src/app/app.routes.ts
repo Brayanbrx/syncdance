@@ -99,6 +99,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/studio/studio-course.page').then((m) => m.StudioCoursePage),
       },
+      // The guide inside the studio: its bar stays to go back to any tab.
+      {
+        path: 'guia',
+        title: 'Guía | Estudio SyncDance',
+        data: { embedded: true },
+        loadComponent: () =>
+          import('./features/guides/instructor-guide.page').then((m) => m.InstructorGuidePage),
+      },
       {
         path: 'rutinas/:id/pasos',
         title: 'Compás y pasos | Estudio SyncDance',

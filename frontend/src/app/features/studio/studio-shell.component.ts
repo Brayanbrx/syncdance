@@ -18,7 +18,7 @@ import { AuthService } from '../../core/auth/auth.service';
         <a routerLink="/estudio/nueva" routerLinkActive="on">Subir rutina</a>
         <a routerLink="/estudio/cursos" routerLinkActive="on">Mis cursos</a>
         <a href="/admin/coaching/course/">Administrar cursos</a>
-        <a routerLink="/guia/instructores">Guía</a>
+        <a routerLink="/estudio/guia" routerLinkActive="on">Guía</a>
         @if (auth.isPlatformAdmin()) {
           <a routerLink="/panel">Panel</a>
         }

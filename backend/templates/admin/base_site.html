@@ -1,0 +1,237 @@
+{% extends "admin/base.html" %}
+{% comment %}
+SyncDance look for the Django Admin (instructors and administrators). Same
+tokens as the web (frontend/src/styles.scss): indigo stage, orange for the
+anatomical left, sky blue for the right. Only Django's CSS variables change,
+so every admin page, inline and custom view (course progress) follows.
+{% endcomment %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:"SyncDance" }}{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  html[data-theme="light"],
+  :root {
+    --sd-stage: #1a1d45;
+    --sd-stage-deep: #11133a;
+    --sd-left: #ff8a3d;
+    --sd-right: #4cc3f1;
+
+    --primary: #2c3070;
+    --secondary: var(--sd-stage);
+    --accent: var(--sd-left);
+    --primary-fg: #ffffff;
+
+    --body-fg: #1a1d45;
+    --body-bg: #ffffff;
+    --body-quiet-color: #5d6286;
+    --body-medium-color: #464a78;
+    --body-loud-color: #11133a;
+
+    --header-color: #c9cdf2;
+    --header-branding-color: #ffffff;
+    --header-bg: var(--sd-stage);
+    --header-link-color: #ffffff;
+
+    --breadcrumbs-fg: #b8bce6;
+    --breadcrumbs-link-fg: #ffffff;
+    --breadcrumbs-bg: var(--sd-stage-deep);
+
+    --link-fg: #0b6d99;
+    --link-hover-color: #c2410c;
+    --link-selected-fg: #2c3070;
+
+    --hairline-color: #e4e8f2;
+    --border-color: #d7dcea;
+    --error-fg: #b42318;
+
+    --message-success-bg: #e3f4ea;
+    --message-warning-bg: #fff3e0;
+    --message-error-bg: #fdecea;
+
+    --darkened-bg: #f2f5fa;
+    --selected-bg: #e8f6fd;
+    --selected-row: #fff1e6;
+
+    --button-fg: #ffffff;
+    --button-bg: #464a78;
+    --button-hover-bg: #2c3070;
+    --default-button-bg: var(--sd-stage);
+    --default-button-hover-bg: #2c3070;
+    --close-button-bg: #5d6286;
+    --close-button-hover-bg: #464a78;
+    --delete-button-bg: #b42318;
+    --delete-button-hover-bg: #8f1c13;
+
+    --object-tools-fg: #ffffff;
+    --object-tools-bg: #464a78;
+    --object-tools-hover-bg: var(--sd-stage);
+
+    --font-family-primary: "Atkinson Hyperlegible", "Segoe UI", system-ui, Roboto, Arial, sans-serif;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --primary: #2c3070;
+      --secondary: var(--sd-stage-deep);
+      --primary-fg: #f2f3ff;
+      --body-fg: #e8e9f7;
+      --body-bg: #0e1030;
+      --body-quiet-color: #a9add6;
+      --body-medium-color: #c9cbe8;
+      --body-loud-color: #ffffff;
+      --header-bg: var(--sd-stage-deep);
+      --breadcrumbs-fg: #a9add6;
+      --breadcrumbs-link-fg: #e8e9f7;
+      --breadcrumbs-bg: var(--sd-stage);
+      --link-fg: var(--sd-right);
+      --link-hover-color: var(--sd-left);
+      --link-selected-fg: #7fd6f7;
+      --hairline-color: #23264f;
+      --border-color: #33376a;
+      --error-fg: #f2867a;
+      --message-success-bg: #0f3d2a;
+      --message-warning-bg: #4a2c06;
+      --message-error-bg: #4a1010;
+      --darkened-bg: #15183d;
+      --selected-bg: #1f2350;
+      --selected-row: #2e2340;
+      --button-bg: #2c3070;
+      --button-hover-bg: #3a3f9e;
+      --default-button-bg: #3a3f9e;
+      --default-button-hover-bg: #4a50b8;
+      --close-button-bg: #33376a;
+      --close-button-hover-bg: #464a78;
+      --object-tools-bg: #2c3070;
+      --object-tools-hover-bg: #3a3f9e;
+      color-scheme: dark;
+    }
+  }
+
+  html[data-theme="dark"] {
+    --primary: #2c3070;
+    --secondary: var(--sd-stage-deep);
+    --primary-fg: #f2f3ff;
+    --body-fg: #e8e9f7;
+    --body-bg: #0e1030;
+    --body-quiet-color: #a9add6;
+    --body-medium-color: #c9cbe8;
+    --body-loud-color: #ffffff;
+    --header-bg: var(--sd-stage-deep);
+    --breadcrumbs-fg: #a9add6;
+    --breadcrumbs-link-fg: #e8e9f7;
+    --breadcrumbs-bg: var(--sd-stage);
+    --link-fg: var(--sd-right);
+    --link-hover-color: var(--sd-left);
+    --link-selected-fg: #7fd6f7;
+    --hairline-color: #23264f;
+    --border-color: #33376a;
+    --error-fg: #f2867a;
+    --message-success-bg: #0f3d2a;
+    --message-warning-bg: #4a2c06;
+    --message-error-bg: #4a1010;
+    --darkened-bg: #15183d;
+    --selected-bg: #1f2350;
+    --selected-row: #2e2340;
+    --button-bg: #2c3070;
+    --button-hover-bg: #3a3f9e;
+    --default-button-bg: #3a3f9e;
+    --default-button-hover-bg: #4a50b8;
+    --close-button-bg: #33376a;
+    --close-button-hover-bg: #464a78;
+    --object-tools-bg: #2c3070;
+    --object-tools-hover-bg: #3a3f9e;
+    color-scheme: dark;
+  }
+
+  /* Same bar as the studio (frontend studio-shell): plain indigo, the
+     condensed wordmark with its second word in orange, and pill tabs. */
+  #header {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.75rem 2rem;
+    padding: 14px clamp(16px, 3vw, 40px);
+  }
+  #branding { order: 0; }
+  #sd-tabs { order: 1; }
+  #user-tools { order: 2; margin-left: auto; }
+  #site-name a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35em;
+    font-family: "Bricolage Grotesque Variable", "Bricolage Grotesque", "Arial Narrow", sans-serif;
+    font-weight: 800;
+    font-stretch: 80%;
+    letter-spacing: -0.01em;
+    color: #ffffff;
+  }
+  #site-name a:link,
+  #site-name a:visited { color: #ffffff; }
+  #site-name a span { color: var(--sd-left); }
+  #sd-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+  #sd-tabs a,
+  #sd-tabs a:link,
+  #sd-tabs a:visited {
+    padding: 7px 12px;
+    border-radius: 8px;
+    color: #dfe3fb;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-decoration: none;
+  }
+  #sd-tabs a:hover { background: rgba(255, 255, 255, 0.08); color: #ffffff; }
+  #sd-tabs a.on { background: #ffffff; color: var(--sd-stage); }
+
+  /* Login: a branded card instead of the plain grey box. */
+  .login #container {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 18px 40px rgba(17, 19, 58, 0.25);
+  }
+  .login #header { padding: 18px 24px; }
+  .login .submit-row input,
+  .login .submit-row button { border-radius: 999px; padding: 10px 28px; }
+
+  /* Softer, rounded controls like the web panel. */
+  .button, input[type="submit"], input[type="button"], .submit-row input, a.button,
+  .object-tools a, .object-tools a:link, .object-tools a:visited {
+    border-radius: 999px;
+  }
+  .module, .inline-group, fieldset.module { border-radius: 12px; overflow: hidden; }
+  input[type="text"], input[type="password"], input[type="email"], input[type="url"],
+  input[type="number"], input[type="date"], select, textarea {
+    border-radius: 8px;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--sd-right);
+    outline: 2px solid color-mix(in srgb, var(--sd-right) 45%, transparent);
+    outline-offset: 0;
+  }
+  #changelist .actions { border-radius: 10px; }
+</style>
+{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+  <a href="{% url 'admin:index' %}">{{ site_header|default:"SyncDance" }} <span>cursos</span></a>
+</div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}
+{% if user.is_active and user.is_staff %}
+{% comment %}The studio's tabs: from here an instructor goes back to any of them.{% endcomment %}
+<nav id="sd-tabs" aria-label="Estudio">
+  <a href="/estudio">Mis rutinas</a>
+  <a href="/estudio/nueva">Subir rutina</a>
+  <a href="/estudio/cursos">Mis cursos</a>
+  <a href="{% url 'admin:coaching_course_changelist' %}" class="on" aria-current="page">Administrar cursos</a>
+  <a href="/estudio/guia">Guía</a>
+  {% if user.manages_all_courses %}<a href="/panel">Panel</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

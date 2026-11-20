@@ -1,14 +1,21 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
-/** Reading column for the getting-started guides of the pilot. */
+/**
+ * Reading column for the getting-started guides of the pilot. A route with
+ * `data: { embedded: true }` (the studio's «Guía») shows it inside that
+ * shell: no wordmark and no second `<main>`, so its navigation stays.
+ */
 @Component({
   selector: 'sd-guide-frame',
-  imports: [RouterLink],
+  imports: [RouterLink, NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <main class="guide">
-      <a class="wordmark" routerLink="/">SyncDance</a>
+    <ng-template #body>
+      @if (!embedded) {
+        <a class="wordmark" routerLink="/">SyncDance</a>
+      }
       <h1>{{ heading() }}</h1>
       <ng-content />
       <nav class="more" aria-label="Guías">
@@ -16,13 +23,25 @@ import { RouterLink } from '@angular/router';
         <a routerLink="/guia/instructores">Guía para instructores</a>
         <a routerLink="/privacidad">Privacidad</a>
       </nav>
-    </main>
+    </ng-template>
+    @if (embedded) {
+      <article class="guide guide--embedded">
+        <ng-container [ngTemplateOutlet]="body" />
+      </article>
+    } @else {
+      <main class="guide">
+        <ng-container [ngTemplateOutlet]="body" />
+      </main>
+    }
   `,
   styles: `
     .guide {
       width: min(100% - 2rem, 42rem);
       margin: 8vh auto 4rem;
       line-height: 1.6;
+    }
+    .guide--embedded {
+      margin: 0 auto;
     }
     .wordmark {
       display: inline-block;
@@ -57,4 +76,5 @@ import { RouterLink } from '@angular/router';
 })
 export class GuideFrameComponent {
   readonly heading = input.required<string>();
+  readonly embedded = inject(ActivatedRoute).snapshot.data['embedded'] === true;
 }

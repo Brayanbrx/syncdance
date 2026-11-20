@@ -12,6 +12,10 @@ from apps.routines.views import RoutineViewSet
 from apps.training.views import DanceSessionViewSet
 from common.views import health_check
 
+admin.site.site_header = "SyncDance"
+admin.site.site_title = "SyncDance"
+admin.site.index_title = "Panel de administración"
+
 router = DefaultRouter()
 router.register("routines", RoutineViewSet, basename="routine")
 router.register("performances", PerformanceViewSet, basename="performance")
