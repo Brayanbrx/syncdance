@@ -3,27 +3,33 @@ import 'package:flutter/material.dart';
 import '../practice/vocal_practice.dart';
 import '../reference/pitch_reference.dart';
 
-/// A point the student sang, in guide time.
+/// A point the student sang, in melody time.
 class TrailPoint {
-  const TrailPoint(this.atMs, this.midi, this.onPitch);
+  const TrailPoint(this.atMs, this.midi, this.grade);
   final int atMs;
   final double midi;
-  final bool onPitch;
+  final NoteGrade grade;
 }
 
 /// The melody as bars that scroll toward a "now" line, with the student's
 /// pitch drawn as dots: higher on screen is a higher note.
 class PitchRoll extends CustomPainter {
   PitchRoll({
-    required this.reference,
+    required this.notes,
+    required this.range,
     required this.now,
     required this.trail,
     required this.colors,
   }) : super(repaint: now);
 
-  final PitchReference reference;
+  /// The notes on screen: the whole melody, or the phrase of this turn.
+  final List<SungNote> notes;
 
-  /// Guide time being sung (already latency-corrected).
+  /// Lowest and highest note of the whole melody, so the rows never jump
+  /// from one phrase to the next.
+  final (double, double) range;
+
+  /// Melody time being sung.
   final ValueNotifier<int> now;
   final List<TrailPoint> trail;
   final ColorScheme colors;
@@ -32,7 +38,7 @@ class PitchRoll extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final (lowest, highest) = reference.range;
+    final (lowest, highest) = range;
     final low = lowest.floorToDouble() - 2, high = highest.ceilToDouble() + 2;
     final row = size.height / (high - low);
     double y(double midi) => size.height - (midi.clamp(low, high) - low) * row;
@@ -47,7 +53,7 @@ class PitchRoll extends CustomPainter {
       canvas.drawLine(Offset(0, y(midi)), Offset(size.width, y(midi)), grid);
     }
 
-    for (final note in reference.notes) {
+    for (final note in notes) {
       if (note.endMs < start || note.startMs > now.value + futureMs) continue;
       final current = note.startMs <= now.value && now.value < note.endMs;
       final past = note.endMs <= now.value;
@@ -99,20 +105,29 @@ class PitchRoll extends CustomPainter {
       canvas.drawCircle(
         Offset(x(point.atMs), y(point.midi)),
         3.5,
-        Paint()..color = point.onPitch ? Colors.green : colors.tertiary,
+        Paint()
+          ..color = switch (point.grade) {
+            NoteGrade.inTune => Colors.green,
+            NoteGrade.close => Colors.amber.shade700,
+            NoteGrade.off => colors.tertiary,
+          },
       );
     }
   }
 
   @override
   bool shouldRepaint(covariant PitchRoll old) =>
-      old.reference != reference || old.colors != colors;
+      old.notes != notes || old.range != range || old.colors != colors;
 }
 
-/// Words for the singer: short, about one thing.
-String cueText(VocalCue? cue) => switch (cue) {
-  VocalCue.higher => 'Sube un poco',
-  VocalCue.lower => 'Baja un poco',
+/// Words for the singer: short, about one thing. A low voice is told to go
+/// up; a little or a lot.
+String cueText(VocalCue? cue, {SungNote? expected}) => switch (cue) {
+  VocalCue.higher => 'Sube',
+  VocalCue.slightlyHigher => 'Sube un poquito',
   VocalCue.onPitch => '¡Afinado!',
+  VocalCue.slightlyLower => 'Baja un poquito',
+  VocalCue.lower => 'Baja',
+  null when expected != null => 'Canta: ${solfege(expected.midi)}',
   null => 'Canta con la guía',
 };

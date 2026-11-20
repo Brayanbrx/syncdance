@@ -32,6 +32,9 @@ class VocalRecord {
     required this.coverage,
     required this.outOfTune,
     required this.reachedEnd,
+    this.mode = PracticeMode.together,
+    this.speed = 1.0,
+    this.summaryVersion = VocalSummary.version,
   });
 
   factory VocalRecord.of(
@@ -49,14 +52,20 @@ class VocalRecord {
     coverage: summary.coverage,
     outOfTune: summary.outOfTune,
     reachedEnd: summary.reachedEnd,
+    mode: summary.mode,
+    speed: summary.speed,
   );
+
+  /// Older records stay readable: v1 was always sung together at full speed.
+  static const _readable = {'vocal-summary-v1', VocalSummary.version};
 
   factory VocalRecord.fromJson(Map<String, dynamic> json) {
     int? score(Object? value) =>
         value is int && value >= 0 && value <= 100 ? value : null;
-    if (json['summary_version'] != VocalSummary.version) {
+    if (!_readable.contains(json['summary_version'])) {
       throw const FormatException('Versión de resumen desconocida.');
     }
+    final speed = json['speed'];
     return VocalRecord(
       routineId: json['routine'] as int,
       routineName: json['routine_name'] as String,
@@ -67,6 +76,9 @@ class VocalRecord {
       coverage: score(json['coverage']),
       outOfTune: json['out_of_tune'] as int,
       reachedEnd: json['reached_end'] == true,
+      mode: PracticeMode.parse(json['mode']) ?? PracticeMode.together,
+      speed: speed is num && speed > 0 && speed <= 2 ? speed.toDouble() : 1.0,
+      summaryVersion: json['summary_version'] as String,
     );
   }
 
@@ -75,9 +87,17 @@ class VocalRecord {
   final DateTime finishedAt;
   final int? overall, tuning, coverage;
   final bool reachedEnd;
+  final PracticeMode mode;
+  final double speed;
+
+  /// The rules it was scored with; a v1 score (everything within 50 cents,
+  /// and the guide heard through the speaker counted as the student) is
+  /// kept but never compared with the current ones.
+  final String summaryVersion;
+  bool get isCurrent => summaryVersion == VocalSummary.version;
 
   Map<String, dynamic> toJson() => {
-    'summary_version': VocalSummary.version,
+    'summary_version': summaryVersion,
     'routine': routineId,
     'routine_name': routineName,
     'version': version,
@@ -87,6 +107,8 @@ class VocalRecord {
     'coverage': coverage,
     'out_of_tune': outOfTune,
     'reached_end': reachedEnd,
+    'mode': mode.code,
+    'speed': speed,
   };
 }
 

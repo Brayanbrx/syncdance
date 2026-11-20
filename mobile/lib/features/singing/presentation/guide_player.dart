@@ -10,6 +10,10 @@ abstract class GuidePlayer implements Listenable {
   Future<void> play();
   Future<void> pause();
   Future<void> setVolume(double volume);
+
+  /// Slower or faster without changing the pitch.
+  Future<void> setSpeed(double speed);
+  Future<void> seekTo(int positionMs);
   int get positionMs;
   int get durationMs;
   bool get isPlaying;
@@ -19,7 +23,9 @@ abstract class GuidePlayer implements Listenable {
   Future<void> dispose();
 }
 
-/// ExoPlayer through `video_player`: it plays audio-only files too.
+/// ExoPlayer through `video_player`: it plays audio-only files too. Its speed
+/// keeps the pitch (`PlaybackParameters(speed)`), so a slower guide still
+/// sings the same notes.
 class VideoGuidePlayer extends ChangeNotifier implements GuidePlayer {
   VideoPlayerController? _controller;
 
@@ -46,6 +52,14 @@ class VideoGuidePlayer extends ChangeNotifier implements GuidePlayer {
   @override
   Future<void> setVolume(double volume) async =>
       _controller?.setVolume(volume.clamp(0.0, 1.0));
+
+  @override
+  Future<void> setSpeed(double speed) async =>
+      _controller?.setPlaybackSpeed(speed.clamp(0.25, 2.0));
+
+  @override
+  Future<void> seekTo(int positionMs) async =>
+      _controller?.seekTo(Duration(milliseconds: positionMs));
 
   @override
   int get positionMs => _value?.position.inMilliseconds ?? 0;

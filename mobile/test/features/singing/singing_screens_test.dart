@@ -9,11 +9,14 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:syncdance_mobile/core/network/catalog_session.dart';
 import 'package:syncdance_mobile/features/routines/reference/catalog_api.dart';
+import 'package:syncdance_mobile/features/singing/pitch/adapters/audio_route.dart';
 import 'package:syncdance_mobile/features/singing/pitch/pitch_source.dart';
 import 'package:syncdance_mobile/features/singing/practice/vocal_practice.dart';
+import 'package:syncdance_mobile/features/singing/practice/vocal_turns.dart';
 import 'package:syncdance_mobile/features/singing/presentation/guide_player.dart';
 import 'package:syncdance_mobile/features/singing/presentation/singing_practice_screen.dart';
 import 'package:syncdance_mobile/features/singing/presentation/singing_screen.dart';
+import 'package:syncdance_mobile/features/singing/presentation/tuner_screen.dart';
 import 'package:syncdance_mobile/features/singing/reference/pitch_reference.dart';
 import 'package:syncdance_mobile/features/singing/reference/voice_store.dart';
 
@@ -48,6 +51,8 @@ class FakePlayer extends ChangeNotifier implements GuidePlayer {
   int position = 0, duration = 0;
   bool playing = false, completed = false, disposed = false;
   double? volume;
+  double speed = 1.0;
+  final seeks = <int>[];
 
   @override
   Future<void> open(File audio) async {
@@ -56,11 +61,29 @@ class FakePlayer extends ChangeNotifier implements GuidePlayer {
   }
 
   @override
-  Future<void> play() async => playing = true;
+  Future<void> play() async {
+    playing = true;
+    notifyListeners();
+  }
+
   @override
-  Future<void> pause() async => playing = false;
+  Future<void> pause() async {
+    playing = false;
+    notifyListeners();
+  }
+
   @override
   Future<void> setVolume(double value) async => volume = value;
+  @override
+  Future<void> setSpeed(double value) async => speed = value;
+  @override
+  Future<void> seekTo(int ms) async {
+    seeks.add(ms);
+    position = ms;
+    completed = false;
+    notifyListeners();
+  }
+
   @override
   int get positionMs => position;
   @override
@@ -79,6 +102,13 @@ class FakePlayer extends ChangeNotifier implements GuidePlayer {
     position = ms;
     notifyListeners();
   }
+}
+
+class FakeRoute implements AudioRoute {
+  FakeRoute(this.output);
+  GuideOutput output;
+  @override
+  Future<GuideOutput> current() async => output;
 }
 
 /// A guide that takes its time to open, to leave the screen meanwhile.
@@ -121,6 +151,102 @@ class MemoryVoiceStore extends VoiceStore {
   }
 }
 
+/// A practice screen with fakes, driven in 32 ms steps of wall time.
+class Rig {
+  Rig(this.tester, this.routine, {GuideOutput output = GuideOutput.wired})
+    : route = FakeRoute(output);
+  final WidgetTester tester;
+  final SavedVoiceRoutine routine;
+  final FakeRoute route;
+  final store = MemoryVoiceStore();
+  final sources = <FakeSource>[];
+  final players = <FakePlayer>[];
+  var wall = 0;
+
+  FakePlayer get player => players.last;
+  PitchReference get reference => routine.reference;
+
+  Future<void> open() async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SingingPracticeScreen(
+          routine: routine,
+          store: store,
+          createSource: () {
+            final source = FakeSource();
+            sources.add(source);
+            return source;
+          },
+          createPlayer: () {
+            final player = FakePlayer();
+            players.add(player);
+            return player;
+          },
+          audioRoute: route,
+          clock: () => wall,
+        ),
+      ),
+    );
+    await tester.pump(); // the headphones check
+  }
+
+  Future<void> tap(String text) async {
+    await tester.ensureVisible(find.text(text).first);
+    await tester.pump();
+    await tester.tap(find.text(text).first);
+    await tester.pump();
+    await tester.pump();
+  }
+
+  /// What the guide sings at its position: the microphone hears it when it
+  /// leaks.
+  double? guide() => reference.noteAt(player.position)?.midi;
+
+  /// Advances up to [ms]. While the guide plays the microphone hears
+  /// [whilePlaying]; otherwise [voice] (null: silence).
+  Future<void> run(
+    int ms, {
+    double? Function()? whilePlaying,
+    double? Function(int wall)? voice,
+    bool Function()? until,
+  }) async {
+    for (var t = 0; t < ms; t += 32) {
+      wall += 32;
+      final player = players.lastOrNull;
+      final playing = player != null && !player.disposed && player.playing;
+      if (playing) {
+        final next = player.position + (32 * player.speed).round();
+        if (next >= player.duration) player.completed = true;
+        player.at(next.clamp(0, player.duration));
+      }
+      final source = sources.lastOrNull;
+      if (source != null && source.started && !source.stopped) {
+        source.controller.add(
+          PitchSample(
+            wall,
+            playing ? whilePlaying?.call() : voice?.call(wall),
+            0.9,
+          ),
+        );
+      }
+      await tester.pump(const Duration(milliseconds: 33));
+      if (until?.call() ?? false) return;
+    }
+  }
+
+  /// Releasing the microphone completes on the real event loop.
+  Future<void> settle() async {
+    for (var i = 0; i < 3; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+    }
+  }
+
+  bool shows(String text) => find.textContaining(text).evaluate().isNotEmpty;
+}
+
 http.Response reply(Object? body, [int status = 200]) => http.Response.bytes(
   body is List<int> ? body : utf8.encode(jsonEncode(body)),
   status,
@@ -134,73 +260,220 @@ void main() {
     File('guide.m4a'),
   );
 
-  testWidgets('sing along: live cue, then the summary is kept', (tester) async {
-    final source = FakeSource();
-    final player = FakePlayer();
-    final store = MemoryVoiceStore();
-    var wall = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: SingingPracticeScreen(
-          routine: routine,
-          store: store,
-          createSource: () => source,
-          createPlayer: () => player,
-          clock: () => wall,
-        ),
-      ),
-    );
+  testWidgets('with the guide: first note, echo check, cues and summary', (
+    tester,
+  ) async {
+    final rig = Rig(tester, routine);
+    await rig.open();
     expect(find.textContaining('no se graba ni se envía'), findsOneWidget);
-    await tester.tap(find.text('Bluetooth'));
-    await tester.pump();
-    await tester.tap(find.text('Empezar a cantar'));
-    await tester.pump();
-    await tester.pump();
-    expect(player.playing, isTrue);
-    expect(player.volume, 0.8);
-    expect(find.text('Canta con la guía'), findsOneWidget);
+    expect(find.text('Audífonos con cable'), findsOneWidget);
+    await rig.tap('Con la guía');
+    await rig.tap('Normal');
+    await rig.tap('Empezar a cantar');
 
-    // Sing every note a semitone low for a while: the cue says go up.
-    final reference = routine.reference;
-    for (var guide = 0; guide < reference.durationMs; guide += 32) {
-      wall = guide;
-      player.at(guide);
-      final note = reference.noteAt(guide - Headphones.bluetooth.latencyMs);
-      final low = guide < 6000;
-      source.controller.add(
-        PitchSample(
-          guide,
-          note == null ? null : note.midi - (low ? 1 : 0),
-          0.9,
-        ),
-      );
-      await tester.pump(const Duration(milliseconds: 1));
-      if (guide == 4512) expect(find.text('Sube un poco'), findsOneWidget);
-    }
-    player.completed = true;
-    player.at(reference.durationMs);
-    // Releasing the microphone completes on the real event loop.
-    for (var i = 0; i < 3; i++) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 10)),
-      );
-      await tester.pump();
-    }
+    // The first note alone, while the student keeps quiet.
+    final first = rig.reference.notes.first;
+    expect(find.text('Escucha tu primera nota'), findsOneWidget);
+    expect(rig.player.seeks, [first.startMs]);
+    expect(rig.player.playing, isTrue);
+    expect(rig.player.volume, 0.8);
+    expect(rig.player.speed, 1.0);
+    await rig.run(3000, until: () => !rig.shows('Escucha tu primera nota'));
+    expect(rig.player.seeks.last, 0); // then the whole guide, count-in first
+    expect(rig.player.volume, 0.8); // muted only to stop the first note
+
+    // Every note a semitone low for a while: the cue says go up.
+    var sawUp = false;
+    await rig.run(
+      20000,
+      whilePlaying: () {
+        final at = rig.player.position - GuideOutput.wired.latencyMs;
+        final note = rig.reference.noteAt(at);
+        if (note == null) return null;
+        return note.midi - (rig.player.position < 6000 ? 1 : 0);
+      },
+      until: () {
+        sawUp |= rig.shows('Sube');
+        return rig.player.disposed;
+      },
+    );
+    await rig.settle();
+    expect(sawUp, isTrue);
 
     expect(find.text('Terminaste'), findsOneWidget);
-    expect(source.stopped, isTrue);
-    expect(player.disposed, isTrue);
-    expect(store.records.single.routineName, 'Arpegio de Do');
-    final summary = store.records.single;
-    expect(summary.reachedEnd, isTrue);
-    expect(summary.coverage, 100);
-    expect(summary.outOfTune, greaterThan(0));
-    expect(find.textContaining('Un poco baja'), findsWidgets);
-    await tester.ensureVisible(find.text('Cantar otra vez'));
-    await tester.pump();
-    await tester.tap(find.text('Cantar otra vez'));
-    await tester.pump();
+    expect(rig.sources.single.stopped, isTrue);
+    final record = rig.store.records.single;
+    expect(record.routineName, 'Arpegio de Do');
+    expect(record.reachedEnd, isTrue);
+    expect(record.mode, PracticeMode.together);
+    expect(record.coverage, 100);
+    expect(record.outOfTune, greaterThan(0));
+    expect(find.textContaining('Baja (-100 cents): sube'), findsWidgets);
+    await rig.tap('Cantar otra vez');
     expect(find.text('Empezar a cantar'), findsOneWidget);
+  });
+
+  testWidgets('a microphone that hears the guide stops before scoring', (
+    tester,
+  ) async {
+    final rig = Rig(tester, routine);
+    await rig.open();
+    await rig.tap('Con la guía');
+    await rig.tap('Empezar a cantar');
+    // Nobody sings; the guide leaks from the headphones into the microphone.
+    await rig.run(3000, whilePlaying: rig.guide);
+    await rig.settle();
+
+    expect(find.textContaining('El micrófono oyó la guía'), findsOneWidget);
+    expect(rig.store.records, isEmpty); // no score from the guide's voice
+    expect(rig.player.disposed, isTrue);
+    expect(rig.sources.single.stopped, isTrue);
+    final modes = tester.widget<SegmentedButton<PracticeMode>>(
+      find.byType(SegmentedButton<PracticeMode>),
+    );
+    expect(modes.selected, {PracticeMode.echo});
+  });
+
+  testWidgets('without headphones, singing with the guide is not offered', (
+    tester,
+  ) async {
+    final rig = Rig(tester, routine, output: GuideOutput.speaker);
+    await rig.open();
+    expect(find.text('Parlante del teléfono'), findsOneWidget);
+    final modes = tester.widget<SegmentedButton<PracticeMode>>(
+      find.byType(SegmentedButton<PracticeMode>),
+    );
+    expect(modes.segments[1].enabled, isFalse);
+    expect(modes.selected, {PracticeMode.echo});
+  });
+
+  testWidgets('unplugging the headphones mid-song stops the practice', (
+    tester,
+  ) async {
+    final rig = Rig(tester, routine);
+    await rig.open();
+    await rig.tap('Con la guía');
+    await rig.tap('Empezar a cantar');
+    await rig.run(3000, until: () => !rig.shows('Escucha tu primera nota'));
+    rig.route.output = GuideOutput.speaker;
+    await rig.run(3000, until: () => rig.player.disposed);
+    await rig.settle();
+    expect(
+      find.textContaining('Se desconectaron los audífonos'),
+      findsOneWidget,
+    );
+    expect(find.text('Práctica interrumpida'), findsOneWidget);
+  });
+
+  testWidgets("echo: only the student's turn counts, then a note drill", (
+    tester,
+  ) async {
+    final rig = Rig(tester, routine, output: GuideOutput.speaker);
+    await rig.open();
+    await rig.tap('Normal');
+    await rig.tap('Empezar a cantar');
+    expect(find.text('Escucha…'), findsOneWidget);
+    expect(find.text('Frase 1 de 2'), findsOneWidget);
+    expect(rig.player.seeks, [0]);
+
+    // The guide comes out of the speaker into the microphone the whole time
+    // it sings. The student keeps quiet in the first turn and sings the
+    // second one right.
+    final turns = echoTurns(rig.reference);
+    var pauses = 0, turnStart = 0;
+    var wasPlaying = true, sawSilence = false, sawGood = false;
+    double? student(int wall) {
+      if (pauses < 2) return null;
+      final timeline =
+          turns[1].startMs -
+          turnLeadInMs(rig.reference) +
+          (wall - turnStart) -
+          SingingPracticeScreen.micLatencyMs;
+      return rig.reference.noteAt(timeline)?.midi;
+    }
+
+    await rig.run(
+      40000,
+      whilePlaying: rig.guide,
+      voice: student,
+      until: () {
+        final playing = !rig.player.disposed && rig.player.playing;
+        if (wasPlaying && !playing) {
+          pauses++;
+          turnStart = rig.wall;
+        }
+        wasPlaying = playing;
+        sawSilence |= rig.shows('No se oyó tu voz');
+        sawGood |= rig.shows('¡Muy bien, todas afinadas!');
+        return rig.player.disposed;
+      },
+    );
+    await rig.settle();
+    expect(rig.player.seeks, [0, turns[1].listenFromMs]);
+    expect(sawSilence, isTrue);
+    expect(sawGood, isTrue);
+
+    expect(find.text('Terminaste'), findsOneWidget);
+    final record = rig.store.records.single;
+    expect(record.mode, PracticeMode.echo);
+    expect(record.tuning, 100);
+    int length(List<int> indices) =>
+        indices.fold(0, (sum, i) => sum + rig.reference.notes[i].durationMs);
+    final sung = length(turns[1].indices);
+    expect(
+      record.coverage,
+      (100 * sung / (sung + length(turns[0].indices))).round(),
+    );
+    expect(find.textContaining('No se oyó tu voz en 4 notas'), findsOneWidget);
+
+    // Practice the first note alone: three times, held, out of the history.
+    await rig.tap('Practicar Do');
+    expect(find.text('Intento 1 de 3'), findsOneWidget);
+    await rig.run(
+      30000,
+      whilePlaying: rig.guide,
+      voice: (_) => 60.0,
+      until: () => rig.players.length == 2 && rig.player.disposed,
+    );
+    await rig.settle();
+    expect(
+      find.textContaining('Afinada en todos los intentos'),
+      findsOneWidget,
+    );
+    expect(find.text('Intento 3'), findsOneWidget);
+    expect(rig.store.records.length, 1);
+    await rig.tap('Volver al resumen');
+    expect(find.text('Terminaste'), findsOneWidget);
+  });
+
+  testWidgets('the tuner names the nearest note and lets the mic go', (
+    tester,
+  ) async {
+    final source = FakeSource();
+    await tester.pumpWidget(
+      MaterialApp(home: TunerScreen(createSource: () => source)),
+    );
+    await tester.tap(find.text('Empezar a escuchar'));
+    await tester.pump();
+    await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      source.controller.add(PitchSample(i * 32, 64.2, 0.9));
+    }
+    await tester.pump();
+    expect(find.text('Mi'), findsOneWidget);
+    expect(find.text('E4'), findsOneWidget);
+    for (var i = 0; i < 25; i++) {
+      source.controller.add(PitchSample(200 + i * 32, null, 0));
+    }
+    await tester.pump();
+    expect(find.text('Canta una nota…'), findsOneWidget);
+    await tester.tap(find.text('Detener'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
+    expect(source.stopped, isTrue);
+    expect(find.text('Empezar a escuchar'), findsOneWidget);
   });
 
   testWidgets('without the microphone it explains how to allow it', (
@@ -214,6 +487,7 @@ void main() {
           routine: routine,
           createSource: () => source,
           createPlayer: () => player,
+          audioRoute: FakeRoute(GuideOutput.unknown),
         ),
       ),
     );
@@ -237,6 +511,7 @@ void main() {
           routine: routine,
           createSource: () => source,
           createPlayer: () => player,
+          audioRoute: FakeRoute(GuideOutput.unknown),
         ),
       ),
     );
@@ -271,6 +546,7 @@ void main() {
           routine: routine,
           createSource: () => source,
           createPlayer: () => player,
+          audioRoute: FakeRoute(GuideOutput.unknown),
         ),
       ),
     );
@@ -308,6 +584,7 @@ void main() {
           routine: routine,
           createSource: () => source,
           createPlayer: () => player,
+          audioRoute: FakeRoute(GuideOutput.unknown),
         ),
       ),
     );
@@ -358,6 +635,40 @@ void main() {
     );
     addTearDown(api.close);
     final store = MemoryVoiceStore();
+    // Newest first. The best mark compares like with like: the newest was
+    // repeated after the guide at 0,75×, so only those count; a v1 score
+    // (older rules) and one sung with the guide do not.
+    VocalRecord record(int overall, PracticeMode mode, double speed) =>
+        VocalRecord(
+          routineId: 41,
+          routineName: 'Arpegio de Do',
+          version: 3,
+          finishedAt: DateTime.utc(2026, 11, 20),
+          overall: overall,
+          tuning: overall,
+          coverage: 100,
+          outOfTune: 0,
+          reachedEnd: true,
+          mode: mode,
+          speed: speed,
+        );
+    store.records.addAll([
+      record(60, PracticeMode.echo, 0.75),
+      record(90, PracticeMode.together, 1.0),
+      record(70, PracticeMode.echo, 0.75),
+      VocalRecord(
+        routineId: 41,
+        routineName: 'Arpegio de Do',
+        version: 3,
+        finishedAt: DateTime.utc(2026, 11, 17),
+        overall: 100,
+        tuning: 100,
+        coverage: 100,
+        outOfTune: 0,
+        reachedEnd: true,
+        summaryVersion: 'vocal-summary-v1',
+      ),
+    ]);
     final opened = <String>[];
     await tester.pumpWidget(
       MaterialApp(
@@ -378,7 +689,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Arpegio de Do'), findsOneWidget);
     expect(find.text('Paso básico'), findsNothing);
-    expect(find.text('Usa audífonos'), findsOneWidget);
+    expect(find.text('70 %'), findsOneWidget);
+    expect(find.text('Escucha y repite'), findsOneWidget);
+    expect(find.text('Afinador'), findsOneWidget);
 
     await tester.runAsync(() async {
       await tester.tap(find.byTooltip('Cantar «Arpegio de Do»'));
@@ -463,7 +776,7 @@ void main() {
       expect(find.textContaining('Descargando la guía'), findsOneWidget);
 
       await tester.fling(
-        find.text('Usa audífonos'),
+        find.text('Escucha y repite'),
         const Offset(0, 300),
         1000,
       );
@@ -601,6 +914,59 @@ void main() {
       expect((await store.history()).length, VoiceStore.maxHistory - 1);
       await file.writeAsString('not json');
       expect(await store.history(), isEmpty);
+    });
+
+    test('older records stay readable but are not a mark to beat', () async {
+      final store = VoiceStore(root, 'server|1');
+      await Directory(store.directory.path).create(recursive: true);
+      final file = File('${store.directory.path}/history.json');
+      await file.writeAsString(
+        jsonEncode([
+          {
+            'summary_version': 'vocal-summary-v1',
+            'routine': 41,
+            'routine_name': 'Arpegio',
+            'version': 3,
+            'finished_at': '2026-11-17T00:00:00.000Z',
+            'overall': 100,
+            'tuning': 100,
+            'coverage': 100,
+            'out_of_tune': 0,
+            'reached_end': true,
+          },
+        ]),
+      );
+      final summary = VocalSummary(
+        notes: const [],
+        tuning: 80,
+        coverage: 90,
+        overall: 72,
+        reachedEnd: true,
+        latencyMs: 80,
+        mode: PracticeMode.echo,
+        speed: 0.75,
+      );
+      await store.addRecord(
+        VocalRecord.of(
+          'Arpegio',
+          fixtureReference(),
+          summary,
+          DateTime.utc(2026, 11, 20),
+        ),
+      );
+      final history = await store.history();
+      expect(history.length, 2);
+      expect(
+        (history[0].isCurrent, history[0].mode, history[0].speed),
+        (true, PracticeMode.echo, 0.75),
+      );
+      // Rewritten with the new one, the old record keeps its own rules.
+      expect(
+        (history[1].isCurrent, history[1].mode, history[1].speed),
+        (false, PracticeMode.together, 1.0),
+      );
+      final raw = jsonDecode(await file.readAsString()) as List;
+      expect((raw[1] as Map)['summary_version'], 'vocal-summary-v1');
     });
   });
 }

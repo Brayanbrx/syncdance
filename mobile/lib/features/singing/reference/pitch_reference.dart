@@ -128,6 +128,12 @@ class PitchReference {
 
   /// The note that should sound at [ms]; null in a rest.
   SungNote? noteAt(int ms) {
+    final index = noteIndexAt(ms);
+    return index == null ? null : notes[index];
+  }
+
+  /// Position in [notes] of the note that should sound at [ms].
+  int? noteIndexAt(int ms) {
     var low = 0, high = notes.length - 1;
     while (low <= high) {
       final middle = (low + high) >> 1;
@@ -137,10 +143,16 @@ class PitchReference {
       } else if (ms >= note.endMs) {
         low = middle + 1;
       } else {
-        return note;
+        return middle;
       }
     }
     return null;
+  }
+
+  /// Milliseconds of one beat, when the routine has a tempo.
+  double? get beatMs {
+    final grid = metadata.beatGrid;
+    return grid == null ? null : 60000 / grid.bpm;
   }
 
   /// Lowest and highest note, for drawing.

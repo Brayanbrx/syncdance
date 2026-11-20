@@ -6,8 +6,10 @@ import '../../../core/network/catalog_session.dart';
 import '../../routines/reference/catalog_api.dart';
 import '../../routines/reference/master_video_cache.dart' show downloadProgress;
 import '../../routines/reference/motion_reference.dart' show ReferenceException;
+import '../practice/vocal_practice.dart' show PracticeMode;
 import '../reference/voice_store.dart';
 import 'singing_practice_screen.dart';
+import 'tuner_screen.dart';
 
 /// "Cantar": the singing exercises and the instructor's songs.
 /// Online it lists the catalog; offline, what is saved on this phone, so a
@@ -17,6 +19,7 @@ class SingingScreen extends StatefulWidget {
     this.session,
     this.store,
     this.openPractice,
+    this.openTuner,
     this.startRoutineId,
     super.key,
   });
@@ -27,6 +30,9 @@ class SingingScreen extends StatefulWidget {
   /// Defaults to [SingingPracticeScreen]; injectable for tests.
   final Widget Function(SavedVoiceRoutine routine, VoiceStore store)?
   openPractice;
+
+  /// Defaults to [TunerScreen]; injectable for tests.
+  final Widget Function()? openTuner;
 
   /// Opened from a course task: sing this routine as soon as it is listed.
   final int? startRoutineId;
@@ -92,9 +98,16 @@ class _SingingScreenState extends State<SingingScreen> {
     if (store == null) return;
     final saved = await store.readAll();
     final best = <int, int>{};
+    final basis = <int, (PracticeMode, double)>{};
+    // Newest first: the way the last practice was sung sets what to compare
+    // with. Repeating after the guide slowly is not singing with it at full
+    // speed, as with the dance follow modes and speeds.
     for (final record in await store.history()) {
       final overall = record.overall;
-      if (overall == null) continue;
+      // A score from older rules is not a mark to beat.
+      if (overall == null || !record.isCurrent) continue;
+      final kind = (record.mode, record.speed);
+      if ((basis[record.routineId] ??= kind) != kind) continue;
       if (overall > (best[record.routineId] ?? -1)) {
         best[record.routineId] = overall;
       }
@@ -285,11 +298,29 @@ class _SingingScreenState extends State<SingingScreen> {
             Card(
               color: theme.colorScheme.secondaryContainer,
               child: const ListTile(
-                leading: Icon(Icons.headphones),
-                title: Text('Usa audífonos'),
+                leading: Icon(Icons.hearing),
+                title: Text('Escucha y repite'),
                 subtitle: Text(
-                  'Así el micrófono solo oye tu voz. Canta con la guía y mira '
-                  'si tu nota está arriba o abajo de la melodía.',
+                  'La guía canta una frase y luego la cantas tú: funciona sin '
+                  'audífonos. Para cantar al mismo tiempo que la guía, '
+                  'conecta audífonos.',
+                ),
+              ),
+            ),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.tune),
+                title: const Text('Afinador'),
+                subtitle: const Text(
+                  'Calienta sosteniendo una nota y comprueba que el micrófono '
+                  'te oye.',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        widget.openTuner?.call() ?? const TunerScreen(),
+                  ),
                 ),
               ),
             ),
