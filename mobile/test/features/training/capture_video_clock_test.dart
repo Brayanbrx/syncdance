@@ -9,10 +9,40 @@ void main() {
       clock.report(videoMs: 1000, nowMs: 0, playing: true);
       clock.capture(timestampMs: 800, nowMs: 20);
       clock.report(videoMs: 1100, nowMs: 100, playing: true);
-      expect(clock.resolve(timestampMs: 800, nowMs: 180), 1000);
+      // The video ran 20 ms since its last report when the frame was taken.
+      expect(clock.resolve(timestampMs: 800, nowMs: 180), 1020);
       expect(clock.resolve(timestampMs: 800, nowMs: 180), isNull);
     },
   );
+  test('between reports the position runs at the playback speed', () {
+    final clock = CaptureVideoClock();
+    clock.report(videoMs: 1000, nowMs: 0, playing: true, speed: 0.5);
+    clock.capture(timestampMs: 1, nowMs: 80);
+    expect(clock.resolve(timestampMs: 1, nowMs: 120), 1040);
+    // A repeated report of the same position does not restart the count.
+    clock.report(videoMs: 1000, nowMs: 90, playing: true, speed: 0.5);
+    clock.capture(timestampMs: 2, nowMs: 100);
+    expect(clock.resolve(timestampMs: 2, nowMs: 120), 1050);
+  });
+  test('at the end, frames already taken still resolve; new ones do not', () {
+    final clock = CaptureVideoClock();
+    clock.report(videoMs: 2900, nowMs: 0, playing: true);
+    clock.capture(timestampMs: 1, nowMs: 50);
+    clock.end(nowMs: 100);
+    clock.capture(timestampMs: 2, nowMs: 120); // after the end: not bound
+    expect(clock.resolve(timestampMs: 1, nowMs: 400), 2950);
+    expect(clock.resolve(timestampMs: 2, nowMs: 400), isNull);
+    // Too late, or dropped by a pause or seek, as during the song.
+    clock.report(videoMs: 2900, nowMs: 0, playing: true);
+    clock.capture(timestampMs: 3, nowMs: 50);
+    clock.end(nowMs: 100);
+    expect(clock.resolve(timestampMs: 3, nowMs: 700), isNull);
+    clock.report(videoMs: 2900, nowMs: 0, playing: true);
+    clock.capture(timestampMs: 4, nowMs: 50);
+    clock.end(nowMs: 100);
+    clock.invalidate();
+    expect(clock.resolve(timestampMs: 4, nowMs: 200), isNull);
+  });
   test('pause, explicit seek and discontinuity discard in-flight results', () {
     for (final reset in <void Function(CaptureVideoClock)>[
       (c) => c.report(videoMs: 1000, nowMs: 30, playing: false),
@@ -51,6 +81,6 @@ void main() {
       clock.capture(timestampMs: t, nowMs: t);
     }
     expect(clock.resolve(timestampMs: 0, nowMs: 70), isNull);
-    expect(clock.resolve(timestampMs: 64, nowMs: 70), 100);
+    expect(clock.resolve(timestampMs: 64, nowMs: 70), 164);
   });
 }

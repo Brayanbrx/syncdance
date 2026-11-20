@@ -97,8 +97,13 @@ class _LiveComparisonPanelState extends State<LiveComparisonPanel> {
     }
   }
 
-  void _videoChanged() =>
-      _practice.videoChanged(running: _running, positionMs: _position);
+  double get _speed => widget.player.value.playbackSpeed;
+
+  void _videoChanged() => _practice.videoChanged(
+    running: _running,
+    positionMs: _position,
+    speed: _speed,
+  );
 
   void _captured(CameraFrame frame) => _practice.frameCaptured(
     generation: frame.generation,
@@ -106,6 +111,7 @@ class _LiveComparisonPanelState extends State<LiveComparisonPanel> {
     timestampMs: frame.timestampMs,
     running: _running,
     positionMs: _position,
+    speed: _speed,
   );
 
   void _measured(PoseFrame pose, PoseMeasurements measurements) =>

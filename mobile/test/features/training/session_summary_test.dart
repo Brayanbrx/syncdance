@@ -44,7 +44,7 @@ void main() {
       expect(result.meanPositionError, 0.4);
       expect(result.angleScore, 60);
       expect(result.positionScore, 60);
-      expect(result.scoringVersion, 'pose-window-v1');
+      expect(result.scoringVersion, 'pose-window-v2');
       expect(result.summaryVersion, 'pose-summary-v1');
     },
   );

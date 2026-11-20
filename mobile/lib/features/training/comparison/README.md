@@ -67,12 +67,19 @@ persistente registrado en el resumen, reinicio de práctica y uso tras dispose).
 - `CaptureVideoClock` registra la posición del video al recibir cada imagen,
   antes de enviar la inferencia. Después resuelve por `PoseFrame.timestampMs`;
   el tiempo de llegada de la inferencia no reemplaza el tiempo de captura.
-- La posición es la última notificada por el reproductor, sin extrapolación.
-  Si no cambia en más de 250 ms se rechaza. Una inferencia de más de 500 ms
+- La posición es la última notificada por el reproductor más el tiempo
+  transcurrido desde ese aviso, a la velocidad de reproducción
+  (`pose-window-v2`). El reproductor avisa cada ~100 ms; en v1 cada imagen
+  quedaba hasta 100 ms atrasada, la mitad de la ventana de búsqueda. Si la
+  posición no cambia en más de 250 ms se rechaza. Una inferencia de más de 500 ms
   también se rechaza. La tabla está limitada a 64 registros sin buffers de imagen.
 - Pausa, buffering, salto, background, cambios de cámara/orientación y reinicios
   de calibración invalidan asociaciones pendientes. Un resultado sin registro
   o duplicado no puede producir similitud. El valor mostrado vence a los 250 ms.
+- Al terminar el video (`LivePractice.videoEnded`) no se asocian imágenes
+  nuevas, pero las ya capturadas se resuelven si su pose llega en 500 ms. Así el
+  último movimiento del juego no pierde sus últimos cuadros. Tras el final no
+  se muestran avisos.
 - Se requiere quality gate válido y calibración del alumno. Se comparan los seis
   ángulos sin EMA, puesto que la referencia también está sin suavizado. La EMA
   sigue disponible para mostrar las medidas locales de encuadre.
@@ -114,7 +121,8 @@ por Python. Se mantiene el contrato `body-normalized-v1`: centro de caderas como
 origen, distancia entre centros de caderas y hombros como unidad y proporción de
 imagen corregida. No cambia el formato de caché ni requiere otra descarga.
 
-`PoseMatcher` (`pose-window-v1`) exige los seis ángulos y doce posiciones:
+`PoseMatcher` (`pose-window-v2`; v2 solo cambia el reloj, ver arriba) exige
+los seis ángulos y doce posiciones:
 hombros, codos, muñecas, caderas, rodillas y tobillos de ambos lados. El maestro
 debe tener calidad `SINGLE_PERSON`; el alumno sigue pasando por encuadre/calibración.
 Las coordenadas conservan inclinación y nombres anatómicos. No se corrigen
@@ -163,8 +171,9 @@ historial local y su sincronización; ver `../history/README.md`.
 No se aplican pesos por regiones. El primer feedback técnico de Fase 5 se
 documenta en `../feedback/README.md` y usa la misma muestra elegida por el matcher.
 El resultado de pose no certifica ejecución correcta, frontalidad o seguridad.
-La recalibración conservadora tras pérdida de pose puede interrumpir baile real;
-debe ajustarse con evidencia antes de flexibilizarla.
+Desde `pose-measurements-v3` una pérdida breve de pose ya no exige recalibrar
+(ver `../README.md`); los márgenes son provisionales hasta probarlos con baile
+real.
 
 Prueba manual Android pendiente: maestro corto de cuerpo completo, ejecución
 similar y luego deliberadamente diferente; verificar que la primera puntúe mejor.

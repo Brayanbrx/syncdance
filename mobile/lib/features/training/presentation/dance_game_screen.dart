@@ -117,6 +117,17 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   String? _saveMessage;
   int _round = 0;
 
+  /// The song ended and its last frames are being analyzed.
+  bool _settling = false;
+
+  /// Where the song paused when the app lost the focus for a moment (the
+  /// notification shade, a call banner); it goes on from there after the
+  /// learner is back in position. Null otherwise.
+  int? _resumeAtMs;
+
+  /// A song started and not finished, playing or paused that way.
+  bool get _midSong => _phase == _Phase.playing || _resumeAtMs != null;
+
   int get _durationMs => widget.saved.reference.metadata.durationMs;
 
   bool get _running {
@@ -131,6 +142,9 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   }
 
   int get _position => _player?.value.position.inMilliseconds ?? 0;
+
+  /// The rate the master plays at now, for the capture clock.
+  double get _playbackRate => _player?.value.playbackSpeed ?? 1.0;
 
   @override
   void initState() {
@@ -182,6 +196,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
       (await _calibrationLog)?.record(calibrated: calibrated);
 
   void _newRound() {
+    _resumeAtMs = null;
     _practice?.removeListener(_redraw);
     _practice?.dispose();
     _attempt.start();
@@ -242,6 +257,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
     timestampMs: frame.timestampMs,
     running: _running,
     positionMs: _position,
+    speed: _playbackRate,
   );
 
   void _startCountdown() {
@@ -271,19 +287,41 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   Future<void> _play() async {
     final player = _player;
     if (player == null || !mounted) return;
+    final from = _resumeAtMs;
     setState(() {
       _phase = _Phase.playing;
-      _startedAt = DateTime.now().toUtc();
+      _resumeAtMs = null;
+      // A paused song keeps the start of the round.
+      if (from == null) _startedAt = DateTime.now().toUtc();
     });
     _practice?.invalidate();
-    await player.seekTo(Duration.zero);
+    await player.seekTo(Duration(milliseconds: from ?? 0));
     if (mounted && _phase == _Phase.playing) await player.play();
+  }
+
+  /// The app lost the focus mid-song: the camera stops, so the song pauses
+  /// and the learner gets back into position to go on, hands-free.
+  void _suspend() {
+    _resumeAtMs = _position;
+    _phase = _Phase.positioning;
+    _lastRated = null;
+    _practice?.invalidate();
+    unawaited(_player?.pause().catchError((Object _) {}));
   }
 
   void _videoChanged() {
     final player = _player;
     if (player == null || !mounted) return;
-    _practice?.videoChanged(running: _running, positionMs: _position);
+    if (_phase == _Phase.playing && player.value.isCompleted) {
+      // The last frames are still being analyzed: they count (see _finish).
+      _practice?.videoEnded();
+    } else {
+      _practice?.videoChanged(
+        running: _running,
+        positionMs: _position,
+        speed: _playbackRate,
+      );
+    }
     if (_phase != _Phase.playing) return;
     final rated = _game!.advance(_position);
     if (rated.isNotEmpty) _show(rated.last);
@@ -305,18 +343,32 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   }
 
   Future<void> _finish({required bool reachedVideoEnd}) async {
-    if (_phase != _Phase.playing) return;
+    if (!_midSong || _settling) return;
+    if (reachedVideoEnd) {
+      // Like every move during the song, the last one waits for the poses
+      // of its final frames before it is rated.
+      _settling = true;
+      await Future<void>.delayed(
+        const Duration(milliseconds: DanceGame.settleMs),
+      );
+      _settling = false;
+      if (_phase != _Phase.playing) return;
+    }
     final round = _round;
     _practice?.invalidate();
     unawaited(_player?.pause().catchError((Object _) {}));
     final result = _game!.finish();
     final summary = _session!.finish(reachedVideoEnd: reachedVideoEnd);
-    setState(() {
+    void show() {
       _phase = _Phase.finished;
+      _resumeAtMs = null;
       _result = result;
       _lastRated = null;
       _saveMessage = 'Guardando resultado…';
-    });
+    }
+
+    // Left during the wait: the result is still kept.
+    mounted ? setState(show) : show();
     final now = DateTime.now().toUtc();
     final log = await _calibrationLog;
     final tries = await log?.pending() ?? CalibrationCount.none;
@@ -380,7 +432,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
   /// first; an abandoned class is not saved to the history.
   Future<void> _abandon() async {
     final player = _player;
-    if (_phase == _Phase.playing) {
+    if (_midSong) {
       await player?.pause().catchError((Object _) {});
       if (!mounted) return;
       final leave = await showDialog<bool>(
@@ -430,12 +482,24 @@ class _DanceGameScreenState extends State<DanceGameScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) return;
-    // Leaving the app ends the song: there is no hands-free way to resume.
-    if (_phase == _Phase.playing) {
-      unawaited(_finish(reachedVideoEnd: false));
-    } else if (_phase == _Phase.countdown) {
-      setState(_cancelCountdown);
+    switch (state) {
+      case AppLifecycleState.resumed:
+        return;
+      case AppLifecycleState.inactive:
+        // A moment away (the notification shade, a call banner): pause and
+        // go on later instead of ending the song.
+        if (_phase == _Phase.playing && !_settling) {
+          setState(_suspend);
+        } else if (_phase == _Phase.countdown) {
+          setState(_cancelCountdown);
+        }
+      case _:
+        // Leaving the app ends the song and keeps what was danced.
+        if (_midSong) {
+          unawaited(_finish(reachedVideoEnd: false));
+        } else if (_phase == _Phase.countdown) {
+          setState(_cancelCountdown);
+        }
     }
   }
 
@@ -528,7 +592,7 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                           onMeasurements: _measured,
                           onInvalidated: _invalidated,
                           onPoseError: (message) {
-                            if (_phase == _Phase.playing) {
+                            if (_midSong) {
                               unawaited(_finish(reachedVideoEnd: false));
                             } else if (_phase == _Phase.countdown) {
                               _cancelCountdown();
@@ -542,6 +606,13 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  if (_resumeAtMs case final at?)
+                                    GameBanner(
+                                      text:
+                                          'Canción en pausa en ${clockTime(at)}. '
+                                          'Vuelve a tu lugar: sigue sola desde '
+                                          'ahí.',
+                                    ),
                                   GameBanner(
                                     text: positioningGuidance(
                                       _measurements,
@@ -564,6 +635,12 @@ class _DanceGameScreenState extends State<DanceGameScreen>
                                 fontSize: 120,
                                 fontWeight: FontWeight.bold,
                               ),
+                            ),
+                          if (_phase == _Phase.countdown &&
+                              _measurements?.roomForArms == false)
+                            const Align(
+                              alignment: Alignment.bottomCenter,
+                              child: GameBanner(text: armsRoomHint),
                             ),
                           if (_phase == _Phase.playing &&
                               _measurements?.canMeasure != true)

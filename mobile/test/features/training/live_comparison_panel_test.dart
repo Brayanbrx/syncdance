@@ -166,16 +166,20 @@ void main() {
       captureAt(1500);
       await resultAt(1500, valid: false);
       expect(find.textContaining('Similitud de pose:'), findsNothing);
-      // Quality loss requires a fresh calibration window.
+      // A short quality loss keeps the framing: measured again at once,
+      // without standing still in the middle of the routine.
       captureAt(1600);
       await resultAt(1600);
-      expect(find.textContaining('Similitud de pose:'), findsNothing);
+      expect(find.textContaining('100/100'), findsOneWidget);
       final summary = session.finish(reachedVideoEnd: false);
-      expect(summary.evaluatedMs, 200);
+      // Each frame is bound to the video position at its capture, which runs
+      // on between the player's reports: 100, 150, 1600, 1550 and 1700 ms
+      // fall in four 100 ms bins.
+      expect(summary.evaluatedMs, 400);
       expect(summary.score, 100);
       expect(summary.meanPositionError, 0);
       expect(summary.positionScore, 100);
-      expect(summary.coverage, 0.05);
+      expect(summary.coverage, 0.1);
       // A new reference needs fresh sustained evidence before guidance appears.
       reference = MotionReference(reference.metadata, [
         for (final sample in reference.samples)
@@ -225,7 +229,7 @@ void main() {
       expect(find.text(correction), findsNothing);
       expect(highlights(), isEmpty);
       // Closing a summary still prevents later feedback/scoring from rewriting it.
-      expect(summary.evaluatedMs, 200);
+      expect(summary.evaluatedMs, 400);
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 1));
       expect(tester.takeException(), isNull);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../pose/pose_measurements.dart';
 import 'body_features_panel.dart';
+import 'game_widgets.dart' show armsRoomHint;
 
 class PoseMeasurementsPanel extends StatelessWidget {
   const PoseMeasurementsPanel({
@@ -33,6 +34,9 @@ class PoseMeasurementsPanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(message, textAlign: TextAlign.center),
+        if (measurements.quality == PoseQuality.ready &&
+            !measurements.roomForArms)
+          const Text(armsRoomHint, textAlign: TextAlign.center),
         if (measurements.quality == PoseQuality.ready &&
             !measurements.canMeasure)
           Padding(

@@ -13,7 +13,7 @@ El móvil envía cada resumen `local-session-v1` congelado:
 | `routine` + `reference_version` | `reference.routine` / `reference.version` | También se acepta `reference` (PK) |
 | `started_at`, `finished_at` | UTC con `Z` | `status`: `COMPLETED` |
 | `duration_ms`, `evaluated_ms` | `summary` | `duration_ms` debe coincidir con la referencia |
-| `pose_score`, `overall_score` | `summary.score` | En `pose-window-v1` el score global es solo de pose |
+| `pose_score`, `overall_score` | `summary.score` | En `pose-window-v1` y `v2` el score global es solo de pose |
 | `timing_score` | — | `null` hasta validar una métrica temporal |
 | `angle_score`, `position_score`, `mean_error_degrees`, `mean_position_error` | `summary` | `null` si `evaluated_ms == 0` |
 | `reached_video_end` | `summary` | |

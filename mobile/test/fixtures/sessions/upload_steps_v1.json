@@ -43,7 +43,7 @@
   "duration_ms": 250,
   "evaluated_ms": 200,
   "reached_video_end": false,
-  "scoring_version": "pose-window-v1",
+  "scoring_version": "pose-window-v2",
   "summary_version": "pose-summary-v1",
   "feedback_version": "geometric-feedback-v2",
   "follow_mode": "same-side",

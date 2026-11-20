@@ -30,7 +30,10 @@ class PoseMatch {
 /// Initial equal component weights and one-torso cutoff require physical validation.
 class PoseMatcher {
   const PoseMatcher(this.reference);
-  static const version = 'pose-window-v1';
+
+  /// v2: frames are bound to the video position at capture time (between
+  /// the player's reports, at its speed); v1 used the last report.
+  static const version = 'pose-window-v2';
   static const joints = [
     Joint.leftShoulder,
     Joint.rightShoulder,
@@ -53,10 +56,12 @@ class PoseMatcher {
         joints.any((joint) => !pose.points.containsKey(joint))) {
       return null;
     }
-    final center = ReferenceTimeline(
+    final centerIndex = ReferenceTimeline(
       reference,
-    ).at(Duration(milliseconds: videoMs));
-    if (center == null) return null;
+    ).indexAt(Duration(milliseconds: videoMs));
+    if (centerIndex == null) return null;
+    final samples = reference.samples;
+    final center = samples[centerIndex];
     PoseMatch? measure(MotionSample sample) {
       if (sample.quality != 'SINGLE_PERSON') return null;
       final angularError = AngleMatcher.meanError(
@@ -89,8 +94,6 @@ class PoseMatcher {
 
     var best = measure(center);
     if (best == null) return null;
-    final samples = reference.samples;
-    final centerIndex = samples.indexOf(center);
     for (final direction in [-1, 1]) {
       for (
         var i = centerIndex + direction;

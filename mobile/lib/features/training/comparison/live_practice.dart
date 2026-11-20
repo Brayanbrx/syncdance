@@ -45,6 +45,9 @@ class LivePractice extends ChangeNotifier {
   Object? _orientation;
   bool _disposed = false;
 
+  /// The video ended; frames captured before the end may still arrive.
+  bool _ended = false;
+
   int get _now => _nowMs?.call() ?? _watch.elapsedMilliseconds;
   PoseMatch? get match => _match;
   FeedbackCue? get activeCue => _feedback.active;
@@ -68,6 +71,7 @@ class LivePractice extends ChangeNotifier {
   /// generation: drop pending bindings, the score and the visible cue.
   void invalidate() {
     if (_disposed) return;
+    _ended = false;
     _clock.invalidate();
     _expiry?.cancel();
     _match = null;
@@ -75,12 +79,38 @@ class LivePractice extends ChangeNotifier {
     notifyListeners();
   }
 
-  void videoChanged({required bool running, required int positionMs}) {
+  /// [speed] is the playback rate (learn mode slows the master).
+  void videoChanged({
+    required bool running,
+    required int positionMs,
+    double speed = 1.0,
+  }) {
     if (!running) {
-      invalidate();
+      // After the end the player stays stopped: that is not a pause, so the
+      // frames still on their way are kept (see [videoEnded]).
+      if (!_ended) invalidate();
       return;
     }
-    _clock.report(videoMs: positionMs, nowMs: _now, playing: true);
+    _ended = false;
+    _clock.report(
+      videoMs: positionMs,
+      nowMs: _now,
+      playing: true,
+      speed: speed,
+    );
+  }
+
+  /// The video played to its end. Frames captured before it still count
+  /// when their pose arrives (inference is late, as every move's settle time
+  /// assumes); nothing captured after it is bound, and no cue is shown.
+  void videoEnded() {
+    if (_disposed || _ended) return;
+    _ended = true;
+    _clock.end(nowMs: _now);
+    _expiry?.cancel();
+    _match = null;
+    _feedback.invalidate(_now);
+    notifyListeners();
   }
 
   void frameCaptured({
@@ -89,13 +119,14 @@ class LivePractice extends ChangeNotifier {
     required int timestampMs,
     required bool running,
     required int positionMs,
+    double speed = 1.0,
   }) {
     if (_generation != generation || _orientation != orientation) {
       invalidate();
       _generation = generation;
       _orientation = orientation;
     }
-    videoChanged(running: running, positionMs: positionMs);
+    videoChanged(running: running, positionMs: positionMs, speed: speed);
     _clock.capture(timestampMs: timestampMs, nowMs: _now);
   }
 
@@ -108,7 +139,8 @@ class LivePractice extends ChangeNotifier {
     final videoMs = _clock.resolve(timestampMs: pose.timestampMs, nowMs: _now);
     _expiry?.cancel();
     // Reference features are unsmoothed: avoid adding display EMA delay.
-    final features = running && videoMs != null && measurements.canMeasure
+    final features =
+        (running || _ended) && videoMs != null && measurements.canMeasure
         ? const BodyFeatureExtractor().extract(pose)
         : null;
     final match = features != null && videoMs != null
@@ -116,7 +148,7 @@ class LivePractice extends ChangeNotifier {
         : null;
     _match = match;
     if (videoMs != null) _session?.record(videoMs, match);
-    if (match != null && coaching) {
+    if (match != null && coaching && !_ended) {
       final presentations = _feedback.presentations;
       _feedback.update(
         captureMs: pose.timestampMs,

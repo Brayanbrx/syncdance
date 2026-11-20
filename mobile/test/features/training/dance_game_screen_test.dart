@@ -214,6 +214,8 @@ class GameHarness {
       isCompleted: true,
     );
     await tester.pump();
+    // The last move waits for the poses of its final frames, like the rest.
+    await tester.pump(const Duration(milliseconds: DanceGame.settleMs));
     await tester.pump();
   }
 }
@@ -419,6 +421,69 @@ void main() {
     await game.countdown();
     expect(game.player.value.isPlaying, isTrue);
     expect(game.cues, isEmpty);
+  });
+
+  testWidgets('a moment away pauses the song; it goes on from there', (
+    tester,
+  ) async {
+    addTearDown(
+      () => tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
+    final game = GameHarness(tester);
+    await game.mount();
+    await game.calibrate();
+    await game.countdown();
+    for (var position = 0; position <= 1200; position += 100) {
+      await game.playAt(position);
+    }
+    // The notification shade: the camera stops, the song pauses.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    expect(game.player.value.isPlaying, isFalse);
+    expect(find.textContaining('Canción en pausa en 0:01'), findsOneWidget);
+    expect(game.store.records, isEmpty);
+
+    // Back: in position again, and the song goes on where it was.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await game.calibrate();
+    await game.countdown();
+    expect(game.player.value.isPlaying, isTrue);
+    expect(game.player.value.position, const Duration(milliseconds: 1200));
+    for (var position = 1300; position <= 2900; position += 100) {
+      await game.playAt(position);
+    }
+    await game.complete();
+    final saved = game.store.records.values.single;
+    expect(saved.summary.reachedVideoEnd, isTrue);
+    expect(saved.game!.counts['miss'], 0);
+  });
+
+  testWidgets('leaving the app while paused ends the song and keeps it', (
+    tester,
+  ) async {
+    addTearDown(
+      () => tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
+    final game = GameHarness(tester);
+    await game.mount();
+    await game.calibrate();
+    await game.countdown();
+    for (var position = 0; position <= 1200; position += 100) {
+      await game.playAt(position);
+    }
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    await tester.pump();
+    await tester.pump();
+    final saved = game.store.records.values.single;
+    expect(saved.summary.reachedVideoEnd, isFalse);
+    expect(saved.summary.evaluatedMs, greaterThan(0));
   });
 
   testWidgets('leaving the frame is unmeasured, never a miss', (tester) async {

@@ -84,12 +84,20 @@ class PoseMeasurements {
     required this.calibrationProgress,
     required this.calibration,
     required Map<BodyAngle, double> angles,
+    this.roomForArms = true,
   }) : angles = Map.unmodifiable(angles);
 
   final PoseQuality quality;
   final double calibrationProgress;
+
+  /// Kept through a short stretch of frames that cannot be measured (see
+  /// [PoseMeasurementProcessor.graceMs]); those frames still never measure.
   final FramingCalibration? calibration;
   final Map<BodyAngle, double> angles;
+
+  /// Whether raised hands would still fit above the head. Guidance only: it
+  /// never blocks calibration or measuring.
+  final bool roomForArms;
   bool get canMeasure => quality == PoseQuality.ready && calibration != null;
 }
 
@@ -127,7 +135,24 @@ class AngleSmoother {
 
 /// One instance per camera screen. Call reset on pause, rotation and expiry.
 class PoseMeasurementProcessor {
-  static const version = 'pose-measurements-v2';
+  /// v3: a calibration survives a short stretch of unmeasurable frames (an
+  /// arm out of the picture, a blurred frame) instead of asking the learner
+  /// to stand still again mid-dance.
+  static const version = 'pose-measurements-v3';
+
+  /// How long a calibrated framing survives without a ready frame
+  /// (provisional, like every threshold here).
+  static const graceMs = 3000;
+
+  /// Back from such a stretch, a torso this much larger or smaller than at
+  /// calibration means the learner moved toward or away from the camera:
+  /// the framing is calibrated again.
+  static const maxScaleChange = 0.25;
+
+  /// Room above the nose for raised hands, as a share of the nose-to-ankle
+  /// height (provisional; guidance only).
+  static const armsRoom = 0.3;
+
   final _smoother = AngleSmoother();
   int? _lastTime;
   double? _aspect;
@@ -136,11 +161,15 @@ class PoseMeasurementProcessor {
   int _samples = 0;
   double _scaleSum = 0;
   FramingCalibration? _calibration;
+  int? _lastReadyMs;
+  bool _interrupted = false;
 
   void reset() {
     _lastTime = null;
     _aspect = null;
     _calibration = null;
+    _lastReadyMs = null;
+    _interrupted = false;
     _clearWindow();
     _smoother.reset();
   }
@@ -163,9 +192,25 @@ class PoseMeasurementProcessor {
     _aspect = frame.imageAspectRatio;
     final quality = const PoseQualityGate().evaluate(frame);
     if (quality != PoseQuality.ready) {
-      _calibration = null;
       _clearWindow();
       _smoother.reset();
+      final calibration = _calibration;
+      final lastReady = _lastReadyMs;
+      // Unmeasurable either way; within the grace the framing is kept so the
+      // learner can go on dancing without standing still again.
+      if (calibration != null &&
+          lastReady != null &&
+          frame.timestampMs - lastReady <= graceMs) {
+        _interrupted = true;
+        return PoseMeasurements(
+          quality: quality,
+          calibrationProgress: 1,
+          calibration: calibration,
+          angles: {},
+        );
+      }
+      _calibration = null;
+      _interrupted = false;
       return PoseMeasurements(
         quality: quality,
         calibrationProgress: 0,
@@ -173,6 +218,16 @@ class PoseMeasurementProcessor {
         angles: {},
       );
     }
+
+    final calibration = _calibration;
+    if (calibration != null && _interrupted) {
+      _interrupted = false;
+      final scale = _torso(frame).scale;
+      if ((scale / calibration.torsoScale - 1).abs() > maxScaleChange) {
+        _calibration = null;
+      }
+    }
+    _lastReadyMs = frame.timestampMs;
 
     var progress = 1.0;
     if (_calibration == null) {
@@ -208,6 +263,16 @@ class PoseMeasurementProcessor {
       calibrationProgress: progress,
       calibration: _calibration,
       angles: angles,
+      roomForArms: _roomForArms(frame),
     );
+  }
+
+  static bool _roomForArms(PoseFrame frame) {
+    final nose = frame.landmark(Joint.nose)!.y;
+    final ankles = math.max(
+      frame.landmark(Joint.leftAnkle)!.y,
+      frame.landmark(Joint.rightAnkle)!.y,
+    );
+    return nose >= armsRoom * (ankles - nose);
   }
 }

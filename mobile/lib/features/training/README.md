@@ -271,8 +271,17 @@ Logrado:
 - `AngleSmoother`: EMA con constante temporal 150 ms, independiente de frecuencia
   para entradas constantes. Suaviza los seis ángulos, no la imagen ni el esqueleto.
   No completa puntos ausentes ni transforma un dato inválido en válido.
-- Se retiran medidas y se reinician filtro/calibración ante mala calidad,
-  hueco > 500 ms, cambio de proporción, pausa, giro, cámara nueva o petición manual.
+- Un cuadro de mala calidad nunca se mide y reinicia el filtro. Desde
+  `pose-measurements-v3` la calibración se conserva hasta 3 s sin cuadros
+  listos (un brazo fuera de imagen, un cuadro borroso al bailar). Al volver, se
+  rehace solo si el torso cambió más de un 25 % de tamaño, es decir, si el
+  alumno se acercó o alejó. En v2 un solo cuadro malo obligaba a quedarse
+  quieto 1 s; bailando eso casi nunca ocurría y la medición no volvía.
+- Hueco > 500 ms, cambio de proporción, pausa, giro, cámara nueva o petición
+  manual reinician filtro y calibración.
+- `roomForArms` avisa al posicionarse si las manos levantadas no cabrían sobre
+  la cabeza (nariz por debajo del 30 % de la altura nariz-tobillos). Es solo
+  una guía: no bloquea la calibración.
 - **Recalibrar encuadre** permite reiniciar después de la calibración inicial.
   El overlay puede seguir mostrando puntos parciales aunque no haya medidas.
 
@@ -284,8 +293,8 @@ reset, EMA temporal, ausencia de datos, UI de guía y recalibración integrada.
 
 Límites: estos umbrales no están ajustados con el teléfono. La calibración es de
 estabilidad/encuadre, no una calibración intrínseca de cámara o biométrica; no
-comprueba frontalidad. Recalibrar tras una oclusión breve es deliberadamente
-conservador y se debe revisar con baile real. ML Kit no permite confirmar
+comprueba frontalidad. Los 3 s de gracia y el 25 % de escala son
+provisionales y se deben revisar con baile real. ML Kit no permite confirmar
 `MULTIPLE_PEOPLE`: no se simula ese estado. No se cierra aún la Fase 2.
 
 Prueba manual pendiente: cuerpo completo/recortado, cerca/lejos, iluminación,

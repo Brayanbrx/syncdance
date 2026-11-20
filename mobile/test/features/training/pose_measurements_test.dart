@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:syncdance_mobile/features/training/pose/body_features.dart';
 import 'package:syncdance_mobile/features/training/pose/pose_frame.dart';
 import 'package:syncdance_mobile/features/training/pose/pose_measurements.dart';
+import 'package:syncdance_mobile/features/training/presentation/game_widgets.dart';
 import 'package:syncdance_mobile/features/training/presentation/pose_measurements_panel.dart';
 import 'pose_test_samples.dart';
 
@@ -130,17 +131,80 @@ void main() {
     },
   );
 
-  test('invalid pose clears calibration and cannot leak previous angles', () {
+  /// The fixture at 70 % of its size: same pose, the learner farther away.
+  PoseFrame farther() => modify(
+    fixture(),
+    (p) => PoseLandmark(
+      joint: p.joint,
+      x: 0.5 + (p.x - 0.5) * 0.7,
+      y: 0.5 + (p.y - 0.5) * 0.7,
+      confidence: p.confidence,
+    ),
+  );
+  final empty = modify(fixture(), (_) => null);
+
+  test('a short unmeasurable stretch keeps the framing, never the angles', () {
     final processor = PoseMeasurementProcessor();
     calibrate(processor);
-    final invalid = processor.process(
-      at(1100, frame: modify(fixture(), (_) => null)),
-    )!;
+    final invalid = processor.process(at(1100, frame: empty))!;
     expect(invalid.canMeasure, isFalse);
     expect(invalid.angles, isEmpty);
-    expect(invalid.calibration, isNull);
-    expect(processor.process(at(1200))!.canMeasure, isFalse);
-    expect(calibrate(processor, start: 1300).canMeasure, isTrue);
+    expect(invalid.calibration, isNotNull);
+    // Back in the picture at the same distance: measured at once, with no
+    // need to stand still again in the middle of a dance.
+    final back = processor.process(at(1200))!;
+    expect(back.canMeasure, isTrue);
+    expect(back.angles.length, 6);
+  });
+
+  test('a long stretch or another distance asks for a new calibration', () {
+    final processor = PoseMeasurementProcessor();
+    calibrate(processor); // last ready frame at 1000 ms
+    PoseMeasurements? last;
+    var t = 1000;
+    while (t - 1000 <= PoseMeasurementProcessor.graceMs) {
+      t += 400; // under the 500 ms gap that resets everything
+      last = processor.process(at(t, frame: empty));
+    }
+    expect(last!.calibration, isNull);
+    expect(processor.process(at(t + 100))!.canMeasure, isFalse);
+    expect(calibrate(processor, start: t + 200).canMeasure, isTrue);
+
+    final moved = PoseMeasurementProcessor();
+    calibrate(moved);
+    moved.process(at(1100, frame: empty));
+    final away = moved.process(at(1200, frame: farther()))!;
+    expect(away.canMeasure, isFalse);
+    expect(away.calibrationProgress, lessThan(1));
+  });
+
+  test('positioning asks to step back when raised hands would not fit', () {
+    PoseMeasurements ready({required bool room}) => PoseMeasurements(
+      quality: PoseQuality.ready,
+      calibrationProgress: 0.5,
+      calibration: null,
+      angles: const {},
+      roomForArms: room,
+    );
+    expect(
+      positioningGuidance(ready(room: false), null),
+      contains(armsRoomHint),
+    );
+    expect(
+      positioningGuidance(ready(room: true), null),
+      isNot(contains(armsRoomHint)),
+    );
+  });
+
+  test('framing guidance tells when raised hands would not fit', () {
+    // The fixture fills the picture from the nose (0.10) to the feet (0.95).
+    expect(PoseMeasurementProcessor().process(at(0))!.roomForArms, isFalse);
+    expect(
+      PoseMeasurementProcessor().process(at(0, frame: farther()))!.roomForArms,
+      isTrue,
+    );
+    // Guidance only: the full-size fixture still calibrates.
+    expect(calibrate(PoseMeasurementProcessor()).canMeasure, isTrue);
   });
 
   test('gap, explicit reset and changed aspect demand new calibration', () {

@@ -34,13 +34,13 @@ class AngleMatcher {
 
   AngleMatch? compare(Map<BodyAngle, double> angles, int videoMs) {
     if (!_complete(angles)) return null;
-    final center = ReferenceTimeline(
+    final centerIndex = ReferenceTimeline(
       reference,
-    ).at(Duration(milliseconds: videoMs));
-    if (center == null || !_complete(center.angles)) return null;
+    ).indexAt(Duration(milliseconds: videoMs));
+    if (centerIndex == null) return null;
     final samples = reference.samples;
-    // The timeline is regular at 12 Hz; locate the already validated sample.
-    final centerIndex = samples.indexOf(center);
+    final center = samples[centerIndex];
+    if (!_complete(center.angles)) return null;
     AngleMatch? best;
     void consider(MotionSample sample) {
       final error = meanError(angles, sample.angles)!;

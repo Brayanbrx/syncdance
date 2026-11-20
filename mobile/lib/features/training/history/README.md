@@ -91,7 +91,8 @@ historial local. No usa red durante la práctica.
   **Sincronizar ahora** la repite. Una sola ejecución por cuenta/servidor.
 - Envía los pendientes del más antiguo al más reciente con
   `SavedSession.toUpload()`; el contrato está en `backend/apps/training/README.md`.
-  En `pose-window-v1` el score global es solo de pose y `timing_score` es null.
+  En `pose-window-v1` y `v2` el score global es solo de pose y `timing_score`
+  es null.
 - 201 o 200 (ya guardada, idempotente por UUID) → marcador `synced`.
 - 400/403/404/409 → marcador `rejected` con motivo; no se reintenta solo. El
   detalle ofrece **Volver a intentar el envío**.

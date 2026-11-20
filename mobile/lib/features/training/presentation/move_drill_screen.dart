@@ -126,6 +126,9 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
 
   int get _position => _player?.value.position.inMilliseconds ?? 0;
 
+  /// The rate the master plays at now, for the capture clock.
+  double get _playbackRate => _player?.value.playbackSpeed ?? 1.0;
+
   SessionAccumulator _newSession() => SessionAccumulator(
     _durationMs,
     followMode: widget.followMode,
@@ -202,6 +205,7 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
     timestampMs: frame.timestampMs,
     running: _running,
     positionMs: _position,
+    speed: _playbackRate,
   );
 
   void _startCountdown() {
@@ -254,7 +258,11 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
   void _videoChanged() {
     final player = _player;
     if (player == null || !mounted) return;
-    _practice.videoChanged(running: _running, positionMs: _position);
+    _practice.videoChanged(
+      running: _running,
+      positionMs: _position,
+      speed: _playbackRate,
+    );
     if (_phase != _Phase.playing || _looping) return;
     final value = player.value;
     if (value.hasError) {
@@ -463,6 +471,12 @@ class _MoveDrillScreenState extends State<MoveDrillScreen>
                               fontSize: 120,
                               fontWeight: FontWeight.bold,
                             ),
+                          ),
+                        if (_phase == _Phase.countdown &&
+                            _measurements?.roomForArms == false)
+                          const Align(
+                            alignment: Alignment.bottomCenter,
+                            child: GameBanner(text: armsRoomHint),
                           ),
                         if (_phase == _Phase.playing &&
                             _measurements?.canMeasure != true)

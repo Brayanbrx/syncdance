@@ -30,9 +30,15 @@ String positioningGuidance(PoseMeasurements? measurements, String? poseError) {
     PoseQuality.tooFar => 'Acércate un poco.',
     PoseQuality.ready =>
       'Quieto un momento… '
-          '${(measurements.calibrationProgress * 100).round()} %',
+          '${(measurements.calibrationProgress * 100).round()} %'
+          '${measurements.roomForArms ? '' : '\n$armsRoomHint'}',
   };
 }
+
+/// Shown while getting into position: raised hands would leave the picture,
+/// and a move that leaves it cannot be measured.
+const armsRoomHint =
+    'Deja espacio sobre la cabeza para subir los brazos: aléjate un paso.';
 
 class GameBanner extends StatelessWidget {
   const GameBanner({required this.text, super.key});

@@ -100,6 +100,36 @@ void main() {
     expect(notifications, greaterThan(0));
   });
 
+  test('at the end, frames taken before it still count once measured', () {
+    // Captured while playing; the pose arrives after the video ended.
+    now = 1900;
+    practice.videoChanged(running: true, positionMs: 1900);
+    practice.frameCaptured(
+      generation: 1,
+      orientation: 'portrait',
+      timestampMs: 1900,
+      running: true,
+      positionMs: 1900,
+    );
+    practice.videoEnded();
+    // The stopped player keeps reporting: it is the end, not a pause.
+    practice.videoChanged(running: false, positionMs: 2000);
+    now = 2100;
+    practice.frameCaptured(
+      generation: 1,
+      orientation: 'portrait',
+      timestampMs: 2050,
+      running: false,
+      positionMs: 2000,
+    );
+    practice.measured(at(1900), ready, running: false);
+    expect(session.evaluatedMs, 100);
+    // Nothing captured after the end is bound, and no cue is shown.
+    practice.measured(at(2050), ready, running: false);
+    expect(session.evaluatedMs, 100);
+    expect(practice.activeCue, isNull);
+  });
+
   test('a paused master produces no score and no evidence', () {
     step(100, running: false);
     expect(practice.match, isNull);

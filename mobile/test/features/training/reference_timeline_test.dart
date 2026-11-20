@@ -5,6 +5,27 @@ import 'package:syncdance_mobile/features/training/playback/reference_timeline.d
 import '../routines/reference_test_samples.dart';
 
 void main() {
+  test('indexAt finds the same sample as at, by position', () {
+    final reference = MotionReference(
+      ReferenceMetadata.fromJson({...metadataJson(), 'duration_ms': 1000}),
+      [
+        for (var i = 0; i < 12; i++)
+          MotionSample((i * 1000 / 12).round(), const {}, 'SINGLE_PERSON'),
+      ],
+      1,
+    );
+    final timeline = ReferenceTimeline(reference);
+    for (final ms in [0, 83, 84, 500, 999]) {
+      final index = timeline.indexAt(Duration(milliseconds: ms))!;
+      expect(
+        reference.samples[index],
+        same(timeline.at(Duration(milliseconds: ms))),
+      );
+    }
+    expect(timeline.indexAt(const Duration(milliseconds: 1000)), isNull);
+    expect(timeline.indexAt(const Duration(milliseconds: -1)), isNull);
+  });
+
   test(
     'video seeks select exact samples including gaps, without carrying old measures',
     () {

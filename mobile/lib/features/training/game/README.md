@@ -27,8 +27,11 @@ Rutinas → referencia guardada → Abrir maestro (con video descargado) →
    cada uno con **Practicar** (ver abajo). **Bailar otra vez** reinicia sin
    salir.
 
-Volver atrás durante la canción o salir de la app termina la partida y la
-guarda; no hay forma manos libres de reanudar.
+Salir de la app termina la partida y la guarda. Un momento fuera, como bajar
+la barra de notificaciones o un aviso de llamada (estado `inactive`), apaga
+la cámara. Por eso la canción se pausa; al volver te colocas de nuevo y sigue
+sola desde donde iba, tras la cuenta. Volver atrás pregunta antes de
+abandonar.
 
 ## Pasos del instructor (`routine-steps-v1`)
 
@@ -75,7 +78,8 @@ se comparan las poses.
   (30/45/60/75/90 %). Exigen bailar visible; la similitud técnica nunca
   penaliza datos ausentes.
 - **Cierre:** un movimiento se califica 400 ms después de terminar, para esperar
-  la inferencia tardía.
+  la inferencia tardía. Al final de la canción también se esperan esos 400 ms
+  antes de calificar el último.
 
 Todos los umbrales son provisionales: se ajustan con el set controlado de
 `mobile/VALIDACION_FISICA.md` y cada ajuste sube `DanceGame.version`.
